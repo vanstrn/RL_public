@@ -14,24 +14,28 @@ from keras.layers import Dense, Input
 from keras.layers.merge import Add, Multiply
 from keras.optimizers import Adam
 
-def CreateDNN(inputShape,outputShape,optimizer,layerSizes=[100,100,100]):
+def CreateDNN(inputShape,outputShape,optimizer=None,layerSizes=[100,100,100]):
     """
     Creates a DNN, with a specified optimizer.
     """
-    input = Input(shape=inputShape)
-
+    model   = Sequential()
     for i,size in enumerate(layerSizes):
         if i==0:
-            h = Dense(size, activation='relu')(input)
+            model.add(Dense(24, input_dim=inputShape[0], activation="relu"))
         else:
-            h = Dense(size, activation='relu')(h)
+            model.add(Dense(size, activation="relu"))
+    model.add(Dense(outputShape))
 
-    output = Dense(outputShape[0], activation='relu')(h)
 
-    model = Model(input=input, output=output)
+    if optimizer == None:
+        model.compile(loss="mean_squared_error",
+            optimizer=Adam(lr=0.005))
+    else:
+        model.compile(loss="mse", optimizer=optimizer)
 
-    model.compile(loss="mse", optimizer=optimizer)
     return model
+
+
 
 def Create2InDNN(inputShape1,inputShape2,optimizer,layerSizes1=[100,100,100],
     layerSizes2=[100],layerSizes3=[100]):
