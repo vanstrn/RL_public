@@ -1,249 +1,150 @@
-import os
-os.environ["CUDA_VISIBLE_DEVICES"] = ""
+"""
+Asynchonous Advantage Actor Critic implementation in Cart-Pole.
 
-import threading
-import gym
-import multiprocessing
-import numpy as np
+"""
+
 from queue import Queue
-import argparse
-import matplotlib.pyplot as plt
+import numpy as np
+# import gym_cap.envs.const as CONST
+import gym.spaces
 
-
-import tensorflow as tf
-from tensorflow.python import keras
-from tensorflow.python.keras import layers
+def record(episode,
+           episode_reward,
+           worker_idx,
+           global_ep_reward,
+           result_queue,
+           total_loss,
+           num_steps):
+  """Helper function to store score and print statistics.
+  Arguments:
+    episode: Current episode
+    episode_reward: Reward accumulated over the current episode
+    worker_idx: Which thread (worker)
+    global_ep_reward: The moving average of the global reward
+    result_queue: Queue storing the moving average of the scores
+    total_loss: The total loss accumualted over the current episode
+    num_steps: The number of steps the episode took to complete
+  """
+  if global_ep_reward == 0:
+    global_ep_reward = episode_reward
+  else:
+    global_ep_reward = global_ep_reward * 0.99 + episode_reward * 0.01
+  print(
+      f"Episode: {episode} | "
+      f"Moving Average Reward: {int(global_ep_reward)} | "
+      f"Episode Reward: {int(episode_reward)} | "
+      f"Loss: {int(total_loss / float(num_steps) * 1000) / 1000} | "
+      f"Steps: {num_steps} | "
+      f"Worker: {worker_idx}"
+  )
+  result_queue.put(global_ep_reward)
+  return global_ep_reward
 
 class Memory:
-    def __init__(self):
-        self.states = []
-        self.actions = []
-        self.rewards = []
-
-    def store(self, state, action, reward):
-        self.states.append(state)
-        self.actions.append(action)
-        self.rewards.append(reward)
-
-    def clear(self):
-        self.states = []
-        self.actions = []
-        self.rewards = []
-
-class MasterAgent():
   def __init__(self):
-    self.game_name = 'CartPole-v0'
-    save_dir = args.save_dir
-    self.save_dir = save_dir
-    if not os.path.exists(save_dir):
-      os.makedirs(save_dir)
+    self.states = []
+    self.actions = []
+    self.rewards = []
 
-    env = gym.make(self.game_name)
-    self.state_size = env.observation_space.shape[0]
-    self.action_size = env.action_space.n
-    self.opt = tf.train.AdamOptimizer(args.lr, use_locking=True)
-    print(self.state_size, self.action_size)
+  def store(self, state, action, reward):
+    self.states.append(state)
+    self.actions.append(action)
+    self.rewards.append(reward)
 
-    self.global_model = ActorCriticModel(self.state_size, self.action_size)  # global network
-    self.global_model(tf.convert_to_tensor(np.random.random((1, self.state_size)), dtype=tf.float32))
-
-  def train(self):
-    if args.algorithm == 'random':
-      random_agent = RandomAgent(self.game_name, args.max_eps)
-      random_agent.run()
-      return
-
-    res_queue = Queue()
-
-    workers = [Worker(self.state_size,
-                      self.action_size,
-                      self.global_model,
-                      self.opt, res_queue,
-                      i, game_name=self.game_name,
-                      save_dir=self.save_dir) for i in range(multiprocessing.cpu_count())]
-
-    for i, worker in enumerate(workers):
-      print("Starting worker {}".format(i))
-      worker.start()
-
-    moving_average_rewards = []  # record episode reward to plot
-    while True:
-      reward = res_queue.get()
-      if reward is not None:
-        moving_average_rewards.append(reward)
-      else:
-        break
-    [w.join() for w in workers]
-
-    plt.plot(moving_average_rewards)
-    plt.ylabel('Moving average ep reward')
-    plt.xlabel('Step')
-    plt.savefig(os.path.join(self.save_dir,
-                             '{} Moving Average.png'.format(self.game_name)))
-    plt.show()
-
-  def play(self):
-    env = gym.make(self.game_name).unwrapped
-    state = env.reset()
-    model = self.global_model
-    model_path = os.path.join(self.save_dir, 'model_{}.h5'.format(self.game_name))
-    print('Loading model from: {}'.format(model_path))
-    model.load_weights(model_path)
-    done = False
-    step_counter = 0
-    reward_sum = 0
-
-    try:
-      while not done:
-        env.render(mode='rgb_array')
-        policy, value = model(tf.convert_to_tensor(state[None, :], dtype=tf.float32))
-        policy = tf.nn.softmax(policy)
-        action = np.argmax(policy)
-        state, reward, done, _ = env.step(action)
-        reward_sum += reward
-        print("{}. Reward: {}, action: {}".format(step_counter, reward_sum, action))
-        step_counter += 1
-    except KeyboardInterrupt:
-      print("Received Keyboard Interrupt. Shutting down.")
-    finally:
-      env.close()
+  def clear(self):
+    self.states = []
+    self.actions = []
+    self.rewards = []
 
 
+UNKNOWN = -1
+TEAM1_BG = 0
+TEAM2_BG = 1
+TEAM1_GV = 2
+TEAM1_UAV = 3
+TEAM2_GV = 4
+TEAM2_UAV = 5
+TEAM1_FL = 6
+TEAM2_FL = 7
+OBSTACLE = 8
+DEAD = 9
+SELECTED = 10
+COMPLETED = 11
+# UNKNOWN = CONST.UNKNOWN            # -1
+# TEAM1_BG = CONST.TEAM1_BACKGROUND  # 0
+# TEAM2_BG = CONST.TEAM2_BACKGROUND  # 1
+# TEAM1_GV = CONST.TEAM1_UGV         # 2
+# TEAM1_UAV = CONST.TEAM1_UAV        # 3
+# TEAM2_GV = CONST.TEAM2_UGV         # 4
+# TEAM2_UAV = CONST.TEAM2_UAV        # 5
+# TEAM1_FL = CONST.TEAM1_FLAG        # 6
+# TEAM2_FL = CONST.TEAM2_FLAG        # 7
+# OBSTACLE = CONST.OBSTACLE          # 8
+# DEAD = CONST.DEAD                  # 9
+# SELECTED = CONST.SELECTED          # 10
+# COMPLETED = CONST.COMPLETED        # 11
+SIX_MAP_CHANNEL = {UNKNOWN: 0, DEAD: 0,
+                   TEAM1_BG: 1, TEAM2_BG: 1,
+                   TEAM1_GV: 2, TEAM2_GV: 2,
+                   TEAM1_UAV: 3, TEAM2_UAV: 3,
+                   TEAM1_FL: 4, TEAM2_FL: 4,
+                   OBSTACLE: 5}
+class fake_agent:
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+def one_hot_encoder(state, agents=None, vision_radius=19,
+                    flatten=False, locs=None):
+    """Encoding pipeline for CtF state to one-hot representation
+    6-channel one-hot representation of state.
+    State is not binary: team2 is represented with -1.
+    Channels are not symmetrical.
+    :param state: CtF state in raw format
+    :param agents: Agent list of CtF environment
+    :param vision_radius: Size of the vision range (default=9)`
+    :param reverse: Reverse the color. Used for red-perspective (default=False)
+    :param flatten: Return flattened representation (for array output)
+    :param locs: Provide locations instead of agents. (agents must be None)
+    :return oh_state: One-hot encoded state
+    """
+    if agents is None:
+        assert locs is not None
+        agents = [fake_agent(x, y) for x, y in locs]
 
+    vision_lx = 2 * vision_radius + 1
+    vision_ly = 2 * vision_radius + 1
+    oh_state = np.zeros((len(agents), vision_lx, vision_ly, 6), np.float64)
 
-class Worker(threading.Thread):
-  # Set up global variables across different threads
-  global_episode = 0
-  # Moving average reward
-  global_moving_average_reward = 0
-  best_score = 0
-  save_lock = threading.Lock()
+    # team 1 : (1), team 2 : (-1), map elements: (0)
+    map_channel = SIX_MAP_CHANNEL
+    map_color = {UNKNOWN: 1, DEAD: 0,
+                 TEAM1_BG: 0, TEAM2_BG: 1,
+                 TEAM1_GV: 1, TEAM2_GV: -1,
+                 TEAM1_UAV: 1, TEAM2_UAV: -1,
+                 TEAM1_FL: 1, TEAM2_FL: -1,
+                 OBSTACLE: 1}
 
-  def __init__(self,
-               state_size,
-               action_size,
-               global_model,
-               opt,
-               result_queue,
-               idx,
-               game_name='CartPole-v0',
-               save_dir='/tmp'):
-    super(Worker, self).__init__()
-    self.state_size = state_size
-    self.action_size = action_size
-    self.result_queue = result_queue
-    self.global_model = global_model
-    self.opt = opt
-    self.local_model = ActorCriticModel(self.state_size, self.action_size)
-    self.worker_idx = idx
-    self.game_name = game_name
-    self.env = gym.make(self.game_name).unwrapped
-    self.save_dir = save_dir
-    self.ep_loss = 0.0
+    # Expand the observation with wall to avoid dealing with the boundary
+    sx, sy = state.shape
+    _state = np.full((sx + 2 * vision_radius, sy + 2 * vision_radius), OBSTACLE)
+    _state[vision_radius:vision_radius + sx, vision_radius:vision_radius + sy] = state
+    state = _state
 
-  def run(self):
-    total_step = 1
-    mem = Memory()
-    while Worker.global_episode < args.max_eps:
-      current_state = self.env.reset()
-      mem.clear()
-      ep_reward = 0.
-      ep_steps = 0
-      self.ep_loss = 0
+    for idx, agent in enumerate(agents):
+        # Initialize Variables
+        x, y = agent.get_loc()
+        x += vision_radius
+        y += vision_radius
+        vision = state[x - vision_radius:x + vision_radius + 1, y - vision_radius:y + vision_radius + 1]  # extract view
 
-      time_count = 0
-      done = False
-      while not done:
-        logits, _ = self.local_model(
-            tf.convert_to_tensor(current_state[None, :],
-                                 dtype=tf.float32))
-        probs = tf.nn.softmax(logits)
+        # FULL MATRIX OPERATION
+        for channel, val in map_color.items():
+            if val == 1:
+                oh_state[idx, :, :, map_channel[channel]] += (vision == channel).astype(np.int32)
+            elif val == -1:
+                oh_state[idx, :, :, map_channel[channel]] -= (vision == channel).astype(np.int32)
 
-        action = np.random.choice(self.action_size, p=probs.numpy()[0])
-        new_state, reward, done, _ = self.env.step(action)
-        if done:
-          reward = -1
-        ep_reward += reward
-        mem.store(current_state, action, reward)
-
-        if time_count == args.update_freq or done:
-          # Calculate gradient wrt to local model. We do so by tracking the
-          # variables involved in computing the loss by using tf.GradientTape
-          with tf.GradientTape() as tape:
-            total_loss = self.compute_loss(done,
-                                           new_state,
-                                           mem,
-                                           args.gamma)
-          self.ep_loss += total_loss
-          # Calculate local gradients
-          grads = tape.gradient(total_loss, self.local_model.trainable_weights)
-          # Push local gradients to global model
-          self.opt.apply_gradients(zip(grads,
-                                       self.global_model.trainable_weights))
-          # Update local model with new weights
-          self.local_model.set_weights(self.global_model.get_weights())
-
-          mem.clear()
-          time_count = 0
-
-          if done:  # done and print information
-            Worker.global_moving_average_reward = \
-              record(Worker.global_episode, ep_reward, self.worker_idx,
-                     Worker.global_moving_average_reward, self.result_queue,
-                     self.ep_loss, ep_steps)
-            # We must use a lock to save our model and to print to prevent data races.
-            if ep_reward > Worker.best_score:
-              with Worker.save_lock:
-                print("Saving best model to {}, "
-                      "episode score: {}".format(self.save_dir, ep_reward))
-                self.global_model.save_weights(
-                    os.path.join(self.save_dir,
-                                 'model_{}.h5'.format(self.game_name))
-                )
-                Worker.best_score = ep_reward
-            Worker.global_episode += 1
-        ep_steps += 1
-
-        time_count += 1
-        current_state = new_state
-        total_step += 1
-    self.result_queue.put(None)
-
-  def compute_loss(self,
-                   done,
-                   new_state,
-                   memory,
-                   gamma=0.99):
-    if done:
-      reward_sum = 0.  # terminal
+    if flatten:
+        return np.reshape(oh_state, (len(agents), -1))
     else:
-      reward_sum = self.local_model(
-          tf.convert_to_tensor(new_state[None, :],
-                               dtype=tf.float32))[-1].numpy()[0]
-
-    # Get discounted rewards
-    discounted_rewards = []
-    for reward in memory.rewards[::-1]:  # reverse buffer r
-      reward_sum = reward + gamma * reward_sum
-      discounted_rewards.append(reward_sum)
-    discounted_rewards.reverse()
-
-    logits, values = self.local_model(
-        tf.convert_to_tensor(np.vstack(memory.states),
-                             dtype=tf.float32))
-    # Get our advantages
-    advantage = tf.convert_to_tensor(np.array(discounted_rewards)[:, None],
-                            dtype=tf.float32) - values
-    # Value loss
-    value_loss = advantage ** 2
-
-    # Calculate our policy loss
-    policy = tf.nn.softmax(logits)
-    entropy = tf.nn.softmax_cross_entropy_with_logits_v2(labels=policy, logits=logits)
-
-    policy_loss = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=memory.actions,
-                                                                 logits=logits)
-    policy_loss *= tf.stop_gradient(advantage)
-    policy_loss -= 0.01 * entropy
-    total_loss = tf.reduce_mean((0.5 * value_loss + policy_loss))
-    return total_loss
+        return oh_state

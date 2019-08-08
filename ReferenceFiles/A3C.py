@@ -30,7 +30,7 @@ parser.add_argument('--max-eps', default=1000, type=int,
                     help='Global maximum number of episodes to run.')
 parser.add_argument('--gamma', default=0.99,
                     help='Discount factor of rewards.')
-parser.add_argument('--save-dir', default='/home/neale/rl/models', type=str,
+parser.add_argument('--save-dir', default='/tmp/', type=str,
                     help='Directory in which you desire to save the model.')
 args = parser.parse_args()
 
@@ -60,6 +60,7 @@ def record(episode,
            total_loss,
            num_steps):
   """Helper function to store score and print statistics.
+
   Arguments:
     episode: Current episode
     episode_reward: Reward accumulated over the current episode
@@ -87,6 +88,7 @@ def record(episode,
 
 class RandomAgent:
   """Random Agent that will play the specified game
+
     Arguments:
       env_name: Name of the environment to be played
       max_eps: Maximum number of episodes to run agent for.
