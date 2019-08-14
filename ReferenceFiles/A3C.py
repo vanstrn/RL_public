@@ -13,6 +13,7 @@ import matplotlib.pyplot as plt
 import tensorflow as tf
 from tensorflow.python import keras
 from tensorflow.python.keras import layers
+from AC import ActorCritic_DNN
 
 tf.enable_eager_execution()
 
@@ -138,7 +139,7 @@ class MasterAgent():
     self.opt = tf.train.AdamOptimizer(args.lr, use_locking=True)
     print(self.state_size, self.action_size)
 
-    self.global_model = ActorCriticModel(self.state_size, self.action_size)  # global network
+    self.global_model = ActorCritic_DNN(self.state_size, self.action_size)  # global network
     self.global_model(tf.convert_to_tensor(np.random.random((1, self.state_size)), dtype=tf.float32))
 
   def train(self):
@@ -243,7 +244,7 @@ class Worker(threading.Thread):
     self.result_queue = result_queue
     self.global_model = global_model
     self.opt = opt
-    self.local_model = ActorCriticModel(self.state_size, self.action_size)
+    self.local_model = ActorCritic_DNN(self.state_size, self.action_size)
     self.worker_idx = idx
     self.game_name = game_name
     self.env = gym.make(self.game_name).unwrapped

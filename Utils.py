@@ -28,7 +28,7 @@ def record(episode,
   if global_ep_reward == 0:
     global_ep_reward = episode_reward
   else:
-    global_ep_reward = global_ep_reward * 0.99 + episode_reward * 0.01
+    global_ep_reward = global_ep_reward * 0.9999 + episode_reward * 0.0001
   print(
       f"Episode: {episode} | "
       f"Moving Average Reward: {int(global_ep_reward)} | "

@@ -36,16 +36,18 @@ parser.add_argument('--algorithm', default='a3c', type=str,
                     help='Choose between \'a3c\' and \'random\'.')
 parser.add_argument('--train', dest='train', action='store_true',
                     help='Train our model.')
-parser.add_argument('--lr', default=0.001,
+parser.add_argument('--lr', default=0.00001,
                     help='Learning rate for the shared optimizer.')
 parser.add_argument('--update-freq', default=20, type=int,
                     help='How often to update the global model.')
-parser.add_argument('--max-eps', default=1000, type=int,
+parser.add_argument('--max-eps', default=1000000, type=int,
                     help='Global maximum number of episodes to run.')
 parser.add_argument('--gamma', default=0.99,
                     help='Discount factor of rewards.')
 parser.add_argument('--save-dir', default='/home/neale/rl/models', type=str,
                     help='Directory in which you desire to save the model.')
+parser.add_argument('--episode-length', default=150, type=int,
+                    help='Specifies Maximum Episode length')
 args = parser.parse_args()
 
 visionRange = 5
@@ -67,8 +69,9 @@ class MasterAgent():
     self.opt = tf.train.AdamOptimizer(args.lr, use_locking=True)
     print(self.state_size, self.action_size)
 
+    state = env.reset(policy_red=Roomba(),)
     self.global_model = ActorCritic_CNN(self.state_size, self.action_size)  # global network
-    # self.global_model(tf.convert_to_tensor(np.random.random((1, self.state_size)), dtype=tf.float32))
+    self.global_model(tf.convert_to_tensor(state[None, :], dtype=tf.float32))
 
   def train(self):
     if args.algorithm == 'random':
@@ -84,7 +87,7 @@ class MasterAgent():
                       self.opt, res_queue,
                       i, game_name=self.game_name,
                       # save_dir=self.save_dir) for i in range(multiprocessing.cpu_count())]
-                      save_dir=self.save_dir) for i in range(4)]
+                      save_dir=self.save_dir) for i in range(8)]
 
     for i, worker in enumerate(workers):
       print("Starting worker {}".format(i))
@@ -175,7 +178,7 @@ class Worker(threading.Thread):
 
       time_count = 0
       done = False
-      while not done:
+      for i in range(args.episode_length):
         logits, _ = self.local_model(
             tf.convert_to_tensor(current_state[None, :],
                                  dtype=tf.float32))
@@ -184,8 +187,7 @@ class Worker(threading.Thread):
         action = np.random.choice(self.action_size, p=probs.numpy()[0])
         new_state, reward, done, _ = self.env.step(action)
         if done:
-          reward = -1
-        ep_reward += reward
+            ep_reward = reward
         mem.store(current_state, action, reward)
 
         if time_count == args.update_freq or done:
@@ -200,8 +202,7 @@ class Worker(threading.Thread):
           # Calculate local gradients
           grads = tape.gradient(total_loss, self.local_model.trainable_weights)
           # Push local gradients to global model
-          print(dir(self.global_model))
-          print(self.global_model.trainable_weights)
+
           self.opt.apply_gradients(zip(grads,
                                        self.global_model.trainable_weights))
           # Update local model with new weights
