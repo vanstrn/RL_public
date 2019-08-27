@@ -6,7 +6,10 @@ render/
 reference/
 clips/
 
-
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
