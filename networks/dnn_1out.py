@@ -10,8 +10,14 @@ class DNN10ut(Network):
     def __init__(self, namespace, lr=0.01):
         super(DNN10ut,self).__init__()
 
-        self.dense1 = KL.dense(20,activation=tf.nn.relu)
-        self.dense2 = KL.dense(20,activation=tf.nn.relu)
+        self.dense1 = KL.dense( 20,
+                                activation=tf.nn.relu,
+                                name='Fully Connected 1')
+
+
+        self.dense2 = KL.dense( 1,
+                                activation=tf.nn.relu,
+                                name='Fully Connected 2')
 
 
     def call(self,inputs):
@@ -19,12 +25,7 @@ class DNN10ut(Network):
         return self.dense2(x)
 
     def Learn(self, s, r, s_):
-        s, s_ = s[np.newaxis, :], s_[np.newaxis, :]
-
-        v_ = self.sess.run(self.v, {self.s: s_})
-        td_error, _ = self.sess.run([self.td_error, self.train_op],
-                                          {self.s: s, self.v_: v_, self.r: r})
-        return td_error
+        pass
 
     def ChooseAction(self,a):
         pass
