@@ -3,13 +3,6 @@
 import numpy as np
 import tensorflow as tf
 
-def record(item, writer, step):
-    summary = tf.Summary()
-    for key, value in item.items():
-        summary.value.add(tag=key, simple_value=value)
-    writer.add_summary(summary, step)
-    writer.flush()
-
 
 def initialize_uninitialized_vars(sess):
     """
