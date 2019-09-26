@@ -1,8 +1,7 @@
 
 """
 Asynchronous Advantage Actor Critic (A3C) with discrete action space, Reinforcement Learning.
-The Cartpole example.
-Modified to have saving and logging functions.
+Capture the Flag implementation.
 Based on: https://morvanzhou.github.io/tutorials/
 
 """
@@ -18,23 +17,26 @@ import matplotlib.pyplot as plt
 
 from Utils import record,initialize_uninitialized_vars
 
-OUTPUT_GRAPH = True
+GAME = 'cap-v0'
 LOG_DIR = './log'
 N_WORKERS = 1#multiprocessing.cpu_count()
 MAX_GLOBAL_EP = 10000
 GLOBAL_NET_SCOPE = 'Global_Net'
-UPDATE_GLOBAL_ITER = 10
-GAMMA = 0.9
+UPDATE_GLOBAL_ITER = 150
+GAMMA = 0.99
 ENTROPY_BETA = 0.001
-LR_A = 0.001    # learning rate for actor
-LR_C = 0.001    # learning rate for critic
+LR_A = 0.0001    # learning rate for actor
+LR_C = 0.0005    # learning rate for critic
 GLOBAL_RUNNING_R = None
 GLOBAL_EP = 0
 
+env = gym.make(GAME)
+N_S = env.observation_space.shape[0]
+N_A = env.action_space.n
 
 
 class ACNet(object):
-    def __init__(self, sess, scope, globalAC=None, inSize):
+    def __init__(self, sess, scope, globalAC=None):
         """
         Creates an actor critic network that is compatible with A3C methods.
 
@@ -55,7 +57,7 @@ class ACNet(object):
                 self.a_params, self.c_params = self._build_net(scope)[-2:]
         else:   # local net, calculate losses
             with tf.variable_scope(scope):
-                self.s = tf.placeholder(tf.float32, [None, N_S], 'S')
+                self.s = tf.placeholder(shape=in_size,dtype=tf.float32, [None, N_S], 'S')
                 self.a_his = tf.placeholder(tf.int32, [None, ], 'A')
                 self.v_target = tf.placeholder(tf.float32, [None, 1], 'Vtarget')
 
@@ -98,15 +100,30 @@ class ACNet(object):
         # by both the Actor and Critic. With each updating the feature extractor it allows for faster convergence
         # than separated networks.
         with tf.variable_scope('shared'):
-            l1 = tf.layers.dense(self.s, 200, tf.nn.relu6, kernel_initializer=w_init, name='la')
+            layer = layers.conv2d(self.s, 32, [3, 3],
+                                  activation_fn=tf.nn.relu,
+                                  weights_initializer=layers.xavier_initializer_conv2d(),
+                                  biases_initializer=tf.zeros_initializer(),
+                                  padding='SAME')
+            layer = layers.max_pool2d(layer, [2, 2])
+            layer = layers.conv2d(layer, 64, [2, 2],
+                                  activation_fn=tf.nn.relu,
+                                  weights_initializer=layers.xavier_initializer_conv2d(),
+                                  biases_initializer=tf.zeros_initializer(),
+                                  padding='SAME')
+            layer = layers.flatten(layer)
 
         #Creating the subsection of the network which is used as the actor.
         with tf.variable_scope('actor'):
-            a_prob = tf.layers.dense(l1, N_A, tf.nn.softmax, kernel_initializer=w_init, name='ap')
+            actor = layers.fully_connected(layer, 64)
+            actor = layers.fully_connected(self.actor, self.action_size,
+                                           activation_fn=tf.nn.softmax)
 
         #Creating the subsection of the network which is used as the critic.
         with tf.variable_scope('critic'):
-            v = tf.layers.dense(l1, 1, kernel_initializer=w_init, name='v')  # state value
+            critic = layers.fully_connected(layer, 1,
+                                            activation_fn=None)
+            critic = tf.reshape(self.critic, (-1,))
 
         #Collecting the parameters that are in each network. These are used in the training process to specify which
         common_params = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=scope + '/shared')
@@ -114,7 +131,7 @@ class ACNet(object):
         c_params = common_params + tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=scope + '/critic')
 
         #Returning things that are used in network. (Outputs and Trainable Data)
-        return a_prob, v, a_params, c_params
+        return actor, critic, a_params, c_params
 
     def update_global(self, feed_dict):  # run by a local
         self.sess.run([self.update_a_op, self.update_c_op], feed_dict)  # local grads applies to global net
@@ -142,7 +159,6 @@ class ACNet(object):
             else:
                 self.sess.run(tf.global_variables_initializer())
                 print("Initialized Variables")
-
 
 class Worker(object):
     def __init__(self, name, sess, globalAC):
@@ -208,11 +224,7 @@ class Worker(object):
                         GLOBAL_RUNNING_R = ep_r
                     else:
                         GLOBAL_RUNNING_R = 0.99 * GLOBAL_RUNNING_R + 0.01 * ep_r
-                    print(
-                        self.name,
-                        "Ep:", GLOBAL_EP,
-                        "| Ep_r: %i" % GLOBAL_RUNNING_R,
-                          )
+
                     if GLOBAL_EP % 1000 == 0:
                         saver.save(self.sess, SAVE_PATH+'/ctf_policy.ckpt', global_step=GLOBAL_EP)
                     if GLOBAL_EP % 100 == 0:
@@ -227,14 +239,6 @@ class Worker(object):
                     break
 
 if __name__ == "__main__":
-
-    env = gym.make('CartPole-v0')
-
-    vision_range=19
-    vision_dx, vision_dy = 2*vision_range+1, 2*vision_range+1
-    nchannel = 7 * keep_frame
-    inputSize = [None, vision_dx, vision_dy, nchannel]
-    actionSize = env.action_space.n
 
     TRAIN_NAME = "CP4"
     LOG_PATH = './logs/'+TRAIN_NAME
