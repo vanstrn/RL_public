@@ -163,6 +163,7 @@ class SharedModel():
 
 
 if __name__ == "__main__":
+    saver = tf.train.Saver(max_to_keep=3, var_list=tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES))
 
     #Setting up the environment
     env = gym.make('CartPole-v0')

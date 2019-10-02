@@ -4,9 +4,9 @@ import numpy as np
 import tensorflow as tf
 
 
-def initialize_uninitialized_vars(sess):
+def InitializeVariables(sess):
     """
-    Initialize uninitialized variables
+    Initializes uninitialized variables
 
     Parameters
     ----------------

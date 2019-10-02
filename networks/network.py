@@ -4,25 +4,11 @@ Should contain reference image of the network in Github Repo.
 """
 
 import numpy as np
+import tensorflow as tf
 
 
-class Network(object):
-    def __init__(self,namespace):
+class Network(tf.keras.Model):
+    def __init__(self):
         """
         """
-        raise NotImplementedError
-
-    def ChooseAction(self, s,):
-        """
-        """
-        raise NotImplementedError
-
-    def Learn(self, buffer):
-        """
-        """
-        raise NotImplementedError
-
-    def SaveStatistics(self,saver):
-        """
-        """
-        raise NotImplementedError
+        super(Network,self).__init__()

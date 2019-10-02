@@ -3,7 +3,7 @@
 import tensorflow as tf
 import numpy as np
 
-def record(item, writer, step):
+def Record(item, writer, step):
     summary = tf.Summary()
     for key, value in item.items():
         summary.value.add(tag=key, simple_value=value)

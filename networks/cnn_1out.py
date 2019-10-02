@@ -2,13 +2,12 @@
 Sets up the basic Network Class which lays out all required functions of a Neural Network.
 Should contain reference image of the network in Github Repo.
 """
-from netwok import Network
 import tensorflow as tf
-from tensorflow.keras.layers import KL
+import tensorflow.keras.layers as KL
 
-class CNN10ut(Network):
-    def __init__(self, namespace, lr=0.01):
-        super(CNN10ut,self).__init__()
+class CNN10ut(tf.keras.Model):
+    def __init__(self, namespace):
+        super(CNN10ut,self).__init__(name=namespace)
 
         self.sep_conv2d = keras_layers.SeparableConv2D(
                 filters=32,
@@ -57,15 +56,6 @@ class CNN10ut(Network):
         else:
             return tf.stop_gradient(net)
 
-    def Learn(self, s, r, s_):
-        pass
-
-    def ChooseAction(self,a):
-        pass
-
-    def SaveStatistics(self,a):
-        pass
-
 if __name__ == "__main__":
-    sess = 1
-    test = DNN20ut()
+    sess = tf.Session()
+    test = DNN20ut(namespace="Test",actionSize1=4)

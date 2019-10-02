@@ -1,0 +1,12 @@
+CNN for CtF
+  Modular Input format
+
+
+Recurrent Networks
+  -LSTM Blocks
+
+Hierarchical Networks
+  -Smartly Linking the Training
+
+Easy result and Hyperparameter logging
+  -Put into code. Improve the efficiency of it. (Have a global variable that controls logging.)
