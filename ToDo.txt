@@ -1,6 +1,7 @@
 CNN for CtF
   Modular Input format
 
+A3C
 
 Recurrent Networks
   -LSTM Blocks

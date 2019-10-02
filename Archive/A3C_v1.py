@@ -18,7 +18,7 @@ import matplotlib.pyplot as plt
 
 GAME = 'CartPole-v0'
 OUTPUT_GRAPH = True
-LOG_DIR = './log'
+LOG_DIR = './logs/Test10'
 N_WORKERS = multiprocessing.cpu_count()
 MAX_GLOBAL_EP = 1000
 GLOBAL_NET_SCOPE = 'Global_Net'
@@ -82,9 +82,14 @@ class ACNet(object):
             a_prob = tf.layers.dense(l1, N_A, tf.nn.softmax, kernel_initializer=w_init, name='ap')
         with tf.variable_scope('critic'):
             v = tf.layers.dense(l1, 1, kernel_initializer=w_init, name='v')  # state value
+
+        print(v.name)
         common_params = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=scope + '/shared')
         a_params = common_params + tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=scope + '/actor')
         c_params = common_params + tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=scope + '/critic')
+        if scope == GLOBAL_NET_SCOPE:
+            print(a_params)
+            print(c_params)
         return a_prob, v, a_params, c_params
 
     def update_global(self, feed_dict):  # run by a local

@@ -192,3 +192,9 @@ class A2C_s(Method):
     @property
     def getVars(self):
         return self.Model.getVars
+    @property
+    def getAParams(self):
+        return self.sharedModel.getAParams
+    @property
+    def getCParams(self):
+        return self.sharedModel.getCParams

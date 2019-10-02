@@ -22,8 +22,9 @@ if __name__ == "__main__":
         "LOG_FREQ" : 10,
         "Critic LR": 1E-3,
         "Actor LR": 1E-4,
+        "Number Environments" : 4,
         }
-    EXP_NAME = 'Test2'
+    EXP_NAME = 'Test11'
     MODEL_PATH = './models/'+EXP_NAME
     LOG_PATH = './logs/'+EXP_NAME
 
@@ -45,7 +46,7 @@ if __name__ == "__main__":
     # net = A2C(actorNetwork,criticNetwork,sess,stateShape=[1,N_F],actionSize=N_A)
 
     network = DNN2Out("AC",N_A,1,networkName="Test")
-    net = A2C_s(network,sess,stateShape=[1,N_F],actionSize=N_A,lr_c=HPs["Critic LR"],lr_a=HPs["Actor LR"])
+    net = A2C_s(network,sess,stateShape=[None,N_F],actionSize=N_A,lr_c=HPs["Critic LR"],lr_a=HPs["Actor LR"])
 
     #Creating Auxilary Functions for logging and saving.
     writer = tf.summary.FileWriter(LOG_PATH,graph=sess.graph)
@@ -53,6 +54,10 @@ if __name__ == "__main__":
     SaveHyperparams(writer,HPs)
     net.InitializeVariablesFromFile(saver,MODEL_PATH)
     InitializeVariables(sess) #Included to catch if there are any uninitalized variables.
+    x = network.getVars
+    print(x)
+    x = network.getAParams
+    print(x)
 
     #Running the Simulation
     for i in range(HPs["MAX_EP"]):
