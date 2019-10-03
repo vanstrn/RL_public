@@ -1,7 +1,18 @@
-CNN for CtF
+Restructure Variables so code between A2C/A3C/PPO are compatible in Run scripts.
+  Attach buffers to the A2C/A3C method and have it store any variables that it needs.
+
+CNN network
   Modular Input format
+  Default input is the structure for CtF
+
+A2C
 
 A3C
+  Clean Up A3C Code
+  Attach buffer to A3C
+
+PPO
+  Implement
 
 Recurrent Networks
   -LSTM Blocks
@@ -9,5 +20,5 @@ Recurrent Networks
 Hierarchical Networks
   -Smartly Linking the Training
 
-Easy result and Hyperparameter logging
-  -Put into code. Improve the efficiency of it. (Have a global variable that controls logging.)
+DNN
+  Add input that allows for different naming of the the sub-netowrks (Ex variable name for 'critic' and 'actor')

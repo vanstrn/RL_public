@@ -6,8 +6,10 @@ To Do:
 -Combine Training Operation
 """
 from .method import Method
+from .buffer import Trajectory
 import tensorflow as tf
 import numpy as np
+
 class A3C(Method):
 
     def __init__(self,actorNetwork,criticNetwork,sess,stateShape,actionSize,lr_c=1E-4,lr_a=1E-3,GAMMA = 0.9):
@@ -16,6 +18,7 @@ class A3C(Method):
         Initializes and Actor and Critic Network to be used for the purpose of RL.
         """
         #Placeholders
+
         self.sess=sess
         self.s = tf.placeholder(dtype=tf.float32, shape=stateShape, name="state")
         self.a = tf.placeholder(tf.int32, None, "act")
@@ -102,6 +105,7 @@ class A3C_s(Method):
         Initializes and Actor and Critic Network to be used for the purpose of RL.
         """
         #Placeholders
+        self.buffer = Trajectory(depth=5)
         self.sess=sess
         self.Model = sharedModel
         self.s = tf.placeholder(tf.float32, [None, stateShape], 'S')
@@ -152,24 +156,53 @@ class A3C_s(Method):
         s = state[np.newaxis, :]
         probs = self.sess.run(self.a_prob, {self.s: s})   # get probabilities for all actions
 
-        return np.random.choice(np.arange(probs.shape[1]), p=probs.ravel())   # return a int
+        return np.random.choice(np.arange(probs.shape[1]), p=probs.ravel()) ,[]  # return a int and extra data that needs to be fed to buffer.
 
-    def Learn(self, s0,a,r,s1):
+    def Update(self,HPs):
         """
-        Takes an input buffer and applies the updates to the networks through gradient
-        backpropagation
+        The main update function for A3C. The function pushes gradients to the global AC Network.
+        The second function is to Pull
         """
-        s, s_ = s0[np.newaxis, :], s1[np.newaxis, :]
-        v_ = self.sess.run(self.critic, {self.s: s_})
-        feedDict = {self.s: s, self.v_: v_, self.r: r,self.a:a}
-        td_error, _, _, exp_v = self.sess.run([self.td_error, self.train_op_c,self.train_op_a, self.exp_v],feedDict)
+        #Process the data from the buffer
+        self.ProcessBuffer(HPs)
 
-        return exp_v
-    def UpdateGlobal(self, feed_dict):  # run by a local
-        self.sess.run([self.update_a_op, self.update_c_op], feed_dict)  # local grads applies to global net
+        #Create a feedDict from the buffer
+        feedDict = {
+            self.s: np.vstack(self.buffer[0]),
+            self.a_his: np.array(self.buffer[1]),
+            self.v_target: np.vstack(self.buffer[2]),
+        }
 
-    def PullGlobal(self):  # run by a local
-        self.sess.run([self.pull_a_params_op, self.pull_c_params_op])
+        #Perform update operations
+        self.sess.run([self.update_a_op, self.update_c_op], feedDict)   # local grads applied to global net.
+        self.sess.run([self.pull_a_params_op, self.pull_c_params_op])   # global variables synched to the local net.
+
+        #Clear of reset the buffer.
+        self.buffer.clear()
+
+    def AddToBuffer(self,sample):
+        """Add a sample to the buffer.
+        Takes the form of [s0,a,r,s1,done,extraData]
+        extraData is outputted from the Network and is appended to the sample.
+        Also handles any data that needs to be processed in the network.
+        """
+        self.buffer.append(sample)
+
+    def ProcessBuffer(self,HPs):
+        """Take the buffer and calculate future rewards.
+        """
+        buffer_v_s_ = []
+        for r in self.buffer[2][::-1]:
+            if self.buffer[4][-1]:
+                v_s_ = 0   # terminal
+            else:
+                v_s_ = self.sess.run(self.v, {self.s: self.buffer[3][-1][np.newaxis, :]})[0, 0]
+
+            v_s_ = r + HPs["GAMMA"] * v_s_
+            buffer_v_s_.append(v_s_)
+
+        buffer_v_s_.reverse()
+        self.buffer[2] = buffer_v_s_
 
     def SaveStatistics(self,saver):
         """
@@ -186,6 +219,7 @@ class A3C_s(Method):
             else:
                 self.sess.run(tf.global_variables_initializer())
                 print("Initialized Variables")
+
 
     @property
     def getVars(self):
