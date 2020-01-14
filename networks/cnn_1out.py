@@ -9,7 +9,7 @@ class CNN10ut(tf.keras.Model):
     def __init__(self, namespace):
         super(CNN10ut,self).__init__(name=namespace)
 
-        self.sep_conv2d = keras_layers.SeparableConv2D(
+        self.sep_conv2d = KL.SeparableConv2D(
                 filters=32,
                 kernel_size=4,
                 strides=2,
@@ -18,10 +18,10 @@ class CNN10ut(tf.keras.Model):
                 activation='relu',
             )
         self.non_local = Non_local_nn(16)
-        self.conv1 = keras_layers.Conv2D(filters=64, kernel_size=3, strides=2, activation='relu')
-        self.conv2 = keras_layers.Conv2D(filters=64, kernel_size=2, strides=2, activation='relu')
-        self.flat  = keras_layers.Flatten()
-        self.dense1 = keras_layers.Dense(units=128)
+        self.conv1 = KL.Conv2D(filters=64, kernel_size=3, strides=2, activation='relu')
+        self.conv2 = KL.Conv2D(filters=64, kernel_size=2, strides=2, activation='relu')
+        self.flat  = KL.Flatten()
+        self.dense1 = KL.Dense(units=128)
 
 
     def call(self,inputs):

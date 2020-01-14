@@ -1,8 +1,25 @@
 # Module contains any methods, class, parameters, etc that is related to logging the trainig
 
 import numpy as np
+import os
 import tensorflow as tf
 
+def CreatePath(path, override=False):
+    """
+    Create directory
+    If override is true, remove the directory first
+    """
+    if override:
+        if os.path.exists(path):
+            shutil.rmtree(path,ignore_errors=True)
+            if os.path.exists(path):
+                raise OSError("Failed to remove path {}.".format(path))
+
+    if not os.path.exists(path):
+        try:
+            os.makedirs(path)
+        except OSError:
+            raise OSError("Creation of the directory {} failed".format(path))
 
 def InitializeVariables(sess):
     """
