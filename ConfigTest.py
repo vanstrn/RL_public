@@ -45,7 +45,7 @@ if __name__ == "__main__":
     net.InitializeVariablesFromFile(saver,MODEL_PATH)
     InitializeVariables(sess) #Included to catch if there are any uninitalized variables.
 
-
+    total_step = 1
     #Running the Simulation
     for i in range(settings["EnvHPs"]["MAX_EP"]):
         sess.run(global_step_next)
@@ -54,16 +54,19 @@ if __name__ == "__main__":
 
         for j in range(settings["EnvHPs"]["MAX_EP_STEPS"]):
 
-            action = net.GetAction(state=s0)
-            s1,r,done,_ = env.step(action)
+            a, networkData = net.GetAction(state=s0)
+            s1,r,done,_ = env.step(a)
             if done: r = -20
             track_r.append(r)
 
             #Update Step
-            net.Learn(s0,action,r,s1)
+            net.AddToBuffer([s0,a,r,s1,done]+networkData)
 
+            if total_step % settings["EnvHPs"]['UPDATE_GLOBAL_ITER'] == 0 or done:   # update global and assign to local net
+                net.Update(settings["NetworkHPs"])
 
             s0 = s1
+            total_step += 1
             if done or j >= settings["EnvHPs"]["MAX_EP_STEPS"]:
                 ep_rs_sum = sum(track_r)
 
@@ -71,7 +74,7 @@ if __name__ == "__main__":
                     running_reward = ep_rs_sum
                 else:
                     running_reward = running_reward * 0.95 + ep_rs_sum * 0.05
-                print("episode:", sess.run(global_step), "  reward:", int(running_reward))
+                print("episode:", sess.run(global_step), "  running reward:", int(running_reward),"  reward:",int(ep_rs_sum))
                 break
 
         #Closing Functions that will be executed after every episode.

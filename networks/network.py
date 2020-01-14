@@ -8,7 +8,7 @@ import json
 
 
 class Network(tf.keras.Model):
-    def __init__(self, configFile, actionSize):
+    def __init__(self, configFile, actionSize,scope=None):
         """
         Reads a network config file and processes that into a netowrk with appropriate naming structure.
 
@@ -19,7 +19,10 @@ class Network(tf.keras.Model):
 
         with open(configFile) as json_file:
             data = json.load(json_file)
-        namespace =data["NetworkName"]
+        if scope is None:
+            namespace = data["NetworkName"]
+        else:
+            namespace = scope
         super(Network,self).__init__(name=namespace)
         # Reading in the configFile
         self.networkOutputs = data["NetworkOutputs"]
@@ -28,15 +31,11 @@ class Network(tf.keras.Model):
 
         self.layerList = {}
         self.layerInputs = {}
-        with tf.variable_scope(self.scope):
             #Creating all of the layers
-            for sectionName,layerList in data["NetworkStructure"].items():
-                for layerDict in layerList:
-                    self.layerList[layerDict["layerName"]] = self.GetLayer(layerDict)
-                    self.layerInputs[layerDict["layerName"]] = layerDict["layerInput"]
-
-
-        #Creating the Output Dictionary based on the config file
+        for sectionName,layerList in data["NetworkStructure"].items():
+            for layerDict in layerList:
+                self.layerList[layerDict["layerName"]] = self.GetLayer(layerDict)
+                self.layerInputs[layerDict["layerName"]] = layerDict["layerInput"]
 
     def call(self,input):
         """Defines how the layers are called with a forward pass of the network.
@@ -53,7 +52,6 @@ class Network(tf.keras.Model):
         for outputName,layerOutput in self.networkOutputs.items():
             results[outputName] = self.layerOutputs[layerOutput]
         return results
-
 
     def GetLayer(self, dict):
         """Based on a dictionary input the function returns the appropriate layer for the NN."""
@@ -75,7 +73,6 @@ class Network(tf.keras.Model):
                                 activation=dict["activation"])
 
         return layer
-
 
     @property
     def getVars(self):
