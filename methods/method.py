@@ -29,8 +29,26 @@ class Method(object):
         """
         raise NotImplementedError
 
+    def AddToBuffer(self,sample):
+        """Add a sample to the buffer.
+        Takes the form of [s0,a,r,s1,done,extraData]
+        extraData is outputted from the Network and is appended to the sample.
+        Also handles any data that needs to be processed in the network.
+        """
+        self.buffer.append(sample)
+
     def SaveStatistics(self,saver):
         """
         Contains the code to save internal information of the Neural Network.
         """
         raise NotImplementedError
+        
+    def InitializeVariablesFromFile(self,saver, model_path):
+        with self.sess.graph.as_default():
+            ckpt = tf.train.get_checkpoint_state(model_path)
+            if ckpt and tf.train.checkpoint_exists(ckpt.model_checkpoint_path):
+                saver.restore(self.sess, ckpt.model_checkpoint_path)
+                print("Load Model : ", ckpt.model_checkpoint_path)
+            else:
+                self.sess.run(tf.global_variables_initializer())
+                print("Initialized Variables")

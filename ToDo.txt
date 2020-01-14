@@ -1,24 +1,22 @@
-Restructure Variables so code between A2C/A3C/PPO are compatible in Run scripts.
-  Attach buffers to the A2C/A3C method and have it store any variables that it needs.
+Modular Run Scripts
+  Reorganize the run scripts so that they are compatible between different Network training architectures (PPO/A3C...)
+  Make the definition of the training architecture be made in a Config File and not hard coded.
 
-CNN network
-  Modular Input format
-  Default input is the structure for CtF
+Modular Network
+  Create JSON files that describe current CTF architecture
+  Implement the appropriate layers in the dynamic Network Structure Code.
 
-A2C
-
-A3C
-  Clean Up A3C Code
-  Attach buffer to A3C
+CTF Integration
+  Test A2C and A3C with CTF environment.
 
 PPO
-  Implement
-
-Recurrent Networks
-  -LSTM Blocks
+  Implement.
+  Test with Cart Pole.
+  Test with CTF.
 
 Hierarchical Networks
-  -Smartly Linking the Training
+  Smartly Linking the Networks in Training (Have Separate Network in the JSON File)
+  Create Hierarchy Method.
 
-DNN
-  Add input that allows for different naming of the the sub-netowrks (Ex variable name for 'critic' and 'actor')
+Recurrent Networks
+  Create modular network definition for Recurrent networks and LSTMs
