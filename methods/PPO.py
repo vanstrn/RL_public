@@ -6,87 +6,91 @@ To Do:
 -Combine Training Operation
 """
 from .method import Method
+from .buffer import Trajectory
+from utils.dataProcessing import gae
 import tensorflow as tf
 import numpy as np
 
 
 class PPO(Method):
 
-    def __init__(self,Model,sess,stateShape,actionSize,scope,globalAC=None,HPs):
+    def __init__(self,Model,sess,stateShape,actionSize,HPs):
         """
         Initializes I/O placeholders used for Tensorflow session runs.
         Initializes and Actor and Critic Network to be used for the purpose of RL.
         """
         #Creating appropriate buffer for the method.
-        self.buffer = Trajectory(depth=5)
-
-        with tf.name_scope(name_scope):
+        self.buffer = Trajectory(depth=7)
+        self.actionSize = actionSize
+        with tf.name_scope("PPO_Training"):
             self.sess=sess
             self.Model = Model
             #Placeholders
-            self.s = tf.placeholder(tf.float32, [None, stateShape], 'S')
+            self.s = tf.placeholder(tf.float32, [None]+stateShape, 'S')
             self.a_his = tf.placeholder(tf.int32, [None, ], 'A')
-            self.v_target = tf.placeholder(tf.float32, [None, 1], 'Vtarget')
+            self.td_target_ = tf.placeholder(tf.float32, [None], 'Vtarget')
             self.advantage_ = tf.placeholder(shape=[None], dtype=tf.float32, name='adv_hold')
-            self.old_logits_ = tf.placeholder(shape=[None, action_size], dtype=tf.float32, name='old_logit_hold')
+            self.old_log_logits_ = tf.placeholder(shape=[None, actionSize], dtype=tf.float32, name='old_logit_hold')
 
             out = self.Model(self.s)
             self.a_prob = out["actor"]
             self.v = out["critic"]
+            self.log_logits = out["log_logits"]
 
             # Entropy
-            entropy = -tf.reduce_mean(policy * Loss._log(policy), name='entropy')
+            def _log(val):
+                return tf.log(tf.clip_by_value(val, 1e-10, 10.0))
+            entropy = -tf.reduce_mean(self.a_prob * _log(self.a_prob), name='entropy')
 
             # Critic Loss
-            td_error = td_target - critic
+            td_error = self.td_target_ - self.v
             critic_loss = tf.reduce_mean(tf.square(td_error), name='critic_loss')
 
             # Actor Loss
-            action_size = tf.shape(policy)[1]
-            action_OH = tf.one_hot(action, action_size, dtype=tf.float32)
-            log_prob = tf.reduce_sum(log_prob * action_OH, 1)
-            old_log_prob = tf.reduce_sum(old_log_prob * action_OH, 1)
+            action_OH = tf.one_hot(self.a_his, actionSize, dtype=tf.float32)
+            log_prob = tf.reduce_sum(self.log_logits * action_OH, 1)
+            old_log_prob = tf.reduce_sum(self.old_log_logits_ * action_OH, 1)
 
             # Clipped surrogate function
             ratio = tf.exp(log_prob - old_log_prob)
             #ratio = log_prob / old_log_prob
-            surrogate = ratio * advantage
-            clipped_surrogate = tf.clip_by_value(ratio, 1-eps, 1+eps) * advantage
+            surrogate = ratio * self.advantage_
+            clipped_surrogate = tf.clip_by_value(ratio, 1-HPs["eps"], 1+HPs["eps"]) * self.advantage_
             surrogate_loss = tf.minimum(surrogate, clipped_surrogate, name='surrogate_loss')
             actor_loss = -tf.reduce_mean(surrogate_loss, name='actor_loss')
 
-            if HPs["Entropy Beta"] != 0:
-                actor_loss = actor_loss - entropy * entropy_beta
-            if HPs["Critic Beta"] != 0:
-                actor_loss = actor_loss + critic_loss * critic_beta
+            if HPs["EntropyBeta"] != 0:
+                actor_loss = actor_loss - entropy * HPs["EntropyBeta"]
+            if HPs["CriticBeta"] != 0:
+                actor_loss = actor_loss + critic_loss * HPs["CriticBeta"]
             loss = actor_loss
             # Build Trainer
             self.optimizer = tf.keras.optimizers.Adam(HPs["LR"])
-            self.gradients = self.optimizer.get_gradients(loss, model.getVars)
-            self.update_ops = self.optimizer.apply_gradients(zip(self.gradients, model.getVars))
+            self.gradients = self.optimizer.get_gradients(loss, Model.getVars)
+            self.update_ops = self.optimizer.apply_gradients(zip(self.gradients, Model.getVars))
 
     def GetAction(self, state):
         """
         Contains the code to run the network based on an input.
         """
         s = state[np.newaxis, :]
-        probs = self.sess.run(self.a_prob, {self.s: s})   # get probabilities for all actions
+        probs,log_logits,v = self.sess.run([self.a_prob,self.log_logits,self.v], {self.s: s})   # get probabilities for all actions
 
-        return np.random.choice(np.arange(probs.shape[1]), p=probs.ravel()), []   # return a int
+        return np.random.choice(np.arange(probs.shape[1]), p=probs.ravel()), [v,log_logits]   # return a int
 
     def Update(self,HPs):
         """
         Takes an input buffer and applies the updates to the networks through gradient
         backpropagation
         """
-        self.ProcessBuffer(HPs)
+        td_target, advantage = self.ProcessBuffer(HPs)
 
         #Staging Buffer inputs into the entries to run through the network.
-        feed_dict = {self.state_input: state_input,
-                     self.action_: action,
+        feed_dict = {self.s: self.buffer[0],
+                     self.a_his: self.buffer[1],
                      self.td_target_: td_target,
-                     self.advantage_: advantage,
-                     self.old_logits_: old_logit}
+                     self.advantage_: np.reshape(advantage, [-1]),
+                     self.old_log_logits_: np.reshape(self.buffer[6], [-1,self.actionSize])}
         #Running the data through th
         self.sess.run(self.update_ops, feed_dict)
 
@@ -96,18 +100,8 @@ class PPO(Method):
     def ProcessBuffer(self,HPs):
         """Take the buffer and calculate future rewards.
         """
-        buffer_v_s_ = []
-        for r in self.buffer[2][::-1]:
-            if self.buffer[4][-1]:
-                v_s_ = 0   # terminal
-            else:
-                v_s_ = self.sess.run(self.v, {self.s: self.buffer[3][-1][np.newaxis, :]})[0, 0]
-
-            v_s_ = r + HPs["Gamma"] * v_s_
-            buffer_v_s_.append(v_s_)
-
-        buffer_v_s_.reverse()
-        self.buffer[2] = buffer_v_s_
+        td_target, advantage = gae(self.buffer[2],self.buffer[5],0,HPs["Gamma"],HPs["lambda"])
+        return td_target, advantage
 
     @property
     def getVars(self):

@@ -66,11 +66,15 @@ class Network(tf.keras.Model):
                                 # bias_initializer=dict["bias_initializer"],  # biases
                                 name=dict["layerName"])
 
-        elif dict["layerType"] is "Conv":
+        elif dict["layerType"] == "Conv":
             layer = Conv2D(     filters=dict["filters"],
                                 kernel_size=dict["kernel_size"],
                                 strides=dict["strides"],
                                 activation=dict["activation"])
+        elif dict["layerType"] == "LogSoftMax":
+            layer = tf.nn.log_softmax
+        elif dict["layerType"] == "SoftMax":
+            layer = KL.Activation('softmax')
 
         return layer
 

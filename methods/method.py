@@ -4,7 +4,7 @@ Each new method should have a link either to reference paper or a link to some d
 """
 
 import numpy as np
-
+import tensorflow as tf
 
 class Method(object):
     def __init__(self,namespace):
@@ -42,7 +42,7 @@ class Method(object):
         Contains the code to save internal information of the Neural Network.
         """
         raise NotImplementedError
-        
+
     def InitializeVariablesFromFile(self,saver, model_path):
         with self.sess.graph.as_default():
             ckpt = tf.train.get_checkpoint_state(model_path)
