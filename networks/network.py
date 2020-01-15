@@ -5,7 +5,7 @@ Sets up the basic Network Class which lays out all required functions of a Neura
 import tensorflow as tf
 import tensorflow.keras.layers as KL
 import json
-
+from layers.non_local import Non_local_nn
 
 class Network(tf.keras.Model):
     def __init__(self, configFile, actionSize,scope=None):
@@ -55,26 +55,42 @@ class Network(tf.keras.Model):
 
     def GetLayer(self, dict):
         """Based on a dictionary input the function returns the appropriate layer for the NN."""
-        if dict["layerType"] == "Dense":
-            if dict["outputSize"] == "actionSize":
-                output = self.actionSize
-            else:
-                output = dict["outputSize"]
-            layer = KL.Dense(   output,
-                                activation=dict["activation"],
-                                # kernel_initializer=dict["kernel_initializer"],  # weights
-                                # bias_initializer=dict["bias_initializer"],  # biases
-                                name=dict["layerName"])
+        if "ReuseLayer" in dict:
+            layer = self.layerList[dict["ReuseLayer"]]
+        else:
+            if dict["layerType"] == "Dense":
+                if dict["outputSize"] == "actionSize":
+                    output = self.actionSize
+                else:
+                    output = dict["outputSize"]
+                layer = KL.Dense(   output,
+                                    activation=dict["activation"],
+                                    # kernel_initializer=dict["kernel_initializer"],  # weights
+                                    # bias_initializer=dict["bias_initializer"],  # biases
+                                    name=dict["layerName"])
 
-        elif dict["layerType"] == "Conv":
-            layer = Conv2D(     filters=dict["filters"],
+            elif dict["layerType"] == "Conv2D":
+                layer = KL.Conv2D( filters=dict["filters"],
                                 kernel_size=dict["kernel_size"],
                                 strides=dict["strides"],
-                                activation=dict["activation"])
-        elif dict["layerType"] == "LogSoftMax":
-            layer = tf.nn.log_softmax
-        elif dict["layerType"] == "SoftMax":
-            layer = KL.Activation('softmax')
+                                activation=dict["activation"],
+                                name=dict["layerName"])
+            elif dict["layerType"] == "SeparableConv":
+                layer = KL.SeparableConv2D( filters=dict["filters"],
+                                            kernel_size=dict["kernel_size"],
+                                            strides=dict["strides"],
+                                            padding=dict["padding"],
+                                            depth_multiplier=dict["depth_multiplier"],
+                                            name=dict["layerName"])
+
+            elif dict["layerType"] == "Flatten":
+                layer= KL.Flatten()
+            elif dict["layerType"] == "NonLocalNN":
+                layer= Non_local_nn(channels=dict["channels"])
+            elif dict["layerType"] == "LogSoftMax":
+                layer = tf.nn.log_softmax
+            elif dict["layerType"] == "SoftMax":
+                layer = KL.Activation('softmax')
 
         return layer
 
@@ -85,5 +101,5 @@ class Network(tf.keras.Model):
 if __name__ == "__main__":
     sess = tf.Session()
     test = Network(configFile="test.json",actionSize=4)
-    s = tf.placeholder(tf.float32, [None, 4], 'S')
-    x = test(s)
+    # s = tf.placeholder(tf.float32, [None, 4], 'S')
+    # x = test(s)

@@ -2,7 +2,7 @@ import tensorflow as tf
 
 import numpy as np
 
-from network.core import layer_normalization
+from .core import layer_normalization
 
 def soft_attention(h_prev, a, num_input, hidden_size):
     def weight_variable(name, shape):
