@@ -5,7 +5,7 @@ Sets up the basic Network Class which lays out all required functions of a Neura
 import tensorflow as tf
 import tensorflow.keras.layers as KL
 import json
-from layers.non_local import Non_local_nn
+from .layers.non_local import Non_local_nn
 
 class Network(tf.keras.Model):
     def __init__(self, configFile, actionSize,scope=None):

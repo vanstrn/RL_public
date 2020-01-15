@@ -66,8 +66,8 @@ class PPO(Method):
             loss = actor_loss
             # Build Trainer
             self.optimizer = tf.keras.optimizers.Adam(HPs["LR"])
-            self.gradients = self.optimizer.get_gradients(loss, Model.getVars)
-            self.update_ops = self.optimizer.apply_gradients(zip(self.gradients, Model.getVars))
+            self.gradients = self.optimizer.get_gradients(loss, tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, "PPO_Training/"+self.Model.scope))
+            self.update_ops = self.optimizer.apply_gradients(zip(self.gradients, tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, "PPO_Training/"+self.Model.scope)))
 
     def GetAction(self, state):
         """
