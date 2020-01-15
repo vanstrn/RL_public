@@ -3,14 +3,12 @@ Modular Run Scripts
   Make the definition of the training architecture be made in a Config File and not hard coded.
 
 Modular Network
-  Create JSON files that describe current CTF architecture
-  Implement the appropriate layers in the dynamic Network Structure Code.
+  Implement Recursive Elements in Network Design.
 
 CTF Integration
   Test A2C and A3C with CTF environment.
 
 PPO
-  Implement.
   Test with Cart Pole.
   Test with CTF.
 

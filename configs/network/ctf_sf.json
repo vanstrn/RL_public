@@ -1,0 +1,103 @@
+{ "NetworkName" : "Example",
+  "NetworkStructure":{
+    "Shared":[
+      { "layerType":"SeparableConv",
+        "layerName":"SeparableConv",
+        "layerInput":"input",
+        "filters":16,
+        "kernel_size":5,
+        "strides":3,
+        "padding":"valid",
+        "depth_multiplier":2,
+        "activation":"relu"},
+      { "layerType":"Conv2D",
+        "layerName":"Conv2D_1",
+        "layerInput":"SeparableConv",
+        "filters":32,
+        "kernel_size":3,
+        "strides":2,
+        "activation":"relu"},
+      { "layerType":"Flatten",
+        "layerName":"Flatten",
+        "layerInput":"Conv2D_1"}
+      { "layerType":"Dense",
+        "layerName":"Dense1",
+        "layerInput":"Flatten",
+        "outputSize":256,
+        "activation":"relu"},
+      ],
+
+    "Actor":[
+      { "layerType":"Dense",
+        "layerName":"Actor_FC",
+        "layerInput":"Dense1",
+        "outputSize":"actionSize",
+        "activation":null},
+      { "layerType":"SoftMax",
+        "layerName":"Logits",
+        "layerInput":"Actor_FC"},
+      { "layerType":"LogSoftMax",
+        "layerName":"LogLogits",
+        "layerInput":"Actor_FC"}
+    ],
+
+    "Critic":[
+      { "layerType":"Dense",
+        "layerName":"Critic_FC1",
+        "layerInput":"Dense1",
+        "outputSize":1,
+        "activation":null}
+    ],
+
+    "Phi":[
+      { "layerType":"Dense",
+        "layerName":"Phi_FC1",
+        "layerInput":"Dense1",
+        "outputSize":256,
+        "activation":"relu"},
+      { "layerType":"Dense",
+        "layerName":"Phi_FC2",
+        "layerInput":"Phi_FC1",
+        "outputSize":1024,
+        "activation":"relu"}
+    ],
+
+    "Psi":[
+      { "layerType":"Dense",
+        "layerName":"Psi_FC1",
+        "layerInput":"Dense1",
+        "outputSize":256,
+        "activation":"relu"},
+      { "layerType":"Dense",
+        "layerName":"Psi_FC2",
+        "layerInput":"Psi_FC1",
+        "outputSize":1024,
+        "activation":"relu"}
+    ],
+
+    "Successor Layer":[
+      { "layerType":"Dense",
+        "layerName":"SuccessorLayer_Phi",
+        "layerInput":"Phi_FC2",
+        "outputSize":1,
+        "activation":"relu"},
+      { "layerType":"Dense",
+        "ReuseLayer":"SuccessorLayer_Phi",
+        "layerName":"SuccessorLayer_Psi",
+        "layerInput":"Psi_FC2",
+        "outputSize":1,
+        "activation":"relu"}
+    ]
+  },
+
+  "NetworkOutputs":{
+    "actor":"Logits",
+    "critic":"Critic_FC1",
+    "log_logits":"LogLogits",
+    "phi":"Phi_FC2",
+    "sf_reward":"LogLogits",
+    "psi":"Psi_FC2",
+
+  }
+
+  }
