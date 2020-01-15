@@ -19,12 +19,12 @@
         "activation":"relu"},
       { "layerType":"Flatten",
         "layerName":"Flatten",
-        "layerInput":"Conv2D_1"}
+        "layerInput":"Conv2D_1"},
       { "layerType":"Dense",
         "layerName":"Dense1",
         "layerInput":"Flatten",
         "outputSize":256,
-        "activation":"relu"},
+        "activation":"relu"}
       ],
 
     "Actor":[
@@ -96,7 +96,7 @@
     "log_logits":"LogLogits",
     "phi":"Phi_FC2",
     "sf_reward":"LogLogits",
-    "psi":"Psi_FC2",
+    "psi":"Psi_FC2"
 
   }
 
