@@ -9,7 +9,6 @@ CTF Integration
   Test A2C and A3C with CTF environment.
 
 PPO
-  Test with Cart Pole.
   Test with CTF.
 
 Hierarchical Networks

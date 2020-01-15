@@ -11,11 +11,14 @@ from methods.PPO import PPO
 from utils.utils import InitializeVariables, CreatePath
 from utils.record import Record,SaveHyperparams
 import json
+from importlib import import_module #Used to import module based on a string.
 
 if __name__ == "__main__":
     #Defining parameters and Hyperparameters for the run.
     with open("configs/run/ppoRun.json") as json_file:
         settings = json.load(json_file)
+    with open("configs/environment/"+settings["EnvConfig"]) as json_file:
+        envSettings = json.load(json_file)
 
     EXP_NAME = settings["RunName"]
     MODEL_PATH = './models/'+EXP_NAME
@@ -25,8 +28,8 @@ if __name__ == "__main__":
 
     #Creating the Environment
     sess = tf.Session()
-    env = gym.make('CartPole-v0')
-    env.seed(1)  # Create a consistent seed so results are reproducible.
+    env = gym.make(envSettings["EnvName"])
+    env.seed(envSettings["Seed"])  # Create a consistent seed so results are reproducible.
     env = env.unwrapped
     N_F = env.observation_space.shape[0]
     N_A = env.action_space.n
@@ -37,7 +40,10 @@ if __name__ == "__main__":
 
     network = Network("configs/network/"+settings["NetworkConfig"],N_A)
 
-    net = PPO(network,sess,stateShape=[N_F],actionSize=N_A,HPs=settings["NetworkHPs"])
+    module_name, func_name = settings["Method"].rsplit('.',1)
+    module = import_module("methods."+module_name)
+    Method = getattr(module,func_name)
+    net = Method(network,sess,stateShape=[N_F],actionSize=N_A,HPs=settings["NetworkHPs"])
 
     #Creating Auxilary Functions for logging and saving.
     writer = tf.summary.FileWriter(LOG_PATH,graph=sess.graph)

@@ -14,8 +14,8 @@
             "NumberENV":2,
             "Gamma":0.9},
 
-  "EnvConfig":"",
-
+  "EnvConfig":"envExample.json",
+  "Method":"PPO.PPO",
   "NetworkConfig":"ppo.json"
 
   }
