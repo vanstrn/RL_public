@@ -6,6 +6,8 @@ based on a runtime config file.
 import numpy as np
 import gym
 import tensorflow as tf
+import argparse
+from urllib.parse import unquote
 
 from networks.network import Network
 from utils.utils import InitializeVariables, CreatePath
@@ -20,41 +22,51 @@ def GetFunction(string):
     return func
 
 if __name__ == "__main__":
+    #Input arguments to override the default Config Files
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-c", "--config", required=False,
+                        help="JSON configuration string to override runtime configs of the script.")
+    parser.add_argument("-e", "--environment", required=False,
+                        help="JSON configuration string to override environment parameters")
+    parser.add_argument("-n", "--network", required=False,
+                        help="JSON configuration string to override network parameters")
+    args = parser.parse_args()
+    configOverride = json.loads(unquote(args.config))
+    envConfigOverride = json.loads(unquote(args.environment))
+    netConfigOverride = json.loads(unquote(args.network))
+
     #Defining parameters and Hyperparameters for the run.
     with open("configs/run/ppoRun.json") as json_file:
         settings = json.load(json_file)
+        settings.update(configOverride)
     with open("configs/environment/"+settings["EnvConfig"]) as json_file:
         envSettings = json.load(json_file)
+        envSettings.update(envConfigOverride)
 
+    #Creating the Environment and Network to be used in training
+    sess = tf.Session()
+    for functionString in envSettings["StartingFunctions"]:
+        StartingFunction = GetFunction(functionString)
+        env,dFeatures,nActions,nTrajs = StartingFunction(settings,envSettings,sess)
+    network = Network("configs/network/"+settings["NetworkConfig"],nActions,netConfigOverride)
+    Method = GetFunction(settings["Method"])
+    net = Method(network,sess,stateShape=[dFeatures],actionSize=nActions,HPs=settings["NetworkHPs"],nTrajs=nTrajs)
+
+    #Creating Auxilary Functions for logging and saving.
     EXP_NAME = settings["RunName"]
     MODEL_PATH = './models/'+EXP_NAME
     LOG_PATH = './logs/'+EXP_NAME
     CreatePath(LOG_PATH)
     CreatePath(MODEL_PATH)
-
-    #Creating the Environment
-    sess = tf.Session()
-
-    for functionString in envSettings["StartingFunctions"]:
-        StartingFunction = GetFunction(functionString)
-        env,dFeatures,nActions,nTrajs = StartingFunction(settings,envSettings,sess)
-
-    global_episodes = 0
-    global_step = tf.Variable(0, trainable=False, name='global_step')
-    global_step_next = tf.assign_add(global_step,1)
-
-    network = Network("configs/network/"+settings["NetworkConfig"],nActions)
-
-    Method = GetFunction(settings["Method"])
-    net = Method(network,sess,stateShape=[dFeatures],actionSize=nActions,HPs=settings["NetworkHPs"],nTrajs=nTrajs)
-
-    #Creating Auxilary Functions for logging and saving.
     writer = tf.summary.FileWriter(LOG_PATH,graph=sess.graph)
     saver = tf.train.Saver(max_to_keep=3, var_list=net.getVars+[global_step])
     net.InitializeVariablesFromFile(saver,MODEL_PATH)
     InitializeVariables(sess) #Included to catch if there are any uninitalized variables.
 
     total_step = 1
+    global_episodes = 0
+    global_step = tf.Variable(0, trainable=False, name='global_step')
+    global_step_next = tf.assign_add(global_step,1)
     #Running the Simulation
     for i in range(settings["EnvHPs"]["MAX_EP"]):
 
