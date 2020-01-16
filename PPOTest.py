@@ -37,16 +37,16 @@ if __name__ == "__main__":
 
     for functionString in envSettings["StartingFunctions"]:
         StartingFunction = GetFunction(functionString)
-        env,N_F,N_A = StartingFunction(envSettings,sess)
+        env,dFeatures,nActions,nTrajs = StartingFunction(settings,envSettings,sess)
 
     global_episodes = 0
     global_step = tf.Variable(0, trainable=False, name='global_step')
     global_step_next = tf.assign_add(global_step,1)
 
-    network = Network("configs/network/"+settings["NetworkConfig"],N_A)
+    network = Network("configs/network/"+settings["NetworkConfig"],nActions)
 
     Method = GetFunction(settings["Method"])
-    net = Method(network,sess,stateShape=[N_F],actionSize=N_A,HPs=settings["NetworkHPs"])
+    net = Method(network,sess,stateShape=[dFeatures],actionSize=nActions,HPs=settings["NetworkHPs"],nTrajs=nTrajs)
 
     #Creating Auxilary Functions for logging and saving.
     writer = tf.summary.FileWriter(LOG_PATH,graph=sess.graph)
@@ -84,7 +84,7 @@ if __name__ == "__main__":
                 r = RewardProcessing(s1,r,done,env,envSettings,sess)
 
             #Update Step
-            net.AddToBuffer([s0,a,r,s1,done]+networkData)
+            net.AddToTrajectory([s0,a,r,s1,done]+networkData)
 
             if total_step % settings["EnvHPs"]['UPDATE_GLOBAL_ITER'] == 0 or done:   # update global and assign to local net
                 net.Update(settings["NetworkHPs"])
@@ -96,6 +96,7 @@ if __name__ == "__main__":
             s0 = s1
             total_step += 1
             if done or j >= settings["EnvHPs"]["MAX_EP_STEPS"]:
+                net.ClearTrajectory()
                 break
 
         #Closing Functions that will be executed after every episode.

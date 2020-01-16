@@ -1,6 +1,6 @@
 import gym
 import tensorflow as tf
-
+from utils.multiprocessing import SubprocVecEnv
 
 def RewardShape(s1,r,done,env,envSettings,sess):
     if done: r = -20
@@ -11,14 +11,21 @@ def Bootstrap(env,envSettings,sess):
     loggingDict = {"tracking_r":[]}
     return s0, loggingDict
 
-def Starting(envSettings,sess):
-    env = gym.make(envSettings["EnvName"])
-    env.seed(envSettings["Seed"])  # Create a consistent seed so results are reproducible.
-    env = env.unwrapped
-    N_F = env.observation_space.shape[0]
-    N_A = env.action_space.n
+def Starting(settings,envSettings,sess):
+    def make_env():
+        return lambda: gym.make(envSettings["EnvName"],)
+    envs = [make_env() for i in range(settings["NumberENV"])]
+    print(envs[0])
+    N_F = envs[0].observation_space.shape[0]
+    N_A = envs[0].action_space.n
 
-    return env, N_F, N_A
+    envs = SubprocVecEnv(envs)
+    # env = gym.make(envSettings["EnvName"])
+    env.seed(envSettings["Seed"])  # Create a consistent seed so results are reproducible.
+    # env = env.unwrapped
+    nTrajs = settings["NumberENV"]
+
+    return env, N_F, N_A,nTrajs
 
 def Logging(loggingDict,s1,r,done,env,envSettings,sess):
     loggingDict["tracking_r"].append(r)

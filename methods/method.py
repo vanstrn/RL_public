@@ -29,13 +29,22 @@ class Method(object):
         """
         raise NotImplementedError
 
-    def AddToBuffer(self,sample):
+    def AddToTrajectory(self,sample):
         """Add a sample to the buffer.
         Takes the form of [s0,a,r,s1,done,extraData]
         extraData is outputted from the Network and is appended to the sample.
         Also handles any data that needs to be processed in the network.
         """
-        self.buffer.append(sample)
+        self.buffer[0].append(sample)
+
+    def ClearTrajectory(self):
+        """Add a sample to the buffer.
+        Takes the form of [s0,a,r,s1,done,extraData]
+        extraData is outputted from the Network and is appended to the sample.
+        Also handles any data that needs to be processed in the network.
+        """
+        for traj in self.buffer:
+            traj.clear()
 
     def SaveStatistics(self,saver):
         """

@@ -14,13 +14,13 @@ import numpy as np
 
 class PPO(Method):
 
-    def __init__(self,Model,sess,stateShape,actionSize,HPs):
+    def __init__(self,Model,sess,stateShape,actionSize,HPs,nTrajs=1):
         """
         Initializes I/O placeholders used for Tensorflow session runs.
         Initializes and Actor and Critic Network to be used for the purpose of RL.
         """
         #Creating appropriate buffer for the method.
-        self.buffer = Trajectory(depth=7)
+        self.buffer = [Trajectory(depth=7) for _ in range(nTrajs)]
         self.actionSize = actionSize
         with tf.name_scope("PPO_Training"):
             self.sess=sess
@@ -86,21 +86,18 @@ class PPO(Method):
         td_target, advantage = self.ProcessBuffer(HPs)
 
         #Staging Buffer inputs into the entries to run through the network.
-        feed_dict = {self.s: self.buffer[0],
-                     self.a_his: self.buffer[1],
+        feed_dict = {self.s: self.buffer[0][0],
+                     self.a_his: self.buffer[0][1],
                      self.td_target_: td_target,
                      self.advantage_: np.reshape(advantage, [-1]),
-                     self.old_log_logits_: np.reshape(self.buffer[6], [-1,self.actionSize])}
+                     self.old_log_logits_: np.reshape(self.buffer[0][6], [-1,self.actionSize])}
         #Running the data through th
         self.sess.run(self.update_ops, feed_dict)
-
-        #Clear of reset the buffer.
-        self.buffer.clear()
 
     def ProcessBuffer(self,HPs):
         """Take the buffer and calculate future rewards.
         """
-        td_target, advantage = gae(self.buffer[2],self.buffer[5],0,HPs["Gamma"],HPs["lambda"])
+        td_target, advantage = gae(self.buffer[0][2],self.buffer[0][5],0,HPs["Gamma"],HPs["lambda"])
         return td_target, advantage
 
     @property
