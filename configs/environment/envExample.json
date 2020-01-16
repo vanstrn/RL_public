@@ -1,9 +1,0 @@
-{ "EnvName":"CartPole-v0",
-  "Seed":1,
-  "ParralelFunctions":[],
-  "RewardProcessingFunctions":[],
-  "StateProcessingFunctions":[],
-  "ActionProcessingFunctions":[],
-  "BootstrapFunctions":[],
-  "EnvConfigFile":"setting.ini"
-  }

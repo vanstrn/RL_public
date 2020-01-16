@@ -14,8 +14,8 @@
             "NumberENV":2,
             "Gamma":0.9},
 
-  "EnvConfig":"envExample.json",
-  "Method":"PPO.PPO",
+  "EnvConfig":"CartPole.json",
+  "Method":"methods.PPO.PPO",
   "NetworkConfig":"ppo.json"
 
   }
