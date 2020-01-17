@@ -73,31 +73,37 @@ class PPO(Method):
         """
         Contains the code to run the network based on an input.
         """
-        s = state[np.newaxis, :]
-        probs,log_logits,v = self.sess.run([self.a_prob,self.log_logits,self.v], {self.s: s})   # get probabilities for all actions
-
-        return np.random.choice(np.arange(probs.shape[1]), p=probs.ravel()), [v,log_logits]   # return a int
+        probs,log_logits,v = self.sess.run([self.a_prob,self.log_logits,self.v], {self.s: state})   # get probabilities for all actions
+        actions = np.array([np.random.choice(probs.shape[1], p=prob / sum(prob)) for prob in probs])
+        return actions, [v,log_logits]   # return a int
 
     def Update(self,HPs):
         """
         Takes an input buffer and applies the updates to the networks through gradient
         backpropagation
         """
-        td_target, advantage = self.ProcessBuffer(HPs)
+        for traj in range(len(self.buffer)):
+            clip = -1
+            try:
+                for j in range(1):
+                    clip = self.buffer[traj][4].index(True, clip + 1)
+            except:
+                clip=len(self.buffer[traj][4])
+            td_target, advantage = self.ProcessBuffer(HPs,traj,clip)
 
-        #Staging Buffer inputs into the entries to run through the network.
-        feed_dict = {self.s: self.buffer[0][0],
-                     self.a_his: self.buffer[0][1],
-                     self.td_target_: td_target,
-                     self.advantage_: np.reshape(advantage, [-1]),
-                     self.old_log_logits_: np.reshape(self.buffer[0][6], [-1,self.actionSize])}
-        #Running the data through th
-        self.sess.run(self.update_ops, feed_dict)
+            #Staging Buffer inputs into the entries to run through the network.
+            feed_dict = {self.s: self.buffer[traj][0][:clip],
+                         self.a_his: self.buffer[traj][1][:clip],
+                         self.td_target_: td_target,
+                         self.advantage_: np.reshape(advantage, [-1]),
+                         self.old_log_logits_: np.reshape(self.buffer[traj][6][:clip], [-1,self.actionSize])}
+            #Running the data through th
+            self.sess.run(self.update_ops, feed_dict)
 
-    def ProcessBuffer(self,HPs):
+    def ProcessBuffer(self,HPs,traj,clip):
         """Take the buffer and calculate future rewards.
         """
-        td_target, advantage = gae(self.buffer[0][2],self.buffer[0][5],0,HPs["Gamma"],HPs["lambda"])
+        td_target, advantage = gae(self.buffer[traj][2][:clip],self.buffer[traj][5][:clip],0,HPs["Gamma"],HPs["lambda"])
         return td_target, advantage
 
     @property

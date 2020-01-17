@@ -13,7 +13,7 @@
             "LOG_FREQ" : 10,
             "Gamma":0.9},
 
-  "NumberENV":1,
+  "NumberENV":2,
   "EnvConfig":"CartPole.json",
   "NetworkConfig":"ppo.json",
   "Method":"methods.PPO.PPO"

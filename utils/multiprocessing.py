@@ -45,7 +45,7 @@ def worker(idx, remote, parent_remote, env_fn_wrapper, ):
             break
 
         elif cmd == '_get_spaces':
-            remote.send((env.observation_space, env.action_space))
+            remote.send((env.observation_space.shape, env.action_space.n))
 
         elif hasattr(env, cmd):
             remote.send(getattr(env, cmd))
@@ -96,7 +96,7 @@ class SubprocVecEnv:
         results = [remote.recv() for remote in self.remotes]
         self.waiting = False
         obs, rews, dones, infos = zip(*results)
-        obs = np.concatenate(obs, axis=0)
+        # obs = np.concatenate(obs, axis=1)
         rews = np.stack(rews)
         dones = np.stack(dones)
         return obs, rews, dones, infos
@@ -104,7 +104,7 @@ class SubprocVecEnv:
     def reset(self, **kwargs):
         for remote in self.remotes:
             remote.send(('_reset', kwargs))
-        return np.concatenate([remote.recv() for remote in self.remotes], axis=0)
+        return np.stack([remote.recv() for remote in self.remotes], axis=0)
 
     def get_static_map(self):
         for remote in self.remotes:

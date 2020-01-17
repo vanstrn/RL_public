@@ -31,9 +31,12 @@ if __name__ == "__main__":
     parser.add_argument("-n", "--network", required=False,
                         help="JSON configuration string to override network parameters")
     args = parser.parse_args()
-    configOverride = json.loads(unquote(args.config))
-    envConfigOverride = json.loads(unquote(args.environment))
-    netConfigOverride = json.loads(unquote(args.network))
+    if args.config is not None: configOverride = json.loads(unquote(args.config))
+    else: configOverride = {}
+    if args.environment is not None: envConfigOverride = json.loads(unquote(args.environment))
+    else: envConfigOverride = {}
+    if args.network is not None: netConfigOverride = json.loads(unquote(args.network))
+    else: netConfigOverride = {}
 
     #Defining parameters and Hyperparameters for the run.
     with open("configs/run/ppoRun.json") as json_file:
@@ -53,6 +56,10 @@ if __name__ == "__main__":
     net = Method(network,sess,stateShape=[dFeatures],actionSize=nActions,HPs=settings["NetworkHPs"],nTrajs=nTrajs)
 
     #Creating Auxilary Functions for logging and saving.
+    total_step = 1
+    global_episodes = 0
+    global_step = tf.Variable(0, trainable=False, name='global_step')
+    global_step_next = tf.assign_add(global_step,settings["NumberENV"])
     EXP_NAME = settings["RunName"]
     MODEL_PATH = './models/'+EXP_NAME
     LOG_PATH = './logs/'+EXP_NAME
@@ -63,10 +70,6 @@ if __name__ == "__main__":
     net.InitializeVariablesFromFile(saver,MODEL_PATH)
     InitializeVariables(sess) #Included to catch if there are any uninitalized variables.
 
-    total_step = 1
-    global_episodes = 0
-    global_step = tf.Variable(0, trainable=False, name='global_step')
-    global_step_next = tf.assign_add(global_step,1)
     #Running the Simulation
     for i in range(settings["EnvHPs"]["MAX_EP"]):
 
@@ -75,7 +78,7 @@ if __name__ == "__main__":
 
         for functionString in envSettings["BootstrapFunctions"]:
             BootstrapFunctions = GetFunction(functionString)
-            s0, loggingDict = BootstrapFunctions(env,envSettings,sess)
+            s0, loggingDict = BootstrapFunctions(env,settings,envSettings,sess)
 
         for j in range(settings["EnvHPs"]["MAX_EP_STEPS"]):
 
@@ -98,7 +101,7 @@ if __name__ == "__main__":
             #Update Step
             net.AddToTrajectory([s0,a,r,s1,done]+networkData)
 
-            if total_step % settings["EnvHPs"]['UPDATE_GLOBAL_ITER'] == 0 or done:   # update global and assign to local net
+            if total_step % settings["EnvHPs"]['UPDATE_GLOBAL_ITER'] == 0 or done.all():   # update global and assign to local net
                 net.Update(settings["NetworkHPs"])
 
             for functionString in envSettings["LoggingFunctions"]:
@@ -107,14 +110,14 @@ if __name__ == "__main__":
 
             s0 = s1
             total_step += 1
-            if done or j >= settings["EnvHPs"]["MAX_EP_STEPS"]:
+            if done.all() or j >= settings["EnvHPs"]["MAX_EP_STEPS"]:
                 net.ClearTrajectory()
                 break
 
         #Closing Functions that will be executed after every episode.
         for functionString in envSettings["EpisodeClosingFunctions"]:
             EpisodeClosingFunction = GetFunction(functionString)
-            finalDict = EpisodeClosingFunction(loggingDict,env,envSettings,sess)
+            finalDict = EpisodeClosingFunction(loggingDict,env,settings,envSettings,sess)
 
         if i % settings["EnvHPs"]["SAVE_FREQ"] == 0:
             saver.save(sess, MODEL_PATH+'/ctf_policy.ckpt', global_step=sess.run(global_step))

@@ -35,7 +35,11 @@ class Method(object):
         extraData is outputted from the Network and is appended to the sample.
         Also handles any data that needs to be processed in the network.
         """
-        self.buffer[0].append(sample)
+        for i in range(len(sample[0])):
+            tmp = []
+            for j in range(len(sample)):
+                tmp.append(sample[j][i])
+            self.buffer[i].append(tmp)
 
     def ClearTrajectory(self):
         """Add a sample to the buffer.
