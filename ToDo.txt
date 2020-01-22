@@ -4,12 +4,29 @@ Modular Run Scripts
 
 Modular Network
   Implement Recursive Elements in Network Design.
+  Allow two outputs to be concatenated for another layer.
+  Allow for multiple end outputs instead of specifying one "actionSize".
+  Allow a hidden state dictionary to be passed through, which can be routed to the next iteration of the environment
+    -Needs to be included in all method files as this is where it will be stored.
+    -Needs to be added to the buffer.
 
 CTF Integration
-  Test A2C and A3C with CTF environment.
+  Test A2C, A3C, and PPO with CTF environment.
+
+A2C
+  N/A
+
+A3C
+  N/A
 
 PPO
-  Test with CTF.
+  N/A
+
+TRPO
+  Implement
+
+ACKTR
+  Implement
 
 Hierarchical Networks
   Smartly Linking the Networks in Training (Have Separate Network in the JSON File)
@@ -17,3 +34,15 @@ Hierarchical Networks
 
 Recurrent Networks
   Create modular network definition for Recurrent networks and LSTMs
+
+ELO System
+  Implement
+
+Multiple Parallel Training of Networks
+  Implement
+  Train Multiple networks by estimating memory usage and if over capacity cycle through the networks.
+  Implement Process which selects which trainings to cut and how to fork successful training.
+
+Replay Buffers
+  Create Buffer sample data in batches.
+  Create Experience Replay buffer which will hold onto important Tuples.

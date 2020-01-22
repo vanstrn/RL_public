@@ -90,7 +90,7 @@ if __name__ == "__main__":
 
             for functionString in envSettings["ActionProcessingFunctions"]:
                 ActionProcessing = GetFunction(functionString)
-                r = ActionProcessing(a,env,sess)
+                a = ActionProcessing(a,env,envSettings,sess)
 
             s1,r,done,_ = env.step(a)
 

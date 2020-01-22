@@ -8,7 +8,7 @@ import json
 from .layers.non_local import Non_local_nn
 
 class Network(tf.keras.Model):
-    def __init__(self, configFile, actionSize,netConfigOverride,scope=None):
+    def __init__(self, configFile, actionSize, netConfigOverride, scope=None):
         """
         Reads a network config file and processes that into a netowrk with appropriate naming structure.
 
