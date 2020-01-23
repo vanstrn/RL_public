@@ -1,0 +1,21 @@
+{ "RunName":"CTFTest",
+  "NetworkHPs":{"LR": 1E-4,
+                "Gamma":0.98,
+                "lambda":0.98,
+                "EntropyBeta":0.001,
+                "CriticBeta":0.001,
+                "eps":0.2},
+
+  "EnvHPs":{"MAX_EP_STEPS":1000,
+            "MAX_EP":10000,
+            "SAVE_FREQ" : 100,
+            "UPDATE_GLOBAL_ITER" : 40,
+            "LOG_FREQ" : 10,
+            "Gamma":0.9},
+
+  "NumberENV":8,
+  "EnvConfig":"CTF.json",
+  "NetworkConfig":"ctf_ppo.json",
+  "Method":"methods.PPO.PPO"
+
+  }

@@ -37,6 +37,10 @@ def worker(idx, remote, parent_remote, env_fn_wrapper, ):
 
         elif cmd == '_reset':
             pause = False
+            if 'policy_red' in data.keys():
+                data['policy_red'] = data['policy_red']()
+            if 'policy_blue' in data.keys():
+                data['policy_blue'] = data['policy_blue']()
             ob = env.reset(**data)
             remote.send(ob)
 
@@ -96,7 +100,7 @@ class SubprocVecEnv:
         results = [remote.recv() for remote in self.remotes]
         self.waiting = False
         obs, rews, dones, infos = zip(*results)
-        # obs = np.concatenate(obs, axis=1)
+        obs = np.stack(obs)
         rews = np.stack(rews)
         dones = np.stack(dones)
         return obs, rews, dones, infos

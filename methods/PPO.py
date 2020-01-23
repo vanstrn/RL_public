@@ -22,52 +22,52 @@ class PPO(Method):
         #Creating appropriate buffer for the method.
         self.buffer = [Trajectory(depth=7) for _ in range(nTrajs)]
         self.actionSize = actionSize
-        with tf.name_scope("PPO_Training"):
-            self.sess=sess
-            self.Model = Model
-            #Placeholders
-            self.s = tf.placeholder(tf.float32, [None]+stateShape, 'S')
-            self.a_his = tf.placeholder(tf.int32, [None, ], 'A')
-            self.td_target_ = tf.placeholder(tf.float32, [None], 'Vtarget')
-            self.advantage_ = tf.placeholder(shape=[None], dtype=tf.float32, name='adv_hold')
-            self.old_log_logits_ = tf.placeholder(shape=[None, actionSize], dtype=tf.float32, name='old_logit_hold')
+        self.sess=sess
+        with self.sess.as_default(), self.sess.graph.as_default():
+            with tf.name_scope("PPO_Training"):
+                self.Model = Model
+                #Placeholders
+                self.s = tf.placeholder(tf.float32, [None]+stateShape, 'S')
+                self.a_his = tf.placeholder(tf.int32, [None, ], 'A')
+                self.td_target_ = tf.placeholder(tf.float32, [None], 'Vtarget')
+                self.advantage_ = tf.placeholder(shape=[None], dtype=tf.float32, name='adv_hold')
+                self.old_log_logits_ = tf.placeholder(shape=[None, actionSize], dtype=tf.float32, name='old_logit_hold')
 
-            out = self.Model(self.s)
-            self.a_prob = out["actor"]
-            self.v = out["critic"]
-            self.log_logits = out["log_logits"]
+                out = self.Model(self.s)
+                self.a_prob = out["actor"]
+                self.v = out["critic"]
+                self.log_logits = out["log_logits"]
 
-            # Entropy
-            def _log(val):
-                return tf.log(tf.clip_by_value(val, 1e-10, 10.0))
-            entropy = -tf.reduce_mean(self.a_prob * _log(self.a_prob), name='entropy')
+                # Entropy
+                def _log(val):
+                    return tf.log(tf.clip_by_value(val, 1e-10, 10.0))
+                entropy = -tf.reduce_mean(self.a_prob * _log(self.a_prob), name='entropy')
 
-            # Critic Loss
-            td_error = self.td_target_ - self.v
-            critic_loss = tf.reduce_mean(tf.square(td_error), name='critic_loss')
+                # Critic Loss
+                td_error = self.td_target_ - self.v
+                critic_loss = tf.reduce_mean(tf.square(td_error), name='critic_loss')
 
-            # Actor Loss
-            action_OH = tf.one_hot(self.a_his, actionSize, dtype=tf.float32)
-            log_prob = tf.reduce_sum(self.log_logits * action_OH, 1)
-            old_log_prob = tf.reduce_sum(self.old_log_logits_ * action_OH, 1)
+                # Actor Loss
+                action_OH = tf.one_hot(self.a_his, actionSize, dtype=tf.float32)
+                log_prob = tf.reduce_sum(self.log_logits * action_OH, 1)
+                old_log_prob = tf.reduce_sum(self.old_log_logits_ * action_OH, 1)
 
-            # Clipped surrogate function
-            ratio = tf.exp(log_prob - old_log_prob)
-            #ratio = log_prob / old_log_prob
-            surrogate = ratio * self.advantage_
-            clipped_surrogate = tf.clip_by_value(ratio, 1-HPs["eps"], 1+HPs["eps"]) * self.advantage_
-            surrogate_loss = tf.minimum(surrogate, clipped_surrogate, name='surrogate_loss')
-            actor_loss = -tf.reduce_mean(surrogate_loss, name='actor_loss')
+                # Clipped surrogate function
+                ratio = tf.exp(log_prob - old_log_prob)
+                surrogate = ratio * self.advantage_
+                clipped_surrogate = tf.clip_by_value(ratio, 1-HPs["eps"], 1+HPs["eps"]) * self.advantage_
+                surrogate_loss = tf.minimum(surrogate, clipped_surrogate, name='surrogate_loss')
+                actor_loss = -tf.reduce_mean(surrogate_loss, name='actor_loss')
 
-            if HPs["EntropyBeta"] != 0:
-                actor_loss = actor_loss - entropy * HPs["EntropyBeta"]
-            if HPs["CriticBeta"] != 0:
-                actor_loss = actor_loss + critic_loss * HPs["CriticBeta"]
-            loss = actor_loss
-            # Build Trainer
-            self.optimizer = tf.keras.optimizers.Adam(HPs["LR"])
-            self.gradients = self.optimizer.get_gradients(loss, tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, "PPO_Training/"+self.Model.scope))
-            self.update_ops = self.optimizer.apply_gradients(zip(self.gradients, tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, "PPO_Training/"+self.Model.scope)))
+                if HPs["EntropyBeta"] != 0:
+                    actor_loss = actor_loss - entropy * HPs["EntropyBeta"]
+                if HPs["CriticBeta"] != 0:
+                    actor_loss = actor_loss + critic_loss * HPs["CriticBeta"]
+
+                # Build Trainer
+                self.optimizer = tf.keras.optimizers.Adam(HPs["LR"])
+                self.gradients = self.optimizer.get_gradients(actor_loss, tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, "PPO_Training/"+self.Model.scope))
+                self.update_ops = self.optimizer.apply_gradients(zip(self.gradients, tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, "PPO_Training/"+self.Model.scope)))
 
     def GetAction(self, state):
         """
