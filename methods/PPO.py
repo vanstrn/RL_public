@@ -83,6 +83,8 @@ class PPO(Method):
         backpropagation
         """
         for traj in range(len(self.buffer)):
+
+            #Ignoring Samples after the environment is done.
             clip = -1
             try:
                 for j in range(1):
@@ -90,6 +92,9 @@ class PPO(Method):
             except:
                 clip=len(self.buffer[traj][4])
             td_target, advantage = self.ProcessBuffer(HPs,traj,clip)
+
+            #Create a dictionary with all of the samples?
+            #Use a sampler to feed the update operation?
 
             #Staging Buffer inputs into the entries to run through the network.
             feed_dict = {self.s: self.buffer[traj][0][:clip],

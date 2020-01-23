@@ -1,0 +1,12 @@
+{ "EnvName":"cap-v0",
+  "Seed":1,
+  "ParralelFunctions":[],
+  "StartingFunctions":["environments.CTF.Starting"],
+  "BootstrapFunctions":["environments.CTF.Bootstrap"],
+  "ActionProcessingFunctions":[],
+  "StateProcessingFunctions":[],
+  "RewardProcessingFunctions":["environments.CTF.RewardShape"],
+  "LoggingFunctions":["environments.CTF.Logging"],
+  "EpisodeClosingFunctions":["environments.CTF.Closing"],
+  "EnvConfigFile":"setting.ini"
+  }
