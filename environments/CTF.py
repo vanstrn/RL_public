@@ -3,6 +3,7 @@ import tensorflow as tf
 from utils.multiprocessing import SubprocVecEnv
 import numpy as np
 import policy
+import time
 
 def use_this_policy():
     heur_policy_list = [policy.Patrol, policy.Roomba, policy.Defense, policy.Random, policy.AStar]
@@ -30,7 +31,8 @@ def Starting(settings,envSettings,sess):
 def Bootstrap(env,settings,envSettings,sess):
     s0 = env.reset( config_path=envSettings["EnvName"],
                     policy_red=use_this_policy())
-    loggingDict = {"tracking_r":[[] for _ in range(len(env.get_team_blue().flatten()))]}
+    loggingDict = {"tracking_r":[[] for _ in range(len(env.get_team_blue().flatten()))],
+                    "time_start":time.time()}
     return s0, loggingDict
 
 def StateProcessing(s0,env,envSettings,sess):
@@ -75,7 +77,6 @@ def RewardShape(s1,r,done,env,envSettings,sess):
 
     return reward,done1
 
-
 def Logging(loggingDict,s1,r,done,env,envSettings,sess):
     for i,envR in enumerate(r):
         if not done[i]: loggingDict["tracking_r"][i].append(envR)
@@ -90,8 +91,10 @@ def Closing(loggingDict,env,settings,envSetting,sess):
             running_reward = ep_rs_sum
         else:
             running_reward = running_reward * 0.95 + ep_rs_sum * 0.05
+    time_elapsed = time.time()-loggingDict["time_start"]
     global_step = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, "global_step")
-    print("episode:", sess.run(global_step), "  running reward:", running_reward,"  reward:",ep_rs_sum)
+    print('Episode: {0:6d} Running Reward: {1:4.2f} Time Elapsed: {2:4.2f}s'.format(int(sess.run(global_step)[0]), running_reward, time_elapsed))
 
-    finalDict = {"Training Results/Reward":ep_rs_sum}
+    finalDict = {   "Training Results/Reward":ep_rs_sum,
+                    "Training Results/Episode Time":time_elapsed/settings["NumberENV"]}
     return finalDict

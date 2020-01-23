@@ -12,8 +12,22 @@ class Network(tf.keras.Model):
         """
         Reads a network config file and processes that into a netowrk with appropriate naming structure.
 
-        This class only works on feed forward neural networks.
-        Can only handle one input.
+        This class only works on feed forward neural networks. Can only handle one input.
+
+        Parameters
+        ----------
+        configFile : str
+            Config file which points to the network description to be loaded.
+        actionSize : int
+            Output sizes of different network components. Assumes the environment is discrete action space.
+        netConfigOverride : dict
+            Dictionary of values which will override the default contents loaded from the config file.
+        scope : str [opt]
+            Defines a tensorflow scope for the network.
+
+        Returns
+        -------
+        N/A
         """
         self.actionSize = actionSize
 
@@ -37,6 +51,8 @@ class Network(tf.keras.Model):
             for layerDict in layerList:
                 self.layerList[layerDict["layerName"]] = self.GetLayer(layerDict)
                 self.layerInputs[layerDict["layerName"]] = layerDict["layerInput"]
+
+        self.networkVariables=data["NetworkVariables"]
 
     def call(self,input):
         """Defines how the layers are called with a forward pass of the network.
@@ -95,12 +111,15 @@ class Network(tf.keras.Model):
 
         return layer
 
-    @property
-    def getVars(self):
-        return tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=self.scope)
+    def getVars(self,scope):
+        return tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=scope + "/" + self.scope)
+
+    def getVariables(self,name,scope):
+        vars = []
+        for section in self.networkVariables[name]:
+            vars.append(tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=scope + "/" + self.scope + "/" + section))
+        return vars
 
 if __name__ == "__main__":
     sess = tf.Session()
     test = Network(configFile="test.json",actionSize=4)
-    # s = tf.placeholder(tf.float32, [None, 4], 'S')
-    # x = test(s)

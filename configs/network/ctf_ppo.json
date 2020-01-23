@@ -60,6 +60,10 @@
     "actor":"Logits",
     "critic":"Critic_FC1",
     "log_logits":"LogLogits"
+  },
+  "NetworkVariables":{
+    "Actor":["Actor","Shared"],
+    "Critic":["Critic","Shared"]
   }
 
   }

@@ -83,12 +83,11 @@ for i in range(settings["EnvHPs"]["MAX_EP"]):
     for functionString in envSettings["BootstrapFunctions"]:
         BootstrapFunctions = GetFunction(functionString)
         s0, loggingDict = BootstrapFunctions(env,settings,envSettings,sess)
+    for functionString in envSettings["StateProcessingFunctions"]: #Bootstrap state processing
+        StateProcessing = GetFunction(functionString)
+        s0 = StateProcessing(s0,env,envSettings,sess)
 
     for j in range(settings["EnvHPs"]["MAX_EP_STEPS"]):
-
-        for functionString in envSettings["StateProcessingFunctions"]:
-            StateProcessing = GetFunction(functionString)
-            s0 = StateProcessing(s0,env,envSettings,sess)
 
         a, networkData = net.GetAction(state=s0)
 
@@ -97,13 +96,16 @@ for i in range(settings["EnvHPs"]["MAX_EP"]):
             a,a_traj = ActionProcessing(a,env,envSettings,sess)
 
         s1,r,done,_ = env.step(a)
+        for functionString in envSettings["StateProcessingFunctions"]:
+            StateProcessing = GetFunction(functionString)
+            s1 = StateProcessing(s1,env,envSettings,sess)
 
         for functionString in envSettings["RewardProcessingFunctions"]:
             RewardProcessing = GetFunction(functionString)
             r,done = RewardProcessing(s1,r,done,env,envSettings,sess)
 
         #Update Step
-        net.AddToTrajectory([s0,a_traj,r,StateProcessing(s1,env,envSettings,sess),done]+networkData)
+        net.AddToTrajectory([s0,a_traj,r,s1,done]+networkData)
 
         if total_step % settings["EnvHPs"]['UPDATE_GLOBAL_ITER'] == 0 or done.all():   # update global and assign to local net
             net.Update(settings["NetworkHPs"])

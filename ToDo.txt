@@ -1,6 +1,5 @@
 Modular Run Scripts
-  Reorganize the run scripts so that they are compatible between different Network training architectures (PPO/A3C...)
-  Make the definition of the training architecture be made in a Config File and not hard coded.
+  Reorganize the run scripts between Synchronous and Asynchronous Runs.
 
 Modular Network
   Implement Recursive Elements in Network Design.
@@ -26,6 +25,9 @@ TRPO
   Implement
 
 ACKTR
+  Implement
+
+Q Learning
   Implement
 
 Hierarchical Networks
