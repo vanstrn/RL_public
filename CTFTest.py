@@ -48,7 +48,9 @@ with open("configs/environment/"+settings["EnvConfig"]) as json_file:
     envSettings.update(envConfigOverride)
 
 #Creating the Environment and Network to be used in training
-sess = tf.Session()
+gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=settings["GPUCapacitty"], allow_growth=True)
+config = tf.ConfigProto(gpu_options=gpu_options, log_device_placement=False, allow_soft_placement=True)
+sess = tf.Session(config=config)
 for functionString in envSettings["StartingFunctions"]:
     StartingFunction = GetFunction(functionString)
     env,dFeatures,nActions,nTrajs = StartingFunction(settings,envSettings,sess)
@@ -73,6 +75,8 @@ writer = tf.summary.FileWriter(LOG_PATH,graph=sess.graph)
 saver = tf.train.Saver(max_to_keep=3, var_list=net.getVars+[global_step])
 net.InitializeVariablesFromFile(saver,MODEL_PATH)
 InitializeVariables(sess) #Included to catch if there are any uninitalized variables.
+
+progbar = tf.keras.utils.Progbar(None, unit_name='Training')
 
 #Running the Simulation
 for i in range(settings["EnvHPs"]["MAX_EP"]):
@@ -104,10 +108,10 @@ for i in range(settings["EnvHPs"]["MAX_EP"]):
             RewardProcessing = GetFunction(functionString)
             r,done = RewardProcessing(s1,r,done,env,envSettings,sess)
 
-        #Update Step
         net.AddToTrajectory([s0,a_traj,r,s1,done]+networkData)
 
-        if total_step % settings["EnvHPs"]['UPDATE_GLOBAL_ITER'] == 0 or done.all():   # update global and assign to local net
+        # If no training during episode set UPDATE_GLOBAL_ITER > MAX_EP_STEPS
+        if total_step % settings["EnvHPs"]['UPDATE_GLOBAL_ITER'] == 0 or done.all():
             net.Update(settings["NetworkHPs"])
 
         for functionString in envSettings["LoggingFunctions"]:
@@ -117,13 +121,14 @@ for i in range(settings["EnvHPs"]["MAX_EP"]):
         s0 = s1
         total_step += 1
         if done.all() or j >= settings["EnvHPs"]["MAX_EP_STEPS"]:
+            net.Update(settings["NetworkHPs"])
             net.ClearTrajectory()
             break
 
     #Closing Functions that will be executed after every episode.
     for functionString in envSettings["EpisodeClosingFunctions"]:
         EpisodeClosingFunction = GetFunction(functionString)
-        finalDict = EpisodeClosingFunction(loggingDict,env,settings,envSettings,sess)
+        finalDict = EpisodeClosingFunction(loggingDict,env,settings,envSettings,progbar,sess)
 
     if i % settings["EnvHPs"]["SAVE_FREQ"] == 0:
         saver.save(sess, MODEL_PATH+'/ctf_policy.ckpt', global_step=sess.run(global_step))

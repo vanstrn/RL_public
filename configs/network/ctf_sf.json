@@ -98,6 +98,10 @@
     "sf_reward":"LogLogits",
     "psi":"Psi_FC2"
 
+  },
+  "NetworkVariables":{
+    "Actor":["Actor","Shared"],
+    "Critic":["Critic","Shared"]
   }
 
   }

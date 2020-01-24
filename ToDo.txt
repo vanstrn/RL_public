@@ -1,5 +1,6 @@
 Modular Run Scripts
   Reorganize the run scripts between Synchronous and Asynchronous Runs.
+  Change the saving and loging functions so that they don't need to be exact integer values to log/save values.
 
 Modular Network
   Implement Recursive Elements in Network Design.

@@ -104,7 +104,6 @@ class PPO(Method):
                          self.td_target_: td_target,
                          self.advantage_: np.reshape(advantage, [-1]),
                          self.old_log_logits_: np.reshape(self.buffer[traj][6][:clip], [-1,self.actionSize])}
-            #Running the data through th
             self.sess.run(self.update_ops, feed_dict)
 
     def ProcessBuffer(self,HPs,traj,clip):
@@ -115,4 +114,4 @@ class PPO(Method):
 
     @property
     def getVars(self):
-        return self.Model.getVars
+        return self.Model.getVars("PPO_Training")

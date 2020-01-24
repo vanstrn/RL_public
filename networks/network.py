@@ -111,8 +111,11 @@ class Network(tf.keras.Model):
 
         return layer
 
-    def getVars(self,scope):
-        return tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=scope + "/" + self.scope)
+    def getVars(self,scope=None):
+        if scope is None:
+            return tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=self.scope)
+        else:
+            return tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=scope + "/" + self.scope)
 
     def getVariables(self,name,scope):
         vars = []

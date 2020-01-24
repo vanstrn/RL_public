@@ -34,6 +34,10 @@
   "NetworkOutputs":{
     "actor":"Actor_FC2",
     "critic":"Critic_FC2"
+  },
+  "NetworkVariables":{
+    "Actor":["Actor","Shared"],
+    "Critic":["Critic","Shared"]
   }
 
   }

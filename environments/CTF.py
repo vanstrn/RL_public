@@ -63,17 +63,24 @@ def ActionProcessing(a,env,envSettings,sess):
     return actions,storageActions
 
 def RewardShape(s1,r,done,env,envSettings,sess):
-    reward = np.ones([len(r),4])
     done1 = np.ones([len(r),4])
+    for idx,d in enumerate(done):
+        done1[idx,:] = np.ones([4])*d
+    done1 = done1.flatten()
+    if 'was_done' not in globals():
+        global was_done
+        was_done = done1
+    else:
+        was_done = done1
+
+    reward = np.ones([len(r),4])
     for idx,rew in enumerate(r):
         if done[idx]:
             reward[idx,:] = np.ones([4])*0
         else:
             reward[idx,:] = np.ones([4])*rew
-    for idx,d in enumerate(done):
-        done1[idx,:] = np.ones([4])*d
-    reward = reward.flatten()
-    done1 = done1.flatten()
+    reward = reward.flatten() * (1-np.array(was_done, dtype=int))
+
 
     return reward,done1
 
@@ -82,7 +89,7 @@ def Logging(loggingDict,s1,r,done,env,envSettings,sess):
         if not done[i]: loggingDict["tracking_r"][i].append(envR)
     return loggingDict
 
-def Closing(loggingDict,env,settings,envSetting,sess):
+def Closing(loggingDict,env,settings,envSetting,progbar,sess):
     for i in range(settings["NumberENV"]):
         # print(loggingDict["tracking_r"][i])
         ep_rs_sum = sum(loggingDict["tracking_r"][i])
@@ -93,8 +100,8 @@ def Closing(loggingDict,env,settings,envSetting,sess):
             running_reward = running_reward * 0.95 + ep_rs_sum * 0.05
     time_elapsed = time.time()-loggingDict["time_start"]
     global_step = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, "global_step")
-    print('Episode: {0:6d} Running Reward: {1:4.2f} Time Elapsed: {2:4.2f}s'.format(int(sess.run(global_step)[0]), running_reward, time_elapsed))
-
+    # print('Episode: {0:6d} Running Reward: {1:4.2f} Time Elapsed: {2:4.2f}s'.format(int(sess.run(global_step)[0]), running_reward, time_elapsed))
+    progbar.update(sess.run(global_step)[0])
     finalDict = {   "Training Results/Reward":ep_rs_sum,
                     "Training Results/Episode Time":time_elapsed/settings["NumberENV"]}
     return finalDict
