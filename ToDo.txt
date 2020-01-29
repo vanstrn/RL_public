@@ -49,3 +49,7 @@ Multiple Parallel Training of Networks
 Replay Buffers
   Create Buffer sample data in batches.
   Create Experience Replay buffer which will hold onto important Tuples.
+
+Catch Memory Leak in CTF execution.
+  -Trajectories may be clear but the data stays in Memory?
+  -Model grows in size and uses more resources?

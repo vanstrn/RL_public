@@ -16,16 +16,37 @@ class PPO(Method):
 
     def __init__(self,Model,sess,stateShape,actionSize,HPs,nTrajs=1):
         """
-        Initializes I/O placeholders used for Tensorflow session runs.
-        Initializes and Actor and Critic Network to be used for the purpose of RL.
+        Initializes a training method for a neural network.
+
+        Parameters
+        ----------
+        Model : Keras Model Object
+            A Keras model object with fully defined layers and a call function. See examples in networks module.
+        sess : Tensorflow Session
+            Initialized Tensorflow session
+        stateShape : list
+            List of integers of the inputs shape size. Ex [39,39,6]
+        actionSize : int
+            Output size of the network.
+        HPs : dict
+            Dictionary that contains all hyperparameters to be used in the methods training
+        nTrajs : int (Optional)
+            Number that specifies the number of trajectories to be created for collecting training data.
+
+        Returns
+        -------
+        N/A
         """
-        #Creating appropriate buffer for the method.
-        self.buffer = [Trajectory(depth=7) for _ in range(nTrajs)]
+        #Processing inputs
         self.actionSize = actionSize
         self.sess=sess
+        self.Model = Model
+
+        #Creating appropriate buffer for the method.
+        self.buffer = [Trajectory(depth=7) for _ in range(nTrajs)]
+
         with self.sess.as_default(), self.sess.graph.as_default():
             with tf.name_scope("PPO_Training"):
-                self.Model = Model
                 #Placeholders
                 self.s = tf.placeholder(tf.float32, [None]+stateShape, 'S')
                 self.a_his = tf.placeholder(tf.int32, [None, ], 'A')
@@ -33,6 +54,7 @@ class PPO(Method):
                 self.advantage_ = tf.placeholder(shape=[None], dtype=tf.float32, name='adv_hold')
                 self.old_log_logits_ = tf.placeholder(shape=[None, actionSize], dtype=tf.float32, name='old_logit_hold')
 
+                #Initializing Netowrk I/O
                 out = self.Model(self.s)
                 self.a_prob = out["actor"]
                 self.v = out["critic"]
@@ -59,10 +81,8 @@ class PPO(Method):
                 surrogate_loss = tf.minimum(surrogate, clipped_surrogate, name='surrogate_loss')
                 actor_loss = -tf.reduce_mean(surrogate_loss, name='actor_loss')
 
-                if HPs["EntropyBeta"] != 0:
-                    actor_loss = actor_loss - entropy * HPs["EntropyBeta"]
-                if HPs["CriticBeta"] != 0:
-                    actor_loss = actor_loss + critic_loss * HPs["CriticBeta"]
+                actor_loss = actor_loss - entropy * HPs["EntropyBeta"]
+                loss = actor_loss + critic_loss * HPs["CriticBeta"]
 
                 # Build Trainer
                 self.optimizer = tf.keras.optimizers.Adam(HPs["LR"])
@@ -71,20 +91,40 @@ class PPO(Method):
 
     def GetAction(self, state):
         """
-        Contains the code to run the network based on an input.
+        Method to run data through the neural network.
+
+        Parameters
+        ----------
+        state : np.array
+            Data with the shape of [N, self.stateShape] where N is number of smaples
+
+        Returns
+        -------
+        actions : list[int]
+            List of actions based on NN output.
+        extraData : list
+            List of data that is passed to the execution code to be bundled with state data.
         """
-        probs,log_logits,v = self.sess.run([self.a_prob,self.log_logits,self.v], {self.s: state})   # get probabilities for all actions
+        probs,log_logits,v = self.sess.run([self.a_prob,self.log_logits,self.v], {self.s: state})
         actions = np.array([np.random.choice(probs.shape[1], p=prob / sum(prob)) for prob in probs])
-        return actions, [v,log_logits]   # return a int
+        return actions, [v,log_logits]
 
     def Update(self,HPs):
         """
-        Takes an input buffer and applies the updates to the networks through gradient
-        backpropagation
+        Process the buffer and backpropagates the loses through the NN.
+
+        Parameters
+        ----------
+        HPs : dict
+            Hyperparameters for training.
+
+        Returns
+        -------
+        N/A
         """
+
         for traj in range(len(self.buffer)):
 
-            #Ignoring Samples after the environment is done.
             clip = -1
             try:
                 for j in range(1):
@@ -107,7 +147,24 @@ class PPO(Method):
             self.sess.run(self.update_ops, feed_dict)
 
     def ProcessBuffer(self,HPs,traj,clip):
-        """Take the buffer and calculate future rewards.
+        """
+        Process the buffer and backpropagates the loses through the NN.
+
+        Parameters
+        ----------
+        Model : HPs
+            Hyperparameters for training.
+        traj : Trajectory
+            Data stored by the neural network.
+        clip : list[bool]
+            List where the trajectory has finished. 
+
+        Returns
+        -------
+        td_target : list
+            List Temporal Difference Target for particular states.
+        advantage : list
+            List of advantages for particular actions.
         """
         td_target, advantage = gae(self.buffer[traj][2][:clip],self.buffer[traj][5][:clip],0,HPs["Gamma"],HPs["lambda"])
         return td_target, advantage
