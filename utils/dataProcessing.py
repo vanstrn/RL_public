@@ -1,13 +1,4 @@
 
-import os
-import shutil
-import sys
-
-import random
-
-import inspect
-import functools
-
 import numpy as np
 import scipy.signal
 
@@ -65,7 +56,8 @@ def gae(reward_list, value_list, bootstrap, gamma:float, lambd:float, normalize=
     advantages = reward_np + gamma * value_ext[1:] - value_ext[:-1]
     advantages = discount_rewards(advantages, gamma*lambd)
 
-    if normalize:
-        advantages = (advantages - np.mean(advantages))/(np.std(advantages) + 1e-6)
+    # Currently Causes a memory leak.
+    # if normalize:
+    #     advantages = (advantages - np.mean(advantages))/(np.std(advantages) + 1e-6)
 
     return td_target.tolist(), advantages.tolist()

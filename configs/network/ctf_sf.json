@@ -3,7 +3,7 @@
     "Shared":[
       { "layerType":"SeparableConv",
         "layerName":"SeparableConv",
-        "layerInput":"input",
+        "layerInput":"input.state",
         "filters":16,
         "kernel_size":5,
         "strides":3,
@@ -99,7 +99,7 @@
     "psi":"Psi_FC2"
 
   },
-  "NetworkVariables":{
+  "NetworkVariableGroups":{
     "Actor":["Actor","Shared"],
     "Critic":["Critic","Shared"]
   }

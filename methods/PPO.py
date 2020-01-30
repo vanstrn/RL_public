@@ -14,7 +14,7 @@ import numpy as np
 
 class PPO(Method):
 
-    def __init__(self,Model,sess,stateShape,actionSize,HPs,nTrajs=1):
+    def __init__(self,Model,sess,stateShape,actionSize,HPs,nTrajs=1,scope="PPO_Training"):
         """
         Initializes a training method for a neural network.
 
@@ -32,6 +32,8 @@ class PPO(Method):
             Dictionary that contains all hyperparameters to be used in the methods training
         nTrajs : int (Optional)
             Number that specifies the number of trajectories to be created for collecting training data.
+        scope : str (Optional)
+            Name of the PPO method. Used to group and differentiate variables between other networks.
 
         Returns
         -------
@@ -46,7 +48,7 @@ class PPO(Method):
         self.buffer = [Trajectory(depth=7) for _ in range(nTrajs)]
 
         with self.sess.as_default(), self.sess.graph.as_default():
-            with tf.name_scope("PPO_Training"):
+            with tf.name_scope(scope):
                 #Placeholders
                 self.s = tf.placeholder(tf.float32, [None]+stateShape, 'S')
                 self.a_his = tf.placeholder(tf.int32, [None, ], 'A')
@@ -55,7 +57,8 @@ class PPO(Method):
                 self.old_log_logits_ = tf.placeholder(shape=[None, actionSize], dtype=tf.float32, name='old_logit_hold')
 
                 #Initializing Netowrk I/O
-                out = self.Model(self.s)
+                inputs = {"state":self.s}
+                out = self.Model(inputs)
                 self.a_prob = out["actor"]
                 self.v = out["critic"]
                 self.log_logits = out["log_logits"]
@@ -86,8 +89,8 @@ class PPO(Method):
 
                 # Build Trainer
                 self.optimizer = tf.keras.optimizers.Adam(HPs["LR"])
-                self.gradients = self.optimizer.get_gradients(actor_loss, tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, "PPO_Training/"+self.Model.scope))
-                self.update_ops = self.optimizer.apply_gradients(zip(self.gradients, tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, "PPO_Training/"+self.Model.scope)))
+                self.gradients = self.optimizer.get_gradients(loss, tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope))
+                self.update_ops = self.optimizer.apply_gradients(zip(self.gradients, tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope)))
 
     def GetAction(self, state):
         """
@@ -122,7 +125,6 @@ class PPO(Method):
         -------
         N/A
         """
-
         for traj in range(len(self.buffer)):
 
             clip = -1
@@ -131,7 +133,9 @@ class PPO(Method):
                     clip = self.buffer[traj][4].index(True, clip + 1)
             except:
                 clip=len(self.buffer[traj][4])
+
             td_target, advantage = self.ProcessBuffer(HPs,traj,clip)
+
 
             #Create a dictionary with all of the samples?
             #Use a sampler to feed the update operation?
@@ -146,6 +150,7 @@ class PPO(Method):
                          self.old_log_logits_: np.reshape(self.buffer[traj][6][:clip], [-1,self.actionSize])}
             self.sess.run(self.update_ops, feed_dict)
 
+
     def ProcessBuffer(self,HPs,traj,clip):
         """
         Process the buffer and backpropagates the loses through the NN.
@@ -157,7 +162,7 @@ class PPO(Method):
         traj : Trajectory
             Data stored by the neural network.
         clip : list[bool]
-            List where the trajectory has finished. 
+            List where the trajectory has finished.
 
         Returns
         -------
@@ -166,7 +171,10 @@ class PPO(Method):
         advantage : list
             List of advantages for particular actions.
         """
+        # print("Starting Processing Buffer\n")
+        # tracker.print_diff()
         td_target, advantage = gae(self.buffer[traj][2][:clip],self.buffer[traj][5][:clip],0,HPs["Gamma"],HPs["lambda"])
+        # tracker.print_diff()
         return td_target, advantage
 
     @property

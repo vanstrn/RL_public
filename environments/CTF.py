@@ -59,8 +59,7 @@ def StateProcessing(s0,env,envSettings,sess):
 def ActionProcessing(a,env,envSettings,sess):
     agents = env.get_team_blue()
     actions = a.reshape(agents.shape)
-    storageActions = a
-    return actions,storageActions
+    return actions
 
 def RewardShape(s1,r,done,env,envSettings,sess):
     done1 = np.ones([len(r),4])

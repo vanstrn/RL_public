@@ -3,7 +3,7 @@
     "Feature Encoder":[
       { "layerType":"SeparableConv",
         "layerName":"SeparableConv",
-        "layerInput":"input",
+        "layerInput":"input.state",
         "filters":16,
         "kernel_size":5,
         "strides":3,
@@ -83,12 +83,12 @@
     "phi":"Phi_Out",
     "psi":"Psi_FC2",
     "reward_pred":"reward_out"
-
   },
-  "NetworkVariables":{
+
+  "NetworkVariableGroups":{
     "Actor":["Actor","Phi","Feature Encoder"],
     "Critic":["Psi","Phi","Feature Encoder"],
     "Reward":["Reward Prediction","Phi", "Feature Encoder"]
-
   }
+
 }

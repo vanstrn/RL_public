@@ -14,8 +14,10 @@ from networks.network import Network
 from utils.utils import InitializeVariables, CreatePath
 from utils.record import Record,SaveHyperparams
 import json
-from importlib import import_module #Used to import module based on a string.
-from environments.CTF import StateProcessing
+from importlib import import_module
+
+from pympler.tracker import SummaryTracker
+tracker = SummaryTracker()
 
 def GetFunction(string):
     module_name, func_name = string.rsplit('.',1)
@@ -91,15 +93,15 @@ for i in range(settings["EnvHPs"]["MAX_EP"]):
         StateProcessing = GetFunction(functionString)
         s0 = StateProcessing(s0,env,envSettings,sess)
 
-    for j in range(settings["EnvHPs"]["MAX_EP_STEPS"]):
+    for j in range(settings["EnvHPs"]["MAX_EP_STEPS"]+1):
 
         a, networkData = net.GetAction(state=s0)
 
         for functionString in envSettings["ActionProcessingFunctions"]:
             ActionProcessing = GetFunction(functionString)
-            a,a_traj = ActionProcessing(a,env,envSettings,sess)
+            actions = ActionProcessing(a,env,envSettings,sess)
 
-        s1,r,done,_ = env.step(a)
+        s1,r,done,_ = env.step(actions)
         for functionString in envSettings["StateProcessingFunctions"]:
             StateProcessing = GetFunction(functionString)
             s1 = StateProcessing(s1,env,envSettings,sess)
@@ -108,10 +110,10 @@ for i in range(settings["EnvHPs"]["MAX_EP"]):
             RewardProcessing = GetFunction(functionString)
             r,done = RewardProcessing(s1,r,done,env,envSettings,sess)
 
-        net.AddToTrajectory([s0,a_traj,r,s1,done]+networkData)
+        net.AddToTrajectory([s0,a,r,s1,done]+networkData)
 
         # If no training during episode set UPDATE_GLOBAL_ITER > MAX_EP_STEPS
-        if total_step % settings["EnvHPs"]['UPDATE_GLOBAL_ITER'] == 0 or done.all():
+        if j % settings["EnvHPs"]['UPDATE_GLOBAL_ITER'] == 0 or done.all():
             net.Update(settings["NetworkHPs"])
 
         for functionString in envSettings["LoggingFunctions"]:
@@ -119,19 +121,21 @@ for i in range(settings["EnvHPs"]["MAX_EP"]):
             loggingDict = LoggingFunctions(loggingDict,s1,r,done,env,envSettings,sess)
 
         s0 = s1
-        total_step += 1
-        if done.all() or j >= settings["EnvHPs"]["MAX_EP_STEPS"]:
+        if done.all() or j == settings["EnvHPs"]["MAX_EP_STEPS"]:
             net.Update(settings["NetworkHPs"])
             net.ClearTrajectory()
+        if done.all():
             break
 
     #Closing Functions that will be executed after every episode.
     for functionString in envSettings["EpisodeClosingFunctions"]:
         EpisodeClosingFunction = GetFunction(functionString)
         finalDict = EpisodeClosingFunction(loggingDict,env,settings,envSettings,progbar,sess)
+        # tracker.print_diff()
 
     if i % settings["EnvHPs"]["SAVE_FREQ"] == 0:
         saver.save(sess, MODEL_PATH+'/ctf_policy.ckpt', global_step=sess.run(global_step))
 
     if i % settings["EnvHPs"]["LOG_FREQ"] == 0:
-        Record(finalDict, writer, i)
+        # finalDict["NetMemUsage/ppo"] = asizeof.asized(net).size
+        Record(finalDict, writer, sess.run(global_step))

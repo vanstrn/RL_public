@@ -3,7 +3,7 @@
     "Shared":[
       { "layerType":"Dense",
         "layerName":"Shared_FC1",
-        "layerInput":"input",
+        "layerInput":"input.state",
         "outputSize":20,
         "activation":"relu"}],
     "Actor":[
@@ -42,7 +42,7 @@
     "critic":"Critic_FC2",
     "log_logits":"LogLogits"
   },
-  "NetworkVariables":{
+  "NetworkVariableGroups":{
     "Actor":["Actor","Shared"],
     "Critic":["Critic","Shared"]
   }

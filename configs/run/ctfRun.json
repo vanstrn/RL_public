@@ -8,10 +8,10 @@
                 "eps":0.2},
 
   "EnvHPs":{"MAX_EP_STEPS":150,
-            "MAX_EP":100000,
+            "MAX_EP":10000,
             "SAVE_FREQ" : 1000,
             "UPDATE_GLOBAL_ITER":155,
-            "LOG_FREQ" : 100,
+            "LOG_FREQ" : 5,
             "Gamma":0.99},
 
   "NumberENV":8,
