@@ -12,7 +12,7 @@ import tensorflow as tf
 import numpy as np
 
 
-class PPO(Method):
+class PPO_Hierarchy(Method):
 
     def __init__(self,Model,sess,stateShape,actionSize,HPs,nTrajs=1,scope="PPO_Training"):
         """
@@ -59,9 +59,13 @@ class PPO(Method):
                 #Initializing Netowrk I/O
                 inputs = {"state":self.s}
                 out = self.Model(inputs)
-                self.a_prob = out["actor"]
-                self.v = out["critic"]
-                self.log_logits = out["log_logits"]
+                self.a_prob = out["metaActor"]
+                self.v = out["metaCritic"]
+                self.log_logits = out["metaLogLogits"]
+
+                self.sub_a_prob = out["subActor"]
+                self.sub_v = out["subLogLogits"]
+                self.sub_log_logits = out["subCritic"]
 
                 # Entropy
                 def _log(val):
@@ -91,10 +95,16 @@ class PPO(Method):
                 self.optimizer = tf.keras.optimizers.Adam(HPs["LR"])
                 self.gradients = self.optimizer.get_gradients(loss, tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope))
                 self.update_ops = self.optimizer.apply_gradients(zip(self.gradients, tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope)))
+        self.method = "Greedy"
 
     def GetAction(self, state):
         """
-        Method to run data through the neural network.
+        Method to run data through hierarchical network
+
+        First run the state through the meta network to select subpolicy to use.
+        Second run the state through the proper Subpolicy
+
+        ToDo: Check if faster to run the entire network and select appropriate subpolicy afterwards. or run only the required bit.
 
         Parameters
         ----------
@@ -108,7 +118,23 @@ class PPO(Method):
         extraData : list
             List of data that is passed to the execution code to be bundled with state data.
         """
-        probs,log_logits,v = self.sess.run([self.a_prob,self.log_logits,self.v], {self.s: state})
+        #Determine number of steps and whether to initiate confidence based on the length of the Buffer.
+        
+        # Run the Meta Network
+        LL_probs,log_logits,v = self.sess.run([self.a_prob,self.log_logits,self.v], {self.s: state})
+        if self.method == "Greedy":
+            actions = np.array([np.random.choice(probs.shape[1], p=prob / sum(prob)) for prob in probs])
+        elif self.method = "Fixed Step":
+            pass
+        elif self.method = "Confidence":
+            pass
+        elif self.method = "Probabilistic Confidence":
+            pass
+        else:
+            pass
+
+        # Run the Subpolicy Network
+        probs,log_logits,v = self.sess.run([self.sub_a_prob[],self.sub_log_logits,self.sub_v], {self.s: state})
         actions = np.array([np.random.choice(probs.shape[1], p=prob / sum(prob)) for prob in probs])
         return actions, [v,log_logits]
 
@@ -135,7 +161,7 @@ class PPO(Method):
                 clip=len(self.buffer[traj][4])
 
             td_target, advantage = self.ProcessBuffer(HPs,traj,clip)
-            print(self.buffer[traj][2])
+
 
             #Create a dictionary with all of the samples?
             #Use a sampler to feed the update operation?

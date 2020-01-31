@@ -4,6 +4,42 @@ import numpy as np
 import os
 import tensorflow as tf
 
+def GetFunction(string):
+    module_name, func_name = string.rsplit('.',1)
+    module = import_module(module_name)
+    func = getattr(module,func_name)
+    return func
+
+def interval_flag(step, freq, name):
+    """
+    Returns true at the beginning of the interval.
+    It is used in case where step is not incrementing uniformly.
+    The method defines internal attribute based on name for instant counter.
+
+    Parameters
+    ----------------
+    step : [int]
+        The current step number
+    freq : [int]
+        The interval size
+    name : [str]
+        Arbitrary string for counter
+
+    Returns
+    ----------------
+    flag: [bool]
+
+    """
+
+    count = step // freq
+    if not hasattr(interval_flag, name):
+        setattr(interval_flag, name, count)
+    if getattr(interval_flag, name) < count:
+        setattr(interval_flag, name, count)
+        return True
+    else:
+        return False
+
 def CreatePath(path, override=False):
     """
     Create directory

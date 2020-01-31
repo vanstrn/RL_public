@@ -14,7 +14,7 @@
             "LOG_FREQ" : 5,
             "Gamma":0.99},
 
-  "NumberENV":8,
+  "NumberENV":1,
   "EnvConfig":"CTF.json",
   "NetworkConfig":"ctf_ppo.json",
   "Method":"methods.PPO.PPO"

@@ -65,21 +65,23 @@ def RewardShape(s1,r,done,env,envSettings,sess):
     done1 = np.ones([len(r),4])
     for idx,d in enumerate(done):
         done1[idx,:] = np.ones([4])*d
+    reward = np.ones([len(r),4])
     done1 = done1.flatten()
     if 'was_done' not in globals():
         global was_done
+        for idx,rew in enumerate(r):
+            if done[idx]:
+                reward[idx,:] = np.ones([4])*rew
         was_done = done1
     else:
+        for idx,rew in enumerate(r):
+            if not was_done[idx]:
+                reward[idx,:] = np.ones([4])*rew
+            else:
+                reward[idx,:] = np.ones([4])*0
         was_done = done1
 
-    reward = np.ones([len(r),4])
-    for idx,rew in enumerate(r):
-        if done[idx]:
-            reward[idx,:] = np.ones([4])*0
-        else:
-            reward[idx,:] = np.ones([4])*rew
     reward = reward.flatten() * (1-np.array(was_done, dtype=int))
-
 
     return reward,done1
 

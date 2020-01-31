@@ -5,10 +5,10 @@ Sets up the basic Network Class which lays out all required functions of a Neura
 import tensorflow as tf
 import tensorflow.keras.layers as KL
 import json
-from .layers.non_local import Non_local_nn
+# from .layers.non_local import Non_local_nn
 
-class Network(tf.keras.Model):
-    def __init__(self, configFile, actionSize, netConfigOverride, scope=None):
+class HierarchicalNetwork(tf.keras.Model):
+    def __init__(self, configFile, actionSize, netConfigOverride={}, scope=None):
         """
         Reads a network config file and processes that into a netowrk with appropriate naming structure.
 
@@ -32,27 +32,40 @@ class Network(tf.keras.Model):
         self.actionSize = actionSize
 
         with open(configFile) as json_file:
-            data = json.load(json_file)
-        data.update(netConfigOverride)
+            config = json.load(json_file)
+        config.update(netConfigOverride)
         if scope is None:
-            namespace = data["NetworkName"]
+            namespace = config["NetworkName"]
         else:
             namespace = scope
-        super(Network,self).__init__(name=namespace)
+        super(HierarchicalNetwork,self).__init__(name=namespace)
         # Reading in the configFile
-        self.networkOutputs = data["NetworkOutputs"]
 
         self.scope=namespace
 
         self.layerList = {}
         self.layerInputs = {}
             #Creating all of the layers
-        for sectionName,layerList in data["NetworkStructure"].items():
-            for layerDict in layerList:
-                self.layerList[layerDict["layerName"]] = self.GetLayer(layerDict)
-                self.layerInputs[layerDict["layerName"]] = layerDict["layerInput"]
+        for groupName,groupDict in config["NetworkStructure"].items():
+            if groupName == "SubNetworkStructure":
+                for option in range(config["NumOptions"]):
+                    for sectionName,layerList in groupDict.items():
+                        for layerDict in layerList:
+                            self.layerList[layerDict["layerName"]+"_option"+str(option)] = self.GetLayer(layerDict)
+                            if "Sub" in layerDict["layerInput"]:
+                                self.layerInputs[layerDict["layerName"]+"_option"+str(option)] = layerDict["layerInput"]+"_option"+str(option)
+                            else:
+                                self.layerInputs[layerDict["layerName"]+"_option"+str(option)] = layerDict["layerInput"]
 
-        self.networkVariables=data["NetworkVariableGroups"]
+            else:
+                for sectionName,layerList in groupDict.items():
+                    for layerDict in layerList:
+                        self.layerList[layerDict["layerName"]] = self.GetLayer(layerDict)
+                        self.layerInputs[layerDict["layerName"]] = layerDict["layerInput"]
+
+        self.networkVariables=config["NetworkVariableGroups"]
+        self.networkOutputs = config["NetworkOutputs"]
+        self.numOptions = config["NumOptions"]
 
     def call(self,inputs):
         """Defines how the layers are called with a forward pass of the network.
@@ -67,7 +80,7 @@ class Network(tf.keras.Model):
                         _, input_name = self.layerInputs[layerName].rsplit('.',1)
                         layerInputs.append(inputs[input_name])
                     else:
-                        layerInputs.append((self.layerOutputs[self.layerInputs[layerName]])
+                        layerInputs.append(self.layerOutputs[self.layerInputs[layerName]])
                 self.layerOutputs[layerName] = layer(layerInputs)
             else: # Single input layers
                 if "input" in self.layerInputs[layerName]:
@@ -78,7 +91,12 @@ class Network(tf.keras.Model):
 
         results = {}
         for outputName,layerOutput in self.networkOutputs.items():
-            results[outputName] = self.layerOutputs[layerOutput]
+            if "sub" in outputName:
+                results[outputName] =[]
+                for option in range(self.numOptions):
+                    results[outputName].append(self.layerOutputs[layerOutput+"_option"+str(option)])
+            else:
+                results[outputName] = self.layerOutputs[layerOutput]
         return results
 
     def GetLayer(self, dict):
@@ -137,5 +155,9 @@ class Network(tf.keras.Model):
         return vars
 
 if __name__ == "__main__":
+    import numpy as np
     sess = tf.Session()
-    test = Network(configFile="test.json",actionSize=4)
+    test = HierarchicalNetwork(configFile="hierarchyTest.json",actionSize=4)
+    s = tf.placeholder(tf.float32, [None,39,39,6], 'S')
+    state={"state":s}
+    out = test(state)

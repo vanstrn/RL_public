@@ -67,7 +67,7 @@ class Network(tf.keras.Model):
                         _, input_name = self.layerInputs[layerName].rsplit('.',1)
                         layerInputs.append(inputs[input_name])
                     else:
-                        layerInputs.append((self.layerOutputs[self.layerInputs[layerName]])
+                        layerInputs.append(self.layerOutputs[self.layerInputs[layerName]])
                 self.layerOutputs[layerName] = layer(layerInputs)
             else: # Single input layers
                 if "input" in self.layerInputs[layerName]:

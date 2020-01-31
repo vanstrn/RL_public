@@ -1,6 +1,9 @@
 { "NetworkName" : "DefaultCtF",
+  "Description":"Hierarchical Network where the feature encoder is shared by all sub-networks. Uses shared network structure to ",
+  "NumOptions":3,
   "NetworkStructure":{
-    "Shared":[
+    "SharedNetworkStructure":{
+      "FeatureEncoder":[
       { "layerType":"SeparableConv",
         "layerName":"SeparableConv",
         "layerInput":"input.state",
@@ -32,34 +35,64 @@
         "layerInput":"Flatten",
         "outputSize":128,
         "activation":null}
-      ],
+      ]
+    },
 
+  "MetaNetworkStructure":{
     "Actor":[
       { "layerType":"Dense",
-        "layerName":"Actor_FC",
+        "layerName":"Meta_Actor_FC1",
         "layerInput":"Dense1",
         "outputSize":"actionSize",
         "activation":null},
       { "layerType":"SoftMax",
-        "layerName":"Logits",
-        "layerInput":"Actor_FC"},
+        "layerName":"Meta_Actor_logits",
+        "layerInput":"Meta_Actor_FC1"},
       { "layerType":"LogSoftMax",
-        "layerName":"LogLogits",
-        "layerInput":"Actor_FC"}
+        "layerName":"Meta_Actor_LogLogits",
+        "layerInput":"Meta_Actor_logits"}
     ],
-
     "Critic":[
       { "layerType":"Dense",
-        "layerName":"Critic_FC1",
+        "layerName":"MetaCritic",
         "layerInput":"Dense1",
         "outputSize":1,
         "activation":null}
     ]
   },
+
+  "SubNetworkStructure":{
+
+    "Actor":[
+      { "layerType":"Dense",
+        "layerName":"Sub_Actor_FC1",
+        "layerInput":"Dense1",
+        "outputSize":"actionSize",
+        "activation":null},
+      { "layerType":"SoftMax",
+        "layerName":"Sub_Actor_logits",
+        "layerInput":"Sub_Actor_FC1"},
+      { "layerType":"LogSoftMax",
+        "layerName":"Sub_Actor_LogLogits",
+        "layerInput":"Sub_Actor_logits"}
+    ],
+
+    "Critic":[
+      { "layerType":"Dense",
+        "layerName":"SubCritic",
+        "layerInput":"Dense1",
+        "outputSize":1,
+        "activation":null}
+    ]
+  }
+  },
   "NetworkOutputs":{
-    "actor":"Logits",
-    "critic":"Critic_FC1",
-    "log_logits":"LogLogits"
+    "metaActor":"Meta_Actor_logits",
+    "metaLogLogits":"Meta_Actor_LogLogits",
+    "metaCritic":"MetaCritic",
+    "subActor":"Sub_Actor_logits",
+    "subLogLogits":"Sub_Actor_LogLogits",
+    "subCritic":"SubCritic"
   },
   "NetworkVariableGroups":{
     "Actor":["Actor","Shared"],
