@@ -8,7 +8,8 @@ from .buffer import Trajectory
 from utils.dataProcessing import gae
 import tensorflow as tf
 import numpy as np
-from methods import kfac
+# from methods import kfac
+import kfac
 
 class ACKTR(Method):
 
@@ -24,6 +25,7 @@ class ACKTR(Method):
         self.buffer = [Trajectory(depth=6) for _ in range(nTrajs)]
         self.actionSize = actionSize
         self.sess=sess
+        # self.layer_collection = tf.contrib.kfac.layer_collection.LayerCollection()
         with self.sess.as_default(), self.sess.graph.as_default():
             with tf.name_scope("ACKTR_Model"):
                 self.Model = Model
@@ -37,6 +39,9 @@ class ACKTR(Method):
                 self.a_prob = out["actor"]
                 self.v = out["critic"]
                 self.log_logits = out["log_logits"]
+
+                # self.layer_collection.register_categorical_predictive_distribution(self.a_prob) #can put seed here for debugging
+                # self.layer_collection.register_normal_predictive_distribution(self.v, var=1.0)
 
                 action_OH = tf.one_hot(self.a_his, actionSize, dtype=tf.float32)
                 neglogpac = -tf.reduce_sum(self.log_logits * action_OH, 1)
@@ -56,11 +61,42 @@ class ACKTR(Method):
                 self.params= params = self.getVars
 
                 self.grads_check = grads = tf.gradients(train_loss,params)
-                self.optim = optim = kfac.KfacOptimizer(learning_rate=HPs["LR"], clip_kl=0.001,\
-                    momentum=0.9, kfac_update=1, epsilon=0.01,\
-                    stats_decay=0.99, is_async=False, cold_iter=10, max_grad_norm=0.5)
-                optim.compute_and_apply_stats(joint_fisher_loss, var_list=params)
-                self.train_op, self.q_runner = optim.apply_gradients(list(zip(grads,params)))
+                # self.optim = optim = kfac.KfacOptimizer(learning_rate=HPs["LR"], clip_kl=0.001,\
+                #     momentum=0.9, kfac_update=1, epsilon=0.01,\
+                #     stats_decay=0.99, is_async=False, cold_iter=10, max_grad_norm=0.5)
+                # self.optimizer = tf.contrib.kfac.optimizer.KfacOptimizer(layer_collection=self.layer_collection, damping=HPs["DampingLambda"],
+                #                                             learning_rate=HPs["LR"], cov_ema_decay=HPs["MADecay"],
+                #                                             momentum=HPs["KFACMomentum"], norm_constraint=HPs["KFACConstraint"])
+                print(dir(kfac))
+                
+
+                self.optimizer = kfac.keras.optimizers.Kfac(learning_rate=HPs["LR"],
+                                       damping=0.01,
+                                       model=self.Model,
+                                       loss=train_loss)
+                # optim.compute_and_apply_stats(joint_fisher_loss, var_list=params)
+                self.train_op = self.optimizer.apply_gradients(list(zip(grads,params)))
+
+                # self.create_q_runner_and_cov_op()
+    def create_q_runner_and_cov_op(self):
+        """
+        Creates q_runner used by run.py in order to mult-process. Also create the covariance update operation.
+        """
+        # found how do to do these few lines in https://github.com/gd-zhang/ACKTR/blob/master/models/model.py
+        self.cov_update_op = self.optimizer.cov_update_op
+        # inv_update_op = self.optimizer.inv_update_op #this op is unnecessary given q_runner as far as I can tell
+        inv_update_dict = self.optimizer.inv_updates_dict
+        factors = self.layer_collection.get_factors()
+        inv_updates = list(inv_update_dict.values())
+        queue = tf.FIFOQueue(1, [item.dtype for item in inv_updates],
+                                [item.get_shape() for item in inv_updates])
+        # in baseline ACKTR, was this
+        # enqueue_op = tf.cond(tf.equal(tf.mod(self.global_step_tensor, self.inv_iter), tf.convert_to_tensor(0)),
+        #                      lambda: queue.enqueue(self.model.inv_update_dict.value()), tf.no_op)
+        # but now we can do this
+        enqueue_op = queue.enqueue(list(inv_updates))
+        self.dequeue_op = queue.dequeue()
+        self.q_runner = tf.train.QueueRunner(queue, [enqueue_op])
 
 
     def GetAction(self, state):

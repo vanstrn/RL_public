@@ -5,7 +5,12 @@
                 "EntropyCoeff":0.01,
                 "ValueFunctionCoeff":0.5,
                 "FischerCoeff":1.0,
-                "eps":0.2},
+                "eps":0.2,
+                "DampingLambda":0.01,
+                "KFACMomentum":0.9,
+                "KFACConstraint":0.0001,
+                "MADecay":0.99
+              },
 
   "EnvHPs":{"MAX_EP_STEPS":1000,
             "MAX_EP":10000,
