@@ -42,7 +42,11 @@ Multiple Parallel Training of Networks
   Implement
   Train Multiple networks by estimating memory usage and if over capacity cycle through the networks.
   Implement Process which selects which trainings to cut and how to fork successful training.
+  Used for ELO training or for Multi-Agent Systems.
 
 Replay Buffers
   Create Buffer sample data in batches.
   Create Experience Replay buffer which will hold onto important Tuples.
+
+Move to TF2
+  Keras implementation should be similar. Check background functions.

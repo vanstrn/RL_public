@@ -28,6 +28,20 @@ def Starting(settings,envSettings,sess):
 
     return envs, list(N_F), 5, nTrajs
 
+def StartingSingle(settings,envSettings,sess):
+    env = gym.make(envSettings["EnvName"],
+                            map_size=envSettings["MapSize"],
+                            config_path=envSettings["ConfigPath"])
+    N_F = env.observation_space
+    N_A = env.action_space
+
+    nTrajs = len(env.get_team_blue().flatten())
+
+    if envSettings["Centering"]:
+        N_F = (39,39,6)
+
+    return envs, list(N_F), 5, nTrajs
+
 def Bootstrap(env,settings,envSettings,sess):
     s0 = env.reset( config_path=envSettings["EnvName"],
                     policy_red=use_this_policy())
@@ -61,29 +75,46 @@ def ActionProcessing(a,env,envSettings,sess):
     actions = a.reshape(agents.shape)
     return actions
 
-def RewardShape(s1,r,done,env,envSettings,sess):
-    done1 = np.ones([len(r),4])
-    for idx,d in enumerate(done):
-        done1[idx,:] = np.ones([4])*d
-    reward = np.ones([len(r),4])
-    done1 = done1.flatten()
+def RewardShape(s1,reward_raw,done_raw,env,envSettings,sess):
+    #Processing the Dones
+    done = np.zeros([len(done_raw),4])
+    for idx,d in enumerate(done_raw):
+        done[idx,:] = np.ones([4])*d
+    done = done.flatten()
+
+    #Processing the reward recording zero if the environment is done.
     if 'was_done' not in globals():
         global was_done
-        for idx,rew in enumerate(r):
-            if done[idx]:
-                reward[idx,:] = np.ones([4])*rew
-        was_done = done1
+        was_done = done
     else:
-        for idx,rew in enumerate(r):
-            if not was_done[idx]:
-                reward[idx,:] = np.ones([4])*rew
-            else:
-                reward[idx,:] = np.ones([4])*0
-        was_done = done1
+        was_done = done
+    if done.all():
+        was_done = np.ones([len(done_raw)*4])*False
 
-    reward = reward.flatten() * (1-np.array(was_done, dtype=int))
 
-    return reward,done1
+    reward = np.ones([len(reward_raw),4])
+    for idx,env_reward in enumerate(reward_raw):
+        if not was_done[idx*4]:
+            reward[idx,:]=reward[idx,:]*env_reward
+        else:
+            reward[idx,:]=reward[idx,:]*0
+    #     for idx,rew in enumerate(r):
+    #         if done[idx]:
+    #             reward[idx,:] = np.ones([4])*rew
+    # else:
+    #     for idx,rew in enumerate(r):
+    #         if not was_done[idx]:
+    #             reward[idx,:] = np.ones([4])*rew
+    #         else:
+    #             reward[idx,:] = np.ones([4])*0
+    #     was_done = done1
+    # for rew in r:
+    #     if rew >= 0:
+    #         print("Won the game")
+
+    reward = reward.flatten() #* (1-np.array(was_done, dtype=int))
+
+    return reward,done
 
 def Logging(loggingDict,s1,r,done,env,envSettings,sess):
     for i,envR in enumerate(r):

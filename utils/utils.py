@@ -3,6 +3,7 @@
 import numpy as np
 import os
 import tensorflow as tf
+from importlib import import_module #Used to import module based on a string.
 
 def GetFunction(string):
     module_name, func_name = string.rsplit('.',1)

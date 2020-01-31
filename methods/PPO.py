@@ -50,6 +50,7 @@ class PPO(Method):
         with self.sess.as_default(), self.sess.graph.as_default():
             with tf.name_scope(scope):
                 #Placeholders
+                print(stateShape)
                 self.s = tf.placeholder(tf.float32, [None]+stateShape, 'S')
                 self.a_his = tf.placeholder(tf.int32, [None, ], 'A')
                 self.td_target_ = tf.placeholder(tf.float32, [None], 'Vtarget')
@@ -108,8 +109,13 @@ class PPO(Method):
         extraData : list
             List of data that is passed to the execution code to be bundled with state data.
         """
-        probs,log_logits,v = self.sess.run([self.a_prob,self.log_logits,self.v], {self.s: state})
+        try:
+            probs,log_logits,v = self.sess.run([self.a_prob,self.log_logits,self.v], {self.s: state})
+        except ValueError:
+            probs,log_logits,v = self.sess.run([self.a_prob,self.log_logits,self.v], {self.s: np.expand_dims(state,axis=0)})
+
         actions = np.array([np.random.choice(probs.shape[1], p=prob / sum(prob)) for prob in probs])
+        # print(probs,actions)
         return actions, [v,log_logits]
 
     def Update(self,HPs):
@@ -135,7 +141,6 @@ class PPO(Method):
                 clip=len(self.buffer[traj][4])
 
             td_target, advantage = self.ProcessBuffer(HPs,traj,clip)
-            print(self.buffer[traj][2])
 
             #Create a dictionary with all of the samples?
             #Use a sampler to feed the update operation?
@@ -143,8 +148,9 @@ class PPO(Method):
             #Staging Buffer inputs into the entries to run through the network.
             if len(self.buffer[traj][0][:clip]) == 0:
                 continue
+            # print(self.buffer[traj][1][:clip].shape)
             feed_dict = {self.s: self.buffer[traj][0][:clip],
-                         self.a_his: self.buffer[traj][1][:clip],
+                         self.a_his: np.asarray(self.buffer[traj][1][:clip]).reshape(-1),
                          self.td_target_: td_target,
                          self.advantage_: np.reshape(advantage, [-1]),
                          self.old_log_logits_: np.reshape(self.buffer[traj][6][:clip], [-1,self.actionSize])}
