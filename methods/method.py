@@ -41,7 +41,7 @@ class Method(object):
                 for j in range(len(sample)):
                     tmp.append(sample[j][i])
                 self.buffer[i].append(tmp)
-                
+
         except: #Singular inputs.
             self.buffer[0].append(sample)
 
@@ -60,12 +60,15 @@ class Method(object):
         """
         raise NotImplementedError
 
-    def InitializeVariablesFromFile(self,saver, model_path):
-        with self.sess.graph.as_default():
-            ckpt = tf.train.get_checkpoint_state(model_path)
-            if ckpt and tf.train.checkpoint_exists(ckpt.model_checkpoint_path):
-                saver.restore(self.sess, ckpt.model_checkpoint_path)
-                print("Load Model : ", ckpt.model_checkpoint_path)
-            else:
-                self.sess.run(tf.global_variables_initializer())
-                print("Initialized Variables")
+    def InitializeVariablesFromFile(self, model_path):
+        try:
+            # ckpt = tf.train.get_checkpoint_state(model_path)
+            # latest = tf.train.latest_checkpoint(model_path)
+            self.Model.load_weights(latest+'my_model.h5')
+            print("Load Model : ", ckpt.model_checkpoint_path)
+        except:
+            print("Model not loaded.")
+
+    def SaveModel(self, model_path):
+        self.Model.save_weights(model_path+'my_model.h5')
+        # self.Model.save(model_path+'my_model.h5')

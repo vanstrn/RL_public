@@ -4,10 +4,9 @@ import tensorflow as tf
 import numpy as np
 
 def Record(item, writer, step):
-    summary = tf.Summary()
-    for key, value in item.items():
-        summary.value.add(tag=key, simple_value=value)
-    writer.add_summary(summary, step)
+    with writer.as_default():
+        for key, value in item.items():
+            tf.summary.scalar(key, value, step=step)
     writer.flush()
 
 def RecordError(writer,msg):

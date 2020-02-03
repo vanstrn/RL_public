@@ -1,6 +1,6 @@
 { "RunName":"MiniGrid",
   "GPUCapacitty":0.95,
-  "NetworkHPs":{"LR": 1E-4,
+  "NetworkHPs":{"LR": 1E-3,
                 "Gamma":0.98,
                 "lambda":0.98,
                 "EntropyBeta":0.001,
@@ -8,9 +8,9 @@
                 "eps":0.2},
 
   "EnvHPs":{"MAX_EP_STEPS":300,
-            "MAX_EP":10000,
+            "MAX_EP":300000,
             "SAVE_FREQ" : 100,
-            "UPDATE_GLOBAL_ITER" : 40,
+            "UPDATE_GLOBAL_ITER" : 301,
             "LOG_FREQ" : 10,
             "Gamma":0.9},
 

@@ -14,7 +14,7 @@ import numpy as np
 
 class PPO(Method):
 
-    def __init__(self,Model,sess,stateShape,actionSize,HPs,nTrajs=1,scope="PPO_Training"):
+    def __init__(self,Model,stateShape,actionSize,HPs,nTrajs=1,scope="PPO_Training"):
         """
         Initializes a training method for a neural network.
 
@@ -41,61 +41,45 @@ class PPO(Method):
         """
         #Processing inputs
         self.actionSize = actionSize
-        self.sess=sess
         self.Model = Model
+        self.HPs=HPs
 
         #Creating appropriate buffer for the method.
         self.buffer = [Trajectory(depth=7) for _ in range(nTrajs)]
 
-        with self.sess.as_default(), self.sess.graph.as_default():
-            with tf.name_scope(scope):
-                #Placeholders
-                print(stateShape)
-                self.s = tf.placeholder(tf.float32, [None]+stateShape, 'S')
-                self.a_his = tf.placeholder(tf.int32, [None, ], 'A')
-                self.td_target_ = tf.placeholder(tf.float32, [None], 'Vtarget')
-                self.advantage_ = tf.placeholder(shape=[None], dtype=tf.float32, name='adv_hold')
-                self.old_log_logits_ = tf.placeholder(shape=[None, actionSize], dtype=tf.float32, name='old_logit_hold')
+        #Initializing Netowrk I/O
+        inputs = {"state":tf.convert_to_tensor(np.random.random([1]+stateShape), dtype=tf.float32)}
+        out = self.Model(inputs)
+        self.Model.summary()
+        # print(out)
 
-                #Initializing Netowrk I/O
-                inputs = {"state":self.s}
-                out = self.Model(inputs)
-                self.a_prob = out["actor"]
-                self.v = out["critic"]
-                self.log_logits = out["log_logits"]
+        self.optimizer = tf.keras.optimizers.Adam(HPs["LR"])
 
-                # Entropy
-                def _log(val):
-                    return tf.log(tf.clip_by_value(val, 1e-10, 10.0))
-                entropy = -tf.reduce_mean(self.a_prob * _log(self.a_prob), name='entropy')
+    def ActorLoss(self,a_his,log_logits,old_log_logits,advantage):
+        action_OH = tf.one_hot(a_his, self.actionSize, dtype=tf.float32)
+        log_prob = tf.reduce_sum(log_logits * action_OH, 1)
+        old_log_prob = tf.reduce_sum(old_log_logits * action_OH, 1)
+        ratio = tf.exp(log_prob - old_log_prob)
+        surrogate = ratio * advantage
+        clipped_surrogate = tf.clip_by_value(ratio, 1-self.HPs["eps"], 1+self.HPs["eps"]) * advantage
+        surrogate_loss = tf.minimum(surrogate, clipped_surrogate, name='surrogate_loss')
+        actor_loss = -tf.reduce_mean(surrogate_loss, name='actor_loss')
+        return actor_loss
 
-                # Critic Loss
-                td_error = self.td_target_ - self.v
-                critic_loss = tf.reduce_mean(tf.square(td_error), name='critic_loss')
+    def CriticLoss(self,v,td_target):
+        td_error = td_target - v
+        critic_loss = tf.reduce_mean(tf.square(td_error), name='critic_loss')
+        return critic_loss
 
-                # Actor Loss
-                action_OH = tf.one_hot(self.a_his, actionSize, dtype=tf.float32)
-                log_prob = tf.reduce_sum(self.log_logits * action_OH, 1)
-                old_log_prob = tf.reduce_sum(self.old_log_logits_ * action_OH, 1)
-
-                # Clipped surrogate function
-                ratio = tf.exp(log_prob - old_log_prob)
-                surrogate = ratio * self.advantage_
-                clipped_surrogate = tf.clip_by_value(ratio, 1-HPs["eps"], 1+HPs["eps"]) * self.advantage_
-                surrogate_loss = tf.minimum(surrogate, clipped_surrogate, name='surrogate_loss')
-                actor_loss = -tf.reduce_mean(surrogate_loss, name='actor_loss')
-
-                actor_loss = actor_loss - entropy * HPs["EntropyBeta"]
-                loss = actor_loss + critic_loss * HPs["CriticBeta"]
-
-                # Build Trainer
-                self.optimizer = tf.keras.optimizers.Adam(HPs["LR"])
-                self.gradients = self.optimizer.get_gradients(loss, tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope))
-                self.update_ops = self.optimizer.apply_gradients(zip(self.gradients, tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope)))
+    def EntropyLoss(self,a_prob):
+        log_prob = tf.math.log(tf.clip_by_value(a_prob, 1e-10, 10.0))
+        entropy = -tf.reduce_mean(a_prob * log_prob, name='entropy')
+        return entropy
 
     def GetAction(self, state):
         """
-        Method to run data through the neural network.
+        Method to run data through the neural network. Catches if malformed data is passed through the network.
+        ToDo: Change data checks to be performed on the Model/Network. Have checks built into the JSON file.
 
         Parameters
         ----------
@@ -109,13 +93,15 @@ class PPO(Method):
         extraData : list
             List of data that is passed to the execution code to be bundled with state data.
         """
-        try:
-            probs,log_logits,v = self.sess.run([self.a_prob,self.log_logits,self.v], {self.s: state})
-        except ValueError:
-            probs,log_logits,v = self.sess.run([self.a_prob,self.log_logits,self.v], {self.s: np.expand_dims(state,axis=0)})
+        if len(state.shape) == 3:
+            state = np.expand_dims(state,axis=0)
+        inputs = {"state":tf.convert_to_tensor(state, dtype=tf.float32)}
+        out = self.Model(inputs)
+        probs = out["actor"]
+        v = out["critic"]
+        log_logits = out["log_logits"]
 
-        actions = np.array([np.random.choice(probs.shape[1], p=prob / sum(prob)) for prob in probs])
-        # print(probs,actions)
+        actions = tf.random.categorical(probs, 1)
         return actions, [v,log_logits]
 
     def Update(self,HPs):
@@ -140,21 +126,38 @@ class PPO(Method):
             except:
                 clip=len(self.buffer[traj][4])
 
+            #Staging Buffer inputs into the entries to run through the network.
+            if len(self.buffer[traj][0][:clip]) == 0:
+                continue
+
             td_target, advantage = self.ProcessBuffer(HPs,traj,clip)
 
             #Create a dictionary with all of the samples?
             #Use a sampler to feed the update operation?
 
-            #Staging Buffer inputs into the entries to run through the network.
-            if len(self.buffer[traj][0][:clip]) == 0:
-                continue
             # print(self.buffer[traj][1][:clip].shape)
-            feed_dict = {self.s: self.buffer[traj][0][:clip],
-                         self.a_his: np.asarray(self.buffer[traj][1][:clip]).reshape(-1),
-                         self.td_target_: td_target,
-                         self.advantage_: np.reshape(advantage, [-1]),
-                         self.old_log_logits_: np.reshape(self.buffer[traj][6][:clip], [-1,self.actionSize])}
-            self.sess.run(self.update_ops, feed_dict)
+            with tf.GradientTape() as tape:
+                s= self.buffer[traj][0][:clip]
+                a_his= np.asarray(self.buffer[traj][1][:clip]).reshape(-1)
+                td_target= np.asarray(td_target[:clip]).reshape(-1)
+                advantage= np.reshape(advantage, [-1])
+                old_log_logits= np.reshape(self.buffer[traj][6][:clip], [-1,self.actionSize])
+                inputs = {"state":tf.convert_to_tensor(s, dtype=tf.float32)}
+                out = self.Model(inputs)
+                v = out["critic"][:clip]
+                # print(v)
+                a_prob = out["actor"][:clip]
+                # print(td_target)
+
+                actor_loss = self.ActorLoss(a_his,a_prob,old_log_logits,advantage)
+                critic_loss = self.CriticLoss(v,td_target)
+                entropy = self.EntropyLoss(a_prob)
+                actor_loss = actor_loss - entropy * HPs["EntropyBeta"]
+                loss = actor_loss + critic_loss * HPs["CriticBeta"]
+                gradients = tape.gradient(loss, self.Model.trainable_variables)
+
+            # gradients = self.optimizer.get_gradients(loss, self.Model.trainable_weights)
+            self.optimizer.apply_gradients(zip(gradients, self.Model.trainable_weights))
 
 
     def ProcessBuffer(self,HPs,traj,clip):
