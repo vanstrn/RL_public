@@ -73,7 +73,52 @@
         "layerInput":"Phi_Out",
         "outputSize":1,
         "activation":"relu"}
-    ]
+    ],
+    "Value":[
+      { "layerType":"Dense",
+        "layerName":"value_out",
+        "ReuseLayer":"Reward_out",
+        "layerInput":"Psi_FC2",
+        "outputSize":1,
+        "activation":"relu"}
+    ],
+    "State Prediction":[
+      { "layerType":"Dense",
+        "layerName":"state_pred_dense",
+        "layerInput":"Phi_Out",
+        "outputSize":256,
+        "activation":"relu"},
+      { "layerType":"Reshape",
+        "layerName":"state_pred_reshape",
+        "layerInput":"state_pred_dense",
+        "target_shape":[4,4,16],
+        "activation":"relu"},
+      { "layerType":"Conv2DTranspose",
+        "layerName":"state_pred_conv1",
+        "layerInput":"state_pred_reshape",
+        "filters":32,
+        "kernel_size":3,
+        "strides":3,
+        "activation":"relu"},
+      { "layerType":"Conv2DTranspose",
+        "layerName":"state_pred_conv2",
+        "layerInput":"state_pred_conv1",
+        "filters":16,
+        "kernel_size":5,
+        "strides":3,
+        "activation":"relu"},
+      { "layerType":"Conv2DTranspose",
+        "layerName":"state_pred_conv3",
+        "layerInput":"state_pred_conv2",
+        "filters":6,
+        "kernel_size":2,
+        "strides":1,
+        "activation":"relu"},
+      { "layerType":"Round",
+        "layerName":"state_out",
+        "layerInput":"state_pred_conv3"
+      },
+    ],
 
   },
 
@@ -82,7 +127,9 @@
     "log_logits":"LogLogits",
     "phi":"Phi_Out",
     "psi":"Psi_FC2",
-    "reward_pred":"reward_out"
+    "reward_pred":"reward_out",
+    "value":"value_out",
+    "state_prediction":"state_out"
   },
 
   "NetworkVariableGroups":{

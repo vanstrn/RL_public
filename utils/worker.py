@@ -6,7 +6,7 @@ import gym
 from utils.record import Record
 
 class Worker(object):
-    def __init__(self, name, localNetwork, sess, HPs,global_step,global_step_next):
+    def __init__(self, name, localNetwork, HPs,global_step):
         """Creates a worker that is used to gather smaples to update the main network.
 
         Inputs:
@@ -14,51 +14,72 @@ class Worker(object):
         sess        - Session Name
         globalAC    - Name of the Global actor-critic which the updates are based around.
         """
-        self.env = gym.make('CartPole-v0')
+        for functionString in envSettings["StartingFunctions"]:
+            StartingFunction = GetFunction(functionString)
+            self.env,_,_,_ = StartingFunction(settings,envSettings)
         self.name = name
         self.AC = localNetwork
-        self.sess =sess
         self.HPs=HPs
         self.global_step = global_step
-        self.global_step_next = global_step_next
 
-    def work(self,COORD,GLOBAL_RUNNING_R,saver,writer,MODEL_PATH):
+    def work(self,COORD,writer,MODEL_PATH,settings,envSettings):
         """Main function of the Workers. This runs the environment and the experience
         is used to update the main Actor Critic Network.
         """
         #Allowing access to the global variables.
-        total_step = 1
-        while not COORD.should_stop() and self.sess.run(self.global_step) < self.HPs["MAX_EP"]:
-            s = self.env.reset()
-            ep_r = 0
-            while True:
+        while not COORD.should_stop() and int(self.global_step) < self.HPs["MAX_EP"]:
 
-                a,data = self.AC.GetAction(s)
-                s_, r, done, info = self.env.step(a)
-                if done: r = -5
-                ep_r += r
+            self.global_step+= 1
 
-                self.AC.AddToBuffer([s,a,r,s_,done]+data)
+            logging = interval_flag(int(self.global_step), settings["EnvHPs"]["LOG_FREQ"], 'log')
+            saving = interval_flag(int(self.global_step), settings["EnvHPs"]["SAVE_FREQ"], 'save')
 
-                if total_step % self.HPs['UPDATE_GLOBAL_ITER'] == 0 or done:   # update global and assign to local net
+            for functionString in envSettings["BootstrapFunctions"]:
+                BootstrapFunctions = GetFunction(functionString)
+                s0, loggingDict = BootstrapFunctions(self.env,settings,envSettings)
+            for functionString in envSettings["StateProcessingFunctions"]:
+                StateProcessing = GetFunction(functionString)
+                s0 = StateProcessing(s0,self.env,envSettings)
 
-                    self.AC.Update(self.HPs)
+            for j in range(settings["EnvHPs"]["MAX_EP_STEPS"]+1):
+                updating = interval_flag(j, settings["EnvHPs"]['UPDATE_GLOBAL_ITER'], 'update')
 
-                s = s_
-                total_step += 1
-                if done:
-                    GLOBAL_RUNNING_R.append(ep_r)
-                    print("episode:", self.sess.run(self.global_step), "  reward:", int(GLOBAL_RUNNING_R()))
+                a,networkData = self.net.GetAction(state = s0)
 
-                    if self.sess.run(self.global_step) % self.HPs["SAVE_FREQ"] == 0:
-                        saver.save(self.sess, MODEL_PATH+'/ctf_policy.ckpt', global_step=self.sess.run(self.global_step))
-                        pass
+                for functionString in envSettings["ActionProcessingFunctions"]:
+                    ActionProcessing = GetFunction(functionString)
+                    a = ActionProcessing(a,self.env,envSettings)
 
-                    if self.sess.run(self.global_step) % self.HPs["LOG_FREQ"] == 0:
-                        tag = 'Training Results/'
-                        Record({
-                            tag+'Reward': GLOBAL_RUNNING_R(),
-                            }, writer, self.sess.run(self.global_step))
+                s1,r,done,_ = self.env.step(a)
+                for functionString in envSettings["StateProcessingFunctions"]:
+                    StateProcessing = GetFunction(functionString)
+                    s1 = StateProcessing(s1,self.env,envSettings)
 
-                    self.sess.run(self.global_step_next)
+                for functionString in envSettings["RewardProcessingFunctions"]:
+                    RewardProcessing = GetFunction(functionString)
+                    r,done = RewardProcessing(s1,r,done,self.env,envSettings)
+
+                self.net.AddToBuffer([s,a,r,s_,done]+data)
+
+                s0 = s1
+
+                if updating or done.all():   # update global and assign to local net
+                    net.Update(settings["NetworkHPs"])
+                if done.all() or j == settings["EnvHPs"]["MAX_EP_STEPS"]:
+                    net.Update(settings["NetworkHPs"])
+                    net.ClearTrajectory()
+                if done.all():
                     break
+
+            #Closing Functions that will be executed after every episode.
+            for functionString in envSettings["EpisodeClosingFunctions"]:
+                EpisodeClosingFunction = GetFunction(functionString)
+                finalDict = EpisodeClosingFunction(loggingDict,self.env,settings,envSettings)
+
+            progbar.update(int(self.global_step))
+
+            if saving:
+                net.SaveModel(MODEL_PATH,self.global_step)
+
+            if logging:
+                Record(finalDict, writer, int(self.global_step))

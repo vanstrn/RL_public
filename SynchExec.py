@@ -5,6 +5,7 @@ based on a runtime config file.
 
 import numpy as np
 import gym
+import gym_minigrid,gym_cap
 import tensorflow as tf
 import argparse
 from urllib.parse import unquote
@@ -13,7 +14,6 @@ from networks.network import Network
 from utils.utils import InitializeVariables, CreatePath, interval_flag, GetFunction
 from utils.record import Record,SaveHyperparams
 import json
-from importlib import import_module #Used to import module based on a string.
 
 #Input arguments to override the default Config Files
 parser = argparse.ArgumentParser()
@@ -42,57 +42,63 @@ with open("configs/environment/"+settings["EnvConfig"]) as json_file:
     envSettings.update(envConfigOverride)
 
 #Creating the Environment and Network to be used in training
-sess = tf.Session()
+gpus = tf.config.experimental.list_physical_devices('GPU')
+tf.config.experimental.set_virtual_device_configuration(
+        gpus[0],
+        [tf.config.experimental.VirtualDeviceConfiguration(memory_limit=250)])
+
 for functionString in envSettings["StartingFunctions"]:
     StartingFunction = GetFunction(functionString)
-    env,dFeatures,nActions,nTrajs = StartingFunction(settings,envSettings,sess)
-network = Network("configs/network/"+settings["NetworkConfig"],nActions,netConfigOverride)
-Method = GetFunction(settings["Method"])
-net = Method(network,sess,stateShape=[dFeatures],actionSize=nActions,HPs=settings["NetworkHPs"],nTrajs=nTrajs)
+    env,dFeatures,nActions,nTrajs = StartingFunction(settings,envSettings)
 
-#Creating Auxilary Functions for logging and saving.
-total_step = 1
-global_step = tf.Variable(0, trainable=False, name='global_step')
-global_step_next = tf.assign_add(global_step,settings["NumberENV"])
 EXP_NAME = settings["RunName"]
 MODEL_PATH = './models/'+EXP_NAME
 LOG_PATH = './logs/'+EXP_NAME
 CreatePath(LOG_PATH)
 CreatePath(MODEL_PATH)
-writer = tf.summary.FileWriter(LOG_PATH,graph=sess.graph)
-saver = tf.train.Saver(max_to_keep=3, var_list=net.getVars+[global_step])
+
+with tf.device('/gpu:0'):
+    global_step = tf.Variable(0, trainable=False, name='global_step')
+    network = Network("configs/network/"+settings["NetworkConfig"],nActions,netConfigOverride)
+    Method = GetFunction(settings["Method"])
+    net = Method(network,stateShape=dFeatures,actionSize=nActions,HPs=settings["NetworkHPs"],nTrajs=nTrajs)
+
+
+writer = tf.summary.create_file_writer(LOG_PATH)
 net.InitializeVariablesFromFile(saver,MODEL_PATH)
-InitializeVariables(sess) #Included to catch if there are any uninitalized variables.
 
 #Running the Simulation
 for i in range(settings["EnvHPs"]["MAX_EP"]):
 
-    sess.run(global_step_next)
-    logging = interval_flag(sess.run(global_step), settings["EnvHPs"]["LOG_FREQ"], 'log')
-    saving = interval_flag(sess.run(global_step), settings["EnvHPs"]["SAVE_FREQ"], 'save')
+    global_step+= settings["NumberENV"]
+
+    logging = interval_flag(int(global_step), settings["EnvHPs"]["LOG_FREQ"], 'log')
+    saving = interval_flag(int(global_step), settings["EnvHPs"]["SAVE_FREQ"], 'save')
 
     for functionString in envSettings["BootstrapFunctions"]:
         BootstrapFunctions = GetFunction(functionString)
-        s0, loggingDict = BootstrapFunctions(env,settings,envSettings,sess)
+        s0, loggingDict = BootstrapFunctions(env,settings,envSettings)
+    for functionString in envSettings["StateProcessingFunctions"]:
+        StateProcessing = GetFunction(functionString)
+        s0 = StateProcessing(s0,env,envSettings)
 
     for j in range(settings["EnvHPs"]["MAX_EP_STEPS"]):
         updating = interval_flag(j, settings["EnvHPs"]['UPDATE_GLOBAL_ITER'], 'update')
-
-        for functionString in envSettings["StateProcessingFunctions"]:
-            StateProcessing = GetFunction(functionString)
-            s0 = StateProcessing(s0,envSettings,sess)
 
         a, networkData = net.GetAction(state=s0)
 
         for functionString in envSettings["ActionProcessingFunctions"]:
             ActionProcessing = GetFunction(functionString)
-            a = ActionProcessing(a,env,envSettings,sess)
+            a = ActionProcessing(a,env,envSettings)
 
         s1,r,done,_ = env.step(a)
+        for functionString in envSettings["StateProcessingFunctions"]:
+            StateProcessing = GetFunction(functionString)
+            s1 = StateProcessing(s1,env,envSettings)
 
         for functionString in envSettings["RewardProcessingFunctions"]:
             RewardProcessing = GetFunction(functionString)
-            r = RewardProcessing(s1,r,done,env,envSettings,sess)
+            r = RewardProcessing(s1,r,done,env,envSettings)
 
         #Update Step
         net.AddToTrajectory([s0,a,r,s1,done]+networkData)
@@ -102,21 +108,27 @@ for i in range(settings["EnvHPs"]["MAX_EP"]):
 
         for functionString in envSettings["LoggingFunctions"]:
             LoggingFunctions = GetFunction(functionString)
-            loggingDict = LoggingFunctions(loggingDict,s1,r,done,env,envSettings,sess)
+            loggingDict = LoggingFunctions(loggingDict,s1,r,done,env,envSettings)
 
         s0 = s1
-        total_step += 1
-        if done.all() or j >= settings["EnvHPs"]["MAX_EP_STEPS"]:
+
+        if updating or done.all():   # update global and assign to local net
+            net.Update(settings["NetworkHPs"])
+        if done.all() or j == settings["EnvHPs"]["MAX_EP_STEPS"]:
+            net.Update(settings["NetworkHPs"])
             net.ClearTrajectory()
+        if done.all():
             break
 
     #Closing Functions that will be executed after every episode.
     for functionString in envSettings["EpisodeClosingFunctions"]:
         EpisodeClosingFunction = GetFunction(functionString)
-        finalDict = EpisodeClosingFunction(loggingDict,env,settings,envSettings,sess)
+        finalDict = EpisodeClosingFunction(loggingDict,env,settings,envSettings)
+
+    progbar.update(int(global_step))
 
     if logging:
-        saver.save(sess, MODEL_PATH+'/ctf_policy.ckpt', global_step=sess.run(global_step))
+        net.SaveModel(MODEL_PATH,global_episode)
 
     if saving:
-        Record(finalDict, writer, i)
+        Record(finalDict, writer, int(global_step))

@@ -5,7 +5,7 @@ based on a runtime config file.
 
 import numpy as np
 import gym
-import gym_minigrid
+import gym_minigrid,gym_cap
 import tensorflow as tf
 import argparse
 from urllib.parse import unquote
@@ -57,27 +57,23 @@ CreatePath(LOG_PATH)
 CreatePath(MODEL_PATH)
 
 with tf.device('/gpu:0'):
-    # global_step = tf.Variable(0, trainable=False, name='global_step')
+    global_step = tf.Variable(0, trainable=False, name='global_step')
     network = Network("configs/network/"+settings["NetworkConfig"],nActions,netConfigOverride)
     Method = GetFunction(settings["Method"])
     net = Method(network,stateShape=dFeatures,actionSize=nActions,HPs=settings["NetworkHPs"],nTrajs=nTrajs)
 
 #Creating Auxilary Functions for logging and saving.
 writer = tf.summary.create_file_writer(LOG_PATH)
-# saver = tf.train.Saver(max_to_keep=3, var_list=net.getVars+[global_step])
 net.InitializeVariablesFromFile(MODEL_PATH)
 
 progbar = tf.keras.utils.Progbar(None, unit_name='Training')
 #Running the Simulation
 for i in range(settings["EnvHPs"]["MAX_EP"]):
 
-    # global_step=global_step.assign_add(1)
-    # print(global_step)
+    global_step+= 1
 
-    logging = interval_flag(i, settings["EnvHPs"]["LOG_FREQ"], 'log')
-    saving = interval_flag(i, settings["EnvHPs"]["SAVE_FREQ"], 'save')
-    # logging = interval_flag(sess.run(global_step), settings["EnvHPs"]["LOG_FREQ"], 'log')
-    # saving = interval_flag(sess.run(global_step), settings["EnvHPs"]["SAVE_FREQ"], 'save')
+    logging = interval_flag(int(global_step), settings["EnvHPs"]["LOG_FREQ"], 'log')
+    saving = interval_flag(int(global_step), settings["EnvHPs"]["SAVE_FREQ"], 'save')
 
     for functionString in envSettings["BootstrapFunctions"]:
         BootstrapFunctions = GetFunction(functionString)
@@ -89,13 +85,11 @@ for i in range(settings["EnvHPs"]["MAX_EP"]):
     for j in range(settings["EnvHPs"]["MAX_EP_STEPS"]+1):
         updating = interval_flag(j, settings["EnvHPs"]['UPDATE_GLOBAL_ITER'], 'update')
 
-
         a, networkData = net.GetAction(state=s0)
 
         for functionString in envSettings["ActionProcessingFunctions"]:
             ActionProcessing = GetFunction(functionString)
             a = ActionProcessing(a,env,envSettings)
-        # env.render()
 
         s1,r,done,_ = env.step(a)
         for functionString in envSettings["StateProcessingFunctions"]:
@@ -128,9 +122,11 @@ for i in range(settings["EnvHPs"]["MAX_EP"]):
     for functionString in envSettings["EpisodeClosingFunctions"]:
         EpisodeClosingFunction = GetFunction(functionString)
         finalDict = EpisodeClosingFunction(loggingDict,env,settings,envSettings)
-    progbar.update(i)
+
+    progbar.update(int(global_step))
+
     if saving:
-        net.SaveModel(MODEL_PATH)
+        net.SaveModel(MODEL_PATH,global_step)
 
     if logging:
-        Record(finalDict, writer, i)
+        Record(finalDict, writer, int(global_step))

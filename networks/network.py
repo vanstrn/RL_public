@@ -6,6 +6,7 @@ import tensorflow as tf
 import tensorflow.keras.layers as KL
 import json
 from .layers.non_local import Non_local_nn
+from .layers.approx_round import *
 
 class Network(tf.keras.Model):
     def __init__(self, configFile, actionSize, netConfigOverride, scope=None):
@@ -103,14 +104,26 @@ class Network(tf.keras.Model):
                                 strides=dict["strides"],
                                 activation=dict["activation"],
                                 name=dict["layerName"])
+            elif dict["layerType"] == "Conv2D":
+                layer = KL.Conv2DTranspose( filters=dict["filters"],
+                                kernel_size=dict["kernel_size"],
+                                strides=dict["strides"],
+                                activation=dict["activation"],
+                                name=dict["layerName"])
             elif dict["layerType"] == "SeparableConv":
+                if "padding" in dict:
+                    padding = dict["padding"]
+                else:
+                    padding="valid"
                 layer = KL.SeparableConv2D( filters=dict["filters"],
                                             kernel_size=dict["kernel_size"],
                                             strides=dict["strides"],
                                             padding=dict["padding"],
                                             depth_multiplier=dict["depth_multiplier"],
-                                            name=dict["layerName"])
-
+                                            name=dict["layerName"],
+                                            padding=padding)
+            elif dict["layerType"] == "Round":
+                layer= KL.RoundingSine()
             elif dict["layerType"] == "Flatten":
                 layer= KL.Flatten()
             elif dict["layerType"] == "NonLocalNN":
@@ -121,6 +134,8 @@ class Network(tf.keras.Model):
                 layer = KL.Activation('softmax')
             elif dict["layerType"] == "Concatenate":
                 layer = KL.Concatenate(axis=dict["axis"])
+            elif dict["layerType"] == "Reshape":
+                layer = KL.Concatenate(target_shape=dict["target_shape"])
 
         return layer
 

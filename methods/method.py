@@ -69,6 +69,6 @@ class Method(object):
         except:
             print("Model not loaded.")
 
-    def SaveModel(self, model_path):
-        self.Model.save_weights(model_path+'my_model.h5')
+    def SaveModel(self, model_path,global_episode):
+        self.Model.save_weights(model_path+'model_'+global_episode+'.h5')
         # self.Model.save(model_path+'my_model.h5')

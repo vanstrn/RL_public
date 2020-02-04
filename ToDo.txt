@@ -1,52 +1,65 @@
 Modular Run Scripts
-  Reorganize the run scripts between Synchronous and Asynchronous Runs.
-    Verify Synchronous Script Functionality
-    Modify Asynchronous Script to Function with modified structure.
+  -Reorganize the run scripts between Synchronous and Asynchronous Runs.
+    *Verify Synchronous Script Functionality
+    *Modify Asynchronous Script to Function with modified structure.
 
 Modular Network
-  Implement Recursive Elements(LSTM) in Network Design.
+  -Implement Recursive Elements(LSTM) in Network Design.
+  -Allow for more environment information to pass to the network to allow it to dynamically resize. (State shape?)
+    *Allow dynamic sizing of reconstruction module
 
 Environment Integration
-  Test A2C, A3C, and PPO with Gridworld environment.
-  Test A2C, A3C, and PPO with CTF environment.
+  -Test A2C, A3C, and PPO with Gridworld environment.
+  -Test A2C, A3C, and PPO with CTF environment.
 
 A2C
-  Clean Formating
+  -Clean Formatting
 
 A3C
-  Clean Formatting
-
-PPO
-  N/A
+  -Clean Formatting
+  -Change saving to save global network
 
 TRPO
-  Implement
+  -Implement
 
 ACKTR
-  Implement
+  -Implement
 
 Q Learning
-  Implement
+  -Implement
+
+Successor Feature Representation
+  -Implement training method
 
 Hierarchical Networks
-  Implement losses in the method - Optional losses for policy divergence.
-  Implement Confidence in the method
+  -Implement losses in the method - Optional losses for policy divergence.
+  -Implement Confidence in the method
 
 Recurrent Networks
-  Create modular network definition for Recurrent networks and LSTMs
+  -Create modular network definition for Recurrent networks and LSTMs
 
 ELO System
-  Implement
+  -Implement
 
 Multiple Parallel Training of Networks
-  Implement
-  Train Multiple networks by estimating memory usage and if over capacity cycle through the networks.
-  Implement Process which selects which trainings to cut and how to fork successful training.
-  Used for ELO training or for Multi-Agent Systems.
+  -Implement
+  -Train Multiple networks by estimating memory usage and if over capacity cycle through the networks.
+  -Implement Process which selects which trainings to cut and how to fork successful training.
+  -Used for ELO training or for Multi-Agent Systems.
 
 Replay Buffers
-  Create Buffer sample data in batches.
-  Create Experience Replay buffer which will hold onto important Tuples.
+  -Create Buffer sample data in batches.
+  -Create Experience Replay buffer which will hold onto important Tuples.
 
 Move to TF2
-  Keras implementation should be similar. Check background functions.
+  -Keras implementation should be similar. Check background functions.
+  -Improve training speed.
+    *Gradient tape method seems to be slow
+    *have loss functions be @tf.functions
+    *switch back to keras optimizer gradients. Had issues with gradient tracking and backpropagation.
+
+Envs
+  -Replace functions with dedicated wrappers.
+
+Genetic Neural Networks
+  -Get details of implementation. Use ELO as genetic parameter.

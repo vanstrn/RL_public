@@ -55,6 +55,7 @@ class PPO(Method):
 
         self.optimizer = tf.keras.optimizers.Adam(HPs["LR"])
 
+    @tf.function
     def ActorLoss(self,a_his,log_logits,old_log_logits,advantage):
         action_OH = tf.one_hot(a_his, self.actionSize, dtype=tf.float32)
         log_prob = tf.reduce_sum(log_logits * action_OH, 1)
@@ -66,11 +67,13 @@ class PPO(Method):
         actor_loss = -tf.reduce_mean(surrogate_loss, name='actor_loss')
         return actor_loss
 
+    @tf.function
     def CriticLoss(self,v,td_target):
         td_error = td_target - v
         critic_loss = tf.reduce_mean(tf.square(td_error), name='critic_loss')
         return critic_loss
 
+    @tf.function
     def EntropyLoss(self,a_prob):
         log_prob = tf.math.log(tf.clip_by_value(a_prob, 1e-10, 10.0))
         entropy = -tf.reduce_mean(a_prob * log_prob, name='entropy')
