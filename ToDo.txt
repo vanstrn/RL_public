@@ -5,6 +5,7 @@ Modular Run Scripts
 
 Modular Network
   Implement Recursive Elements(LSTM) in Network Design.
+  Allow multiple outputs from a layer. (Default the first one to next one to be called.)
 
 Environment Integration
   Test A2C, A3C, and PPO with Gridworld environment.
@@ -50,3 +51,6 @@ Replay Buffers
 
 Move to TF2
   Keras implementation should be similar. Check background functions.
+
+State Prediction Loss
+  Merge into PPO and have option for different losses and network usages.

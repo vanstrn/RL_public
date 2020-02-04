@@ -1,4 +1,4 @@
-{ "RunName":"MiniGrid",
+{ "RunName":"MiniGrid_LSTM_modular",
   "GPUCapacitty":0.95,
   "NetworkHPs":{"LR": 1E-4,
                 "Gamma":0.98,
@@ -10,13 +10,13 @@
   "EnvHPs":{"MAX_EP_STEPS":300,
             "MAX_EP":100000,
             "SAVE_FREQ" : 100,
-            "UPDATE_GLOBAL_ITER" : 40,
+            "UPDATE_GLOBAL_ITER" : 315,
             "LOG_FREQ" : 10,
-            "Gamma":0.9},
+            "Gamma":0.99},
 
   "NumberENV":1,
   "EnvConfig":"MiniGrid.json",
-  "NetworkConfig":"MiniGridCNN.json",
-  "Method":"methods.PPO.PPO"
+  "NetworkConfig":"MG_LSTM.json",
+  "Method":"methods.PPO_LSTM_v2.PPO"
 
   }

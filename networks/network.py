@@ -9,7 +9,7 @@ from .layers.non_local import Non_local_nn
 from .layers.approx_round import *
 
 class Network(tf.keras.Model):
-    def __init__(self, configFile, actionSize, netConfigOverride, scope=None):
+    def __init__(self, configFile, actionSize, netConfigOverride, scope=None,debug=False):
         """
         Reads a network config file and processes that into a netowrk with appropriate naming structure.
 
@@ -30,6 +30,7 @@ class Network(tf.keras.Model):
         -------
         N/A
         """
+        self.debug =debug
         self.actionSize = actionSize
 
         with open(configFile) as json_file:
@@ -47,11 +48,17 @@ class Network(tf.keras.Model):
 
         self.layerList = {}
         self.layerInputs = {}
+        self.multiOutput = {}
             #Creating all of the layers
         for sectionName,layerList in data["NetworkStructure"].items():
             for layerDict in layerList:
                 self.layerList[layerDict["layerName"]] = self.GetLayer(layerDict)
                 self.layerInputs[layerDict["layerName"]] = layerDict["layerInput"]
+                if "multiOutput" in layerDict:
+                    self.multiOutput[layerDict["layerName"]] = layerDict["multiOutput"]
+                else:
+                    self.multiOutput[layerDict["layerName"]] = None
+
 
         self.networkVariables=data["NetworkVariableGroups"]
 
@@ -61,22 +68,33 @@ class Network(tf.keras.Model):
          """
         self.layerOutputs = {}
         for layerName,layer in self.layerList.items():
+            if self.debug: print("Creating Layer:",layerName)
             if isinstance(self.layerInputs[layerName], list): #Multi-input Layers
                 layerInputs = []
                 for layerInput in self.layerInputs[layerName]:
-                    if "input" in self.layerInputs[layerName]:
-                        _, input_name = self.layerInputs[layerName].rsplit('.',1)
+                    if "input" in layerInput:
+                        _, input_name = layerInput.rsplit('.',1)
                         layerInputs.append(inputs[input_name])
                     else:
-                        layerInputs.append(self.layerOutputs[self.layerInputs[layerName]])
-                self.layerOutputs[layerName] = layer(layerInputs)
+                        layerInputs.append(self.layerOutputs[layerInput])
+                if self.debug: print("\tLayer Inputs",layerInputs)
+                output = layer(*layerInputs)
             else: # Single input layers
                 if "input" in self.layerInputs[layerName]:
                     _, input_name = self.layerInputs[layerName].rsplit('.',1)
-                    self.layerOutputs[layerName] = layer(inputs[input_name])
+                    if self.debug: print("\tLayer Input",inputs[input_name])
+                    output = layer(inputs[input_name])
                 else:
-                    self.layerOutputs[layerName] = layer(self.layerOutputs[self.layerInputs[layerName]])
+                    if self.debug: print("\tLayer Input",self.layerOutputs[self.layerInputs[layerName]])
+                    output = layer(self.layerOutputs[self.layerInputs[layerName]])
 
+            #If a layer has multiple outputs assign the outputs unique names. Otherwise just have output be the layername.
+            if isinstance(self.multiOutput[layerName],list):
+                for i,output_i in enumerate(output):
+                    self.layerOutputs[self.multiOutput[layerName][i]]=output_i
+            else:
+                self.layerOutputs[layerName] = output
+            if self.debug: print("\tLayer Output",self.layerOutputs[layerName])
         results = {}
         for outputName,layerOutput in self.networkOutputs.items():
             results[outputName] = self.layerOutputs[layerOutput]
@@ -137,6 +155,11 @@ class Network(tf.keras.Model):
                 layer = KL.Concatenate(axis=dict["axis"])
             elif dict["layerType"] == "Reshape":
                 layer = KL.Reshape(target_shape=dict["target_shape"])
+            elif dict["layerType"] == "LSTM":
+                layer = KL.LSTM(**dict["Parameters"],name=dict["layerName"])
+            elif dict["layerType"] == "SimpleRNN":
+                layer = KL.SimpleRNN(**dict["Parameters"],name=dict["layerName"])
+
 
         return layer
 

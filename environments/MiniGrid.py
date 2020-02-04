@@ -4,6 +4,7 @@ from utils.multiprocessing import SubprocVecEnv
 import numpy as np
 
 def RewardShape(s1,reward_raw,done_raw,env,envSettings,sess):
+    if not done_raw: reward_raw = -0.01
     return reward_raw, np.array(done_raw)
 
 def Bootstrap(env,settings,envSettings,sess):

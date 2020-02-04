@@ -10,7 +10,7 @@ import tensorflow as tf
 import argparse
 from urllib.parse import unquote
 
-from networks.network import Network
+from networks.lstm import Network
 from utils.utils import InitializeVariables, CreatePath, interval_flag, GetFunction
 from utils.record import Record,SaveHyperparams
 import json
@@ -67,6 +67,8 @@ writer = tf.summary.FileWriter(LOG_PATH,graph=sess.graph)
 saver = tf.train.Saver(max_to_keep=3, var_list=net.getVars+[global_step])
 net.InitializeVariablesFromFile(saver,MODEL_PATH)
 InitializeVariables(sess) #Included to catch if there are any uninitalized variables.
+
+exit()
 
 progbar = tf.keras.utils.Progbar(None, unit_name='Training',stateful_metrics=["Reward"])
 #Running the Simulation
