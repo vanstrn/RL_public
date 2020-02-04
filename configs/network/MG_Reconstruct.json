@@ -1,0 +1,98 @@
+{ "NetworkName" : "MG_Reconstruct",
+  "NetworkStructure":{
+    "Shared":[
+      { "layerType":"Conv2D",
+        "layerName":"Conv2D_1",
+        "layerInput":"input.state",
+        "filters":16,
+        "kernel_size":2,
+        "strides":1,
+        "activation":"relu"},
+      { "layerType":"Conv2D",
+        "layerName":"Conv2D_2",
+        "layerInput":"Conv2D_1",
+        "filters":32,
+        "kernel_size":2,
+        "strides":1,
+        "activation":"relu"},
+      { "layerType":"Flatten",
+        "layerName":"Flatten",
+        "layerInput":"Conv2D_2"},
+      { "layerType":"Dense",
+        "layerName":"Dense1",
+        "layerInput":"Flatten",
+        "outputSize":128,
+        "activation":null}
+      ],
+
+    "Actor":[
+      { "layerType":"Dense",
+        "layerName":"Actor_FC",
+        "layerInput":"Dense1",
+        "outputSize":"actionSize",
+        "activation":null},
+      { "layerType":"SoftMax",
+        "layerName":"Logits",
+        "layerInput":"Actor_FC"},
+      { "layerType":"LogSoftMax",
+        "layerName":"LogLogits",
+        "layerInput":"Actor_FC"}
+    ],
+
+    "Critic":[
+      { "layerType":"Dense",
+        "layerName":"Critic_FC1",
+        "layerInput":"Dense1",
+        "outputSize":1,
+        "activation":null}
+    ],
+    "Reconstruction":[
+      { "layerType":"Dense",
+        "layerName":"Reconstruction_Dense",
+        "layerInput":"Dense1",
+        "outputSize":144,
+        "activation":"relu"},
+      { "layerType":"Reshape",
+        "layerName":"Reconstruction_Reshape",
+        "target_shape":[3,3,16],
+        "layerInput":"Reconstruction_Dense"},
+      { "layerType":"Conv2DTranspose",
+        "layerName":"Reconstruction_Conv1",
+        "layerInput":"Reconstruction_Reshape",
+        "filters":16,
+        "kernel_size":3,
+        "strides":1,
+        "activation":"relu"},
+      { "layerType":"Conv2DTranspose",
+        "layerName":"Reconstruction_Conv2",
+        "layerInput":"Reconstruction_Conv1",
+        "filters":8,
+        "kernel_size":2,
+        "strides":1,
+        "activation":"relu"},
+      { "layerType":"Conv2DTranspose",
+        "layerName":"Reconstruction_Conv3",
+        "layerInput":"Reconstruction_Conv2",
+        "filters":3,
+        "kernel_size":2,
+        "strides":1,
+        "activation":"relu"},
+      { "layerType":"Round",
+        "layerName":"Reconstruction_Round",
+        "layerInput":"Reconstruction_Conv3"}
+    ]
+
+  },
+  "NetworkOutputs":{
+    "actor":"Logits",
+    "critic":"Critic_FC1",
+    "log_logits":"LogLogits",
+    "prediction":"Reconstruction_Round"
+  },
+  "NetworkVariableGroups":{
+    "Actor":["Actor","Shared"],
+    "Critic":["Critic","Shared"],
+    "Reconstruction":["Reconstruction","Shared"]
+  }
+
+  }

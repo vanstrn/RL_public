@@ -40,17 +40,19 @@ def Logging(loggingDict,s1,r,done,env,envSettings,sess):
     except: loggingDict["tracking_r"][0].append(r)
     return loggingDict
 
-def Closing(loggingDict,env,settings,envSetting,sess):
+def Closing(loggingDict,env,settings,envSetting,sess,progbar):
     for i in range(settings["NumberENV"]):
         # print(loggingDict["tracking_r"][i])
         ep_rs_sum = sum(loggingDict["tracking_r"][i])
 
         if 'running_reward' not in globals():
             global running_reward
-            running_reward = ep_rs_sum
-        else:
-            running_reward = running_reward * 0.95 + ep_rs_sum * 0.05
+            running_reward = 0
+            # progbar.add("Reward")
+        running_reward = running_reward * 0.99 + ep_rs_sum * 0.01
+
     global_step = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, "global_step")
+    progbar.update(sess.run(global_step)[0],values=[("Reward",running_reward)])
     # print("episode:", sess.run(global_step), "  running reward:", int(running_reward),"  reward:",int(ep_rs_sum))
 
     finalDict = {"Training Results/Reward":ep_rs_sum}

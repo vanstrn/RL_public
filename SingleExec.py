@@ -57,7 +57,7 @@ CreatePath(MODEL_PATH)
 
 with tf.device('/cpu:0'):
     global_step = tf.Variable(0, trainable=False, name='global_step')
-    global_step_next = tf.assign_add(global_step,settings["NumberENV"])
+    global_step_next = tf.assign_add(global_step,1)
     network = Network("configs/network/"+settings["NetworkConfig"],nActions,netConfigOverride)
     Method = GetFunction(settings["Method"])
     net = Method(network,sess,stateShape=dFeatures,actionSize=nActions,HPs=settings["NetworkHPs"],nTrajs=nTrajs)
@@ -68,7 +68,7 @@ saver = tf.train.Saver(max_to_keep=3, var_list=net.getVars+[global_step])
 net.InitializeVariablesFromFile(saver,MODEL_PATH)
 InitializeVariables(sess) #Included to catch if there are any uninitalized variables.
 
-progbar = tf.keras.utils.Progbar(None, unit_name='Training')
+progbar = tf.keras.utils.Progbar(None, unit_name='Training',stateful_metrics=["Reward"])
 #Running the Simulation
 for i in range(settings["EnvHPs"]["MAX_EP"]):
 
@@ -87,14 +87,12 @@ for i in range(settings["EnvHPs"]["MAX_EP"]):
         updating = interval_flag(j, settings["EnvHPs"]['UPDATE_GLOBAL_ITER'], 'update')
 
 
-        a, networkData = net.GetAction(state=s0)
+        a, networkData = net.GetAction(state=s0,global_step=global_step)
 
         for functionString in envSettings["ActionProcessingFunctions"]:
             ActionProcessing = GetFunction(functionString)
             a = ActionProcessing(a,env,envSettings,sess)
-        a = a[0]
-        print(a)
-        env.render()
+        # env.render()
 
         s1,r,done,_ = env.step(a)
         for functionString in envSettings["StateProcessingFunctions"]:
@@ -108,7 +106,7 @@ for i in range(settings["EnvHPs"]["MAX_EP"]):
         #Update Step
         net.AddToTrajectory([s0,a,r,s1,done]+networkData)
 
-        if updating or done.all():   # update global and assign to local net
+        if updating:   # update global and assign to local net
             net.Update(settings["NetworkHPs"])
 
         for functionString in envSettings["LoggingFunctions"]:
@@ -117,16 +115,14 @@ for i in range(settings["EnvHPs"]["MAX_EP"]):
 
         s0 = s1
         if done.all() or j == settings["EnvHPs"]["MAX_EP_STEPS"]:
-            print("Finished the environment on step",j)
             net.Update(settings["NetworkHPs"])
             net.ClearTrajectory()
         if done.all():
             break
-
     #Closing Functions that will be executed after every episode.
     for functionString in envSettings["EpisodeClosingFunctions"]:
         EpisodeClosingFunction = GetFunction(functionString)
-        finalDict = EpisodeClosingFunction(loggingDict,env,settings,envSettings,sess)
+        finalDict = EpisodeClosingFunction(loggingDict,env,settings,envSettings,sess,progbar)
 
     if logging:
         saver.save(sess, MODEL_PATH+'/ctf_policy.ckpt', global_step=sess.run(global_step))

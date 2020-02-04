@@ -57,6 +57,7 @@ class PPO(Method):
                 self.td_target_ = tf.placeholder(tf.float32, [None], 'Vtarget')
                 self.advantage_ = tf.placeholder(shape=[None], dtype=tf.float32, name='adv_hold')
                 self.old_log_logits_ = tf.placeholder(shape=[None, actionSize], dtype=tf.float32, name='old_logit_hold')
+                self.state_next = tf.placeholder(shape=[None]+stateShape, dtype=tf.float32, name='State_next')
 
                 #Initializing Netowrk I/O
                 inputs = {"state":self.s}
@@ -64,6 +65,7 @@ class PPO(Method):
                 self.a_prob = out["actor"]
                 self.v = out["critic"]
                 self.log_logits = out["log_logits"]
+                self.state_pred = out["prediction"]
 
                 # Entropy
                 def _log(val):
@@ -86,8 +88,11 @@ class PPO(Method):
                 surrogate_loss = tf.minimum(surrogate, clipped_surrogate, name='surrogate_loss')
                 actor_loss = -tf.reduce_mean(surrogate_loss, name='actor_loss')
 
+                print()
+                reconstruction_loss = tf.losses.mean_squared_error(self.state_pred,self.state_next)
+
                 actor_loss = actor_loss - entropy * HPs["EntropyBeta"]
-                loss = actor_loss + critic_loss * HPs["CriticBeta"]
+                loss = actor_loss + critic_loss * HPs["CriticBeta"] + reconstruction_loss * 0.1
 
                 # Build Trainer
                 self.optimizer = tf.keras.optimizers.Adam(HPs["LR"])
@@ -153,6 +158,7 @@ class PPO(Method):
             if len(self.buffer[traj][0][:clip]) == 0:
                 continue
             feed_dict = {self.s: self.buffer[traj][0][:clip],
+                         self.state_next: self.buffer[traj][3][:clip],
                          self.a_his: np.asarray(self.buffer[traj][1][:clip]).reshape(-1),
                          self.td_target_: td_target,
                          self.advantage_: np.reshape(advantage, [-1]),

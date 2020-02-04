@@ -1,4 +1,4 @@
-{ "RunName":"MiniGrid",
+{ "RunName":"MiniGrid_Reconstruct",
   "GPUCapacitty":0.95,
   "NetworkHPs":{"LR": 1E-4,
                 "Gamma":0.98,
@@ -8,7 +8,7 @@
                 "eps":0.2},
 
   "EnvHPs":{"MAX_EP_STEPS":300,
-            "MAX_EP":10000,
+            "MAX_EP":100000,
             "SAVE_FREQ" : 100,
             "UPDATE_GLOBAL_ITER" : 40,
             "LOG_FREQ" : 10,
@@ -16,7 +16,7 @@
 
   "NumberENV":1,
   "EnvConfig":"MiniGrid.json",
-  "NetworkConfig":"MiniGridCNN.json",
-  "Method":"methods.PPO.PPO"
+  "NetworkConfig":"MG_Reconstruct.json",
+  "Method":"methods.PPO_Reconstruction.PPO"
 
   }
