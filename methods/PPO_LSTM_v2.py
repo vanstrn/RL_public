@@ -75,11 +75,11 @@ class PPO(Method):
                 # Entropy
                 def _log(val):
                     return tf.log(tf.clip_by_value(val, 1e-10, 10.0))
-                entropy = -tf.reduce_mean(self.a_prob * _log(self.a_prob), name='entropy')
+                entropy =self.entropy= -tf.reduce_mean(self.a_prob * _log(self.a_prob), name='entropy')
 
                 # Critic Loss
                 td_error = self.td_target_ - self.v
-                critic_loss = tf.reduce_mean(tf.square(td_error), name='critic_loss')
+                critic_loss =self.critic_loss= tf.reduce_mean(tf.square(td_error), name='critic_loss')
 
                 # Actor Loss
                 action_OH = tf.one_hot(self.a_his, actionSize, dtype=tf.float32)
@@ -91,7 +91,7 @@ class PPO(Method):
                 surrogate = ratio * self.advantage_
                 clipped_surrogate = tf.clip_by_value(ratio, 1-HPs["eps"], 1+HPs["eps"]) * self.advantage_
                 surrogate_loss = tf.minimum(surrogate, clipped_surrogate, name='surrogate_loss')
-                actor_loss = -tf.reduce_mean(surrogate_loss, name='actor_loss')
+                actor_loss =self.actor_loss = -tf.reduce_mean(surrogate_loss, name='actor_loss')
 
                 actor_loss = actor_loss - entropy * HPs["EntropyBeta"]
                 loss = actor_loss + critic_loss * HPs["CriticBeta"]
@@ -140,7 +140,7 @@ class PPO(Method):
         # print(probs,actions)
         return actions, [v,log_logits,test]
 
-    def Update(self,HPs):
+    def Update(self,HPs,log_net_stats,writer):
         """
         Process the buffer and backpropagates the loses through the NN.
 
@@ -153,6 +153,9 @@ class PPO(Method):
         -------
         N/A
         """
+        aloss_track=[]; closs_track=[]; entropy_track=[]; #Used to average the loss over different batches
+        total_counter = 0
+        vanish_counter = 0
         for traj in range(len(self.buffer)):
 
             clip = -1
@@ -163,6 +166,7 @@ class PPO(Method):
                 clip=len(self.buffer[traj][4])
 
             td_target, advantage = self.ProcessBuffer(HPs,traj,clip)
+            # print(td_target)
 
             #Create a dictionary with all of the samples?
             #Use a sampler to feed the update operation?
@@ -183,6 +187,36 @@ class PPO(Method):
                          self.advantage_: np.reshape(advantage, [-1]),
                          self.old_log_logits_: np.reshape(self.buffer[traj][6][:clip], [-1,self.actionSize])}
             self.sess.run(self.update_ops, feed_dict)
+
+            if log_net_stats:
+                ops = [self.actor_loss, self.critic_loss, self.entropy]
+                aloss, closs, entropy = self.sess.run(ops, feed_dict)
+                aloss_track.append(aloss); closs_track.append(closs); entropy_track.append(entropy)
+
+                grads = self.sess.run(self.gradients, feed_dict)
+                for grad in grads:
+                    total_counter += np.prod(grad.shape)
+                    vanish_counter += (np.absolute(grad)<1e-8).sum()
+
+        if log_net_stats:
+            aloss = np.average(aloss_track)
+            closs = np.average(closs_track)
+            entropy = np.average(entropy_track)
+            summary = tf.Summary()
+            summary.value.add(tag='summary/actor_loss', simple_value=aloss)
+            summary.value.add(tag='summary/critic_loss', simple_value=closs)
+            summary.value.add(tag='summary/entropy', simple_value=entropy)
+            summary.value.add(tag='summary/grad_vanish_rate', simple_value=vanish_counter/total_counter)
+
+            global_step = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, "global_step")
+            writer.add_summary(summary,self.sess.run(global_step)[0])
+
+            writer.flush()
+
+    def SaveStatistics(self,saver):
+        """
+        Contains the code to save internal information of the Neural Network.
+        """
 
 
     def ProcessBuffer(self,HPs,traj,clip):

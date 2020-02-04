@@ -57,7 +57,7 @@ def gae(reward_list, value_list, bootstrap, gamma:float, lambd:float, normalize=
     advantages = discount_rewards(advantages, gamma*lambd)
 
     # Currently Causes a memory leak.
-    # if normalize:
-    #     advantages = (advantages - np.mean(advantages))/(np.std(advantages) + 1e-6)
+    if normalize:
+        advantages = (advantages - np.mean(advantages))/(np.std(advantages) + 1e-6)
 
     return td_target.tolist(), advantages.tolist()

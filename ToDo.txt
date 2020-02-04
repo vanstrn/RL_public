@@ -1,11 +1,9 @@
 Modular Run Scripts
-  Reorganize the run scripts between Synchronous and Asynchronous Runs.
-    Verify Synchronous Script Functionality
-    Modify Asynchronous Script to Function with modified structure.
+  Verify Synchronous Script Functionality
+  Modify Asynchronous Script to Function with modified structure.
 
 Modular Network
-  Implement Recursive Elements(LSTM) in Network Design.
-  Allow multiple outputs from a layer. (Default the first one to next one to be called.)
+  Clean implementation and add documentation/comments.
 
 Environment Integration
   Test A2C, A3C, and PPO with Gridworld environment.
@@ -15,7 +13,7 @@ A2C
   Clean Formating
 
 A3C
-  Clean Formatting
+  Clean Formating
 
 PPO
   N/A
@@ -32,9 +30,6 @@ Q Learning
 Hierarchical Networks
   Implement losses in the method - Optional losses for policy divergence.
   Implement Confidence in the method
-
-Recurrent Networks
-  Create modular network definition for Recurrent networks and LSTMs
 
 ELO System
   Implement
@@ -54,3 +49,10 @@ Move to TF2
 
 State Prediction Loss
   Merge into PPO and have option for different losses and network usages.
+
+Switch to environment wrappers as they are cut down on run script.
+
+Fix memory leak
+  Location of memory leak has been identified as GAE Normalization. 
+  Source was that the actual call created additional method and array every function call.
+  Fix the memory leak.

@@ -1,9 +1,9 @@
 { "RunName":"MiniGrid_LSTM_modular",
   "GPUCapacitty":0.95,
-  "NetworkHPs":{"LR": 1E-4,
+  "NetworkHPs":{"LR": 1E-5,
                 "Gamma":0.98,
                 "lambda":0.98,
-                "EntropyBeta":0.001,
+                "EntropyBeta":0.0001,
                 "CriticBeta":0.001,
                 "eps":0.2},
 

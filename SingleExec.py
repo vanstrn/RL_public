@@ -107,7 +107,7 @@ for i in range(settings["EnvHPs"]["MAX_EP"]):
         net.AddToTrajectory([s0,a,r,s1,done]+networkData)
 
         if updating:   # update global and assign to local net
-            net.Update(settings["NetworkHPs"])
+            net.Update(settings["NetworkHPs"],logging,writer)
 
         for functionString in envSettings["LoggingFunctions"]:
             LoggingFunctions = GetFunction(functionString)
@@ -115,7 +115,7 @@ for i in range(settings["EnvHPs"]["MAX_EP"]):
 
         s0 = s1
         if done.all() or j == settings["EnvHPs"]["MAX_EP_STEPS"]:
-            net.Update(settings["NetworkHPs"])
+            net.Update(settings["NetworkHPs"],logging,writer)
             net.ClearTrajectory()
         if done.all():
             break
