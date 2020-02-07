@@ -74,9 +74,9 @@ class Worker(object):
                 s0 = s1
 
                 if updating or done.all():   # update global and assign to local net
-                    self.net.Update(settings["NetworkHPs"],logging,writer,self.sess.run(self.global_step))
+                    self.net.Update(settings["NetworkHPs"],self.sess.run(self.global_step))
                 if done.all() or j == settings["EnvHPs"]["MAX_EP_STEPS"]:
-                    self.net.Update(settings["NetworkHPs"],logging,writer,self.sess.run(self.global_step))
+                    self.net.Update(settings["NetworkHPs"],self.sess.run(self.global_step))
                     self.net.ClearTrajectory()
                 if done.all():
                     break
@@ -92,4 +92,6 @@ class Worker(object):
                 saver.save(self.sess, MODEL_PATH+'/ctf_policy.ckpt', global_step=self.sess.run(self.global_step))
 
             if logging:
+                dict = self.net.GetStatistics()
+                finalDict.update(dict)
                 Record(finalDict, writer, self.sess.run(self.global_step))

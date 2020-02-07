@@ -26,6 +26,7 @@ class A3C(Method):
         self.scope=scope
         self.Model = sharedModel
         self.s = tf.placeholder(tf.float32, [None] + stateShape, 'S')
+        self.s_next = tf.placeholder(tf.float32, [None] + stateShape, 'S_next')
         self.a_his = tf.placeholder(tf.int32, [None, ], 'A')
         self.v_target = tf.placeholder(tf.float32, [None], 'Vtarget')
 
@@ -33,17 +34,20 @@ class A3C(Method):
         out = self.Model(input)
         self.a_prob = out["actor"]
         self.v = out["critic"]
+        self.state_pred = out["prediction"]
 
         if globalAC is None:   # get global network
             with tf.variable_scope(scope):
                 self.a_params = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=self.Model.scope + '/Shared') + tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=self.Model.scope+ '/Actor')
                 self.c_params = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=self.Model.scope + '/Shared') + tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=self.Model.scope+ '/Critic')
+                self.s_params = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=self.Model.scope + '/Shared') + tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=self.Model.scope+ '/Reconstruction')
         else:   # local net, calculate losses
             self.buffer = [Trajectory(depth=6) for _ in range(nTrajs)]
             with tf.variable_scope(scope+"_update"):
 
                 self.a_params = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=self.Model.scope + '/Shared') + tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=self.Model.scope+ '/Actor')
                 self.c_params = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=self.Model.scope + '/Shared') + tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=self.Model.scope+ '/Critic')
+                self.s_params = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=self.Model.scope + '/Shared') + tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=self.Model.scope+ '/Reconstruction')
 
                 td = tf.subtract(self.v_target, self.v, name='TD_error')
                 with tf.name_scope('c_loss'):
@@ -57,22 +61,35 @@ class A3C(Method):
                     self.exp_v = HPs["EntropyBeta"] * entropy + exp_v
                     self.a_loss = tf.reduce_mean(-self.exp_v)
 
+                with tf.name_scope('s_loss'):
+                    self.s_loss = tf.losses.mean_squared_error(self.state_pred,self.s_next)
+
                 with tf.name_scope('local_grad'):
                     self.a_grads = tf.gradients(self.a_loss, self.a_params)
                     self.c_grads = tf.gradients(self.c_loss, self.c_params)
+                    self.s_grads = tf.gradients(self.s_loss, self.s_params)
 
             with tf.name_scope('sync'):
                 with tf.name_scope('pull'):
                     self.pull_a_params_op = [l_p.assign(g_p) for l_p, g_p in zip(self.a_params, globalAC.a_params)]
                     self.pull_c_params_op = [l_p.assign(g_p) for l_p, g_p in zip(self.c_params, globalAC.c_params)]
+                    self.pull_s_params_op = [l_p.assign(g_p) for l_p, g_p in zip(self.s_params, globalAC.s_params)]
                 with tf.name_scope('push'):
                     self.update_a_op = tf.train.AdamOptimizer(HPs["Actor LR"]).apply_gradients(zip(self.a_grads, globalAC.a_params))
                     self.update_c_op = tf.train.AdamOptimizer(HPs["Critic LR"]).apply_gradients(zip(self.c_grads, globalAC.c_params))
+                    self.update_s_op = tf.train.AdamOptimizer(HPs["Actor LR"]).apply_gradients(zip(self.s_grads, globalAC.s_params))
 
-        self.a_loss_MA = MovingAverage(400)
-        self.c_loss_MA = MovingAverage(400)
-        self.a_grad_MA = MovingAverage(400)
-        self.c_grad_MA = MovingAverage(400)
+            self.update_ops = [self.update_a_op,self.update_c_op,self.update_s_op]
+            self.pull_ops = [self.pull_a_params_op,self.pull_c_params_op,self.pull_s_params_op]
+            self.grads = [self.a_grads,self.c_grads,self.s_grads]
+            self.losses = [self.a_loss,self.c_loss,self.s_loss]
+
+            self.a_loss_MA = MovingAverage(400)
+            self.c_loss_MA = MovingAverage(400)
+            self.s_loss_MA = MovingAverage(400)
+            self.a_grad_MA = MovingAverage(400)
+            self.c_grad_MA = MovingAverage(400)
+            self.s_grad_MA = MovingAverage(400)
 
     def GetAction(self, state):
         """
@@ -102,16 +119,18 @@ class A3C(Method):
             #Create a feedDict from the buffer
             feedDict = {
                 self.s: self.buffer[traj][0][:clip],
+                self.s_next: self.buffer[traj][3][:clip],
                 self.a_his: np.asarray(self.buffer[traj][1][:clip]).reshape(-1),
                 self.v_target: td_target,
             }
 
             #Perform update operations
-            _,_, a_loss, a_grads, c_loss, c_grads=self.sess.run([self.update_a_op, self.update_c_op, self.a_loss, self.a_grads, self.c_loss, self.c_grads], feedDict)   # local grads applied to global net.
-            self.sess.run([self.pull_a_params_op, self.pull_c_params_op])   # global variables synched to the local net.
+            _,_,_, a_loss, a_grads, c_loss, c_grads, s_loss=self.sess.run([self.update_a_op, self.update_c_op, self.update_s_op, self.a_loss, self.a_grads, self.c_loss, self.c_grads, self.s_loss], feedDict)   # local grads applied to global net.
+            self.sess.run(self.pull_ops)   # global variables synched to the local net.
 
             self.a_loss_MA.append(a_loss)
             self.c_loss_MA.append(c_loss)
+            self.s_loss_MA.append(s_loss)
 
             total_counter = 0
             vanish_counter = 0
@@ -132,6 +151,7 @@ class A3C(Method):
         dict = {"Training Results/Vanishing Gradient Actor":self.a_grad_MA(),
         "Training Results/Critic Loss":self.a_loss_MA(),
         "Training Results/Actor Loss":self.c_loss_MA(),
+        "Training Results/State Pred Loss":self.s_loss_MA(),
         "Training Results/Vanishing Gradient Critic":self.c_grad_MA(),}
         return dict
 

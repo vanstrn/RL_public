@@ -47,9 +47,13 @@
         "activation":null}
     ],
     "Reconstruction":[
+      { "layerType":"Concatenate",
+        "layerName":"Reconstruction_Concatenate",
+        "layerInput":["Dense1","Logits"],
+        "axis":1},
       { "layerType":"Dense",
         "layerName":"Reconstruction_Dense",
-        "layerInput":"Dense1",
+        "layerInput":"Reconstruction_Concatenate",
         "outputSize":144,
         "activation":"relu"},
       { "layerType":"Reshape",

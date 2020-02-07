@@ -129,7 +129,7 @@ class PPO(Method):
         # print(probs,actions)
         return actions, [v,log_logits]
 
-    def Update(self,HPs,logging,writer,episode=0):
+    def Update(self,HPs,episode=0):
         """
         Process the buffer and backpropagates the loses through the NN.
 
@@ -179,12 +179,12 @@ class PPO(Method):
             self.GradMA = self.GradMA*.99 + vanish_counter/total_counter*0.1
 
 
-        if logging:
-            dict = {"Training Results/Entropy":self.EntropyMA,
-            "Training Results/Critic Loss":self.CriticLossMA,
-            "Training Results/Actor Loss":self.ActorLossMA,
-            "Training Results/Vanishing Gradient":self.GradMA,}
-            Record(dict,writer,episode)
+    def GetStatistics(self.):
+        dict = {"Training Results/Entropy":self.EntropyMA,
+        "Training Results/Critic Loss":self.CriticLossMA,
+        "Training Results/Actor Loss":self.ActorLossMA,
+        "Training Results/Vanishing Gradient":self.GradMA,}
+        return dict
 
 
     def ProcessBuffer(self,HPs,traj,clip):

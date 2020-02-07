@@ -9,7 +9,7 @@ from .layers.non_local import Non_local_nn
 from .layers.approx_round import *
 
 class Network(tf.keras.Model):
-    def __init__(self, configFile, actionSize, netConfigOverride, scope=None,debug=False):
+    def __init__(self, configFile, actionSize, netConfigOverride, scope=None,debug=True):
         """
         Reads a network config file and processes that into a netowrk with appropriate naming structure.
 
@@ -48,6 +48,7 @@ class Network(tf.keras.Model):
 
         self.layerList = {}
         self.layerInputs = {}
+        self.layerType = {}
         self.multiOutput = {}
             #Creating all of the layers
         for sectionName,layerList in data["NetworkStructure"].items():
@@ -78,7 +79,10 @@ class Network(tf.keras.Model):
                     else:
                         layerInputs.append(self.layerOutputs[layerInput])
                 if self.debug: print("\tLayer Inputs",layerInputs)
-                output = layer(*layerInputs)
+                if self.layerType[layerName] == "Concatenate":
+                    output = layer(layerInputs)
+                else:
+                    output = layer(*layerInputs)
             else: # Single input layers
                 if "input" in self.layerInputs[layerName]:
                     _, input_name = self.layerInputs[layerName].rsplit('.',1)
@@ -159,7 +163,7 @@ class Network(tf.keras.Model):
                 layer = KL.LSTM(**dict["Parameters"],name=dict["layerName"])
             elif dict["layerType"] == "SimpleRNN":
                 layer = KL.SimpleRNN(**dict["Parameters"],name=dict["layerName"])
-
+        self.layerType[dict["layerName"]] = dict["layerType"]
 
         return layer
 

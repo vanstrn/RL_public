@@ -1,9 +1,10 @@
 { "RunName":"MiniGrid_Reconstruct",
   "GPUCapacitty":0.95,
-  "NetworkHPs":{"LR": 1E-4,
-                "Gamma":0.98,
-                "lambda":0.98,
-                "EntropyBeta":0.001,
+  "NetworkHPs":{"Actor LR": 1E-4,
+                "Critic LR": 3E-4,
+                "Gamma":0.9,
+                "lambda":0.9,
+                "EntropyBeta":0,
                 "CriticBeta":0.001,
                 "eps":0.2},
 
@@ -14,9 +15,9 @@
             "LOG_FREQ" : 10,
             "Gamma":0.9},
 
-  "NumberENV":1,
+  "NumberENV":2,
   "EnvConfig":"MiniGrid.json",
   "NetworkConfig":"MG_Reconstruct.json",
-  "Method":"methods.PPO_Reconstruction.PPO"
+  "Method":"methods.A3C_SF.A3C"
 
   }
