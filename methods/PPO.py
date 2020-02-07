@@ -7,10 +7,11 @@ To Do:
 """
 from .method import Method
 from .buffer import Trajectory
-from utils.dataProcessing import gae
+from .AdvantageEstimator import gae
 import tensorflow as tf
 import numpy as np
 import scipy
+from utils.record import Record
 
 
 class PPO(Method):
@@ -68,11 +69,11 @@ class PPO(Method):
                 # Entropy
                 def _log(val):
                     return tf.log(tf.clip_by_value(val, 1e-10, 10.0))
-                entropy = -tf.reduce_mean(self.a_prob * _log(self.a_prob), name='entropy')
+                entropy = self.entropy = -tf.reduce_mean(self.a_prob * _log(self.a_prob), name='entropy')
 
                 # Critic Loss
                 td_error = self.td_target_ - self.v
-                critic_loss = tf.reduce_mean(tf.square(td_error), name='critic_loss')
+                critic_loss = self.critic_loss = tf.reduce_mean(tf.square(td_error), name='critic_loss')
 
                 # Actor Loss
                 action_OH = tf.one_hot(self.a_his, actionSize, dtype=tf.float32)
@@ -84,7 +85,7 @@ class PPO(Method):
                 surrogate = ratio * self.advantage_
                 clipped_surrogate = tf.clip_by_value(ratio, 1-HPs["eps"], 1+HPs["eps"]) * self.advantage_
                 surrogate_loss = tf.minimum(surrogate, clipped_surrogate, name='surrogate_loss')
-                actor_loss = -tf.reduce_mean(surrogate_loss, name='actor_loss')
+                actor_loss = self.actor_loss = -tf.reduce_mean(surrogate_loss, name='actor_loss')
 
                 actor_loss = actor_loss - entropy * HPs["EntropyBeta"]
                 loss = actor_loss + critic_loss * HPs["CriticBeta"]
@@ -94,7 +95,13 @@ class PPO(Method):
                 self.gradients = self.optimizer.get_gradients(loss, tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope))
                 self.update_ops = self.optimizer.apply_gradients(zip(self.gradients, tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope)))
 
-    def GetAction(self, state, global_step):
+        #Creating variable for logging.
+        self.EntropyMA = 0
+        self.CriticLossMA = 0
+        self.ActorLossMA = 0
+        self.GradMA = 0
+
+    def GetAction(self, state, episode=1,step=0):
         """
         Method to run data through the neural network.
 
@@ -114,15 +121,15 @@ class PPO(Method):
             probs,log_logits,v = self.sess.run([self.a_prob,self.log_logits,self.v], {self.s: state})
         except ValueError:
             probs,log_logits,v = self.sess.run([self.a_prob,self.log_logits,self.v], {self.s: np.expand_dims(state,axis=0)})
-        probs[:,2] *= 2.0
-        probs[:,1] *= 0.75
-        probs[:,0] *= 0.75
-        probs=scipy.special.softmax(probs)
+        # probs[:,2] *= 2.0
+        # probs[:,1] *= 0.75
+        # probs[:,0] *= 0.75
+        # probs=scipy.special.softmax(probs)
         actions = np.array([np.random.choice(probs.shape[1], p=prob / sum(prob)) for prob in probs])
         # print(probs,actions)
         return actions, [v,log_logits]
 
-    def Update(self,HPs):
+    def Update(self,HPs,logging,writer,episode=0):
         """
         Process the buffer and backpropagates the loses through the NN.
 
@@ -137,9 +144,10 @@ class PPO(Method):
         """
         for traj in range(len(self.buffer)):
 
+            #Finding if there are more than 1 done in the sequence. Clipping values if required.
             clip = -1
             try:
-                for j in range(1):
+                for j in range(2):
                     clip = self.buffer[traj][4].index(True, clip + 1)
             except:
                 clip=len(self.buffer[traj][4])
@@ -150,6 +158,7 @@ class PPO(Method):
             #Use a sampler to feed the update operation?
 
             #Staging Buffer inputs into the entries to run through the network.
+            # print(td_target)
             if len(self.buffer[traj][0][:clip]) == 0:
                 continue
             feed_dict = {self.s: self.buffer[traj][0][:clip],
@@ -157,7 +166,25 @@ class PPO(Method):
                          self.td_target_: td_target,
                          self.advantage_: np.reshape(advantage, [-1]),
                          self.old_log_logits_: np.reshape(self.buffer[traj][6][:clip], [-1,self.actionSize])}
-            self.sess.run(self.update_ops, feed_dict)
+            aLoss, cLoss, entropy,grads, _ = self.sess.run([self.actor_loss,self.critic_loss,self.entropy,self.gradients,self.update_ops], feed_dict)
+
+            self.EntropyMA = self.EntropyMA*.99 + entropy*0.1
+            self.CriticLossMA = self.CriticLossMA*.99 + cLoss*0.1
+            self.ActorLossMA = self.ActorLossMA*.99 + aLoss*0.1
+            total_counter = 0
+            vanish_counter = 0
+            for grad in grads:
+                total_counter += np.prod(grad.shape)
+                vanish_counter += (np.absolute(grad)<1e-8).sum()
+            self.GradMA = self.GradMA*.99 + vanish_counter/total_counter*0.1
+
+
+        if logging:
+            dict = {"Training Results/Entropy":self.EntropyMA,
+            "Training Results/Critic Loss":self.CriticLossMA,
+            "Training Results/Actor Loss":self.ActorLossMA,
+            "Training Results/Vanishing Gradient":self.GradMA,}
+            Record(dict,writer,episode)
 
 
     def ProcessBuffer(self,HPs,traj,clip):
@@ -182,6 +209,7 @@ class PPO(Method):
         """
         # print("Starting Processing Buffer\n")
         # tracker.print_diff()
+
         td_target, advantage = gae(self.buffer[traj][2][:clip],self.buffer[traj][5][:clip],0,HPs["Gamma"],HPs["lambda"])
         # tracker.print_diff()
         return td_target, advantage

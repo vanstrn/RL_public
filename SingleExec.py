@@ -14,6 +14,8 @@ from networks.network import Network
 from utils.utils import InitializeVariables, CreatePath, interval_flag, GetFunction
 from utils.record import Record,SaveHyperparams
 import json
+from pympler import tracker
+tr = tracker.SummaryTracker()
 
 #Input arguments to override the default Config Files
 parser = argparse.ArgumentParser()
@@ -86,8 +88,7 @@ for i in range(settings["EnvHPs"]["MAX_EP"]):
     for j in range(settings["EnvHPs"]["MAX_EP_STEPS"]+1):
         updating = interval_flag(j, settings["EnvHPs"]['UPDATE_GLOBAL_ITER'], 'update')
 
-
-        a, networkData = net.GetAction(state=s0,global_step=global_step,step=j)
+        a, networkData = net.GetAction(state=s0,episode=sess.run(global_step),step=j)
 
         for functionString in envSettings["ActionProcessingFunctions"]:
             ActionProcessing = GetFunction(functionString)
@@ -107,7 +108,7 @@ for i in range(settings["EnvHPs"]["MAX_EP"]):
         net.AddToTrajectory([s0,a,r,s1,done]+networkData)
 
         if updating:   # update global and assign to local net
-            net.Update(settings["NetworkHPs"],logging,writer)
+            net.Update(settings["NetworkHPs"],logging,writer),sess.run(global_step)
 
         for functionString in envSettings["LoggingFunctions"]:
             LoggingFunctions = GetFunction(functionString)
@@ -115,7 +116,7 @@ for i in range(settings["EnvHPs"]["MAX_EP"]):
 
         s0 = s1
         if done.all() or j == settings["EnvHPs"]["MAX_EP_STEPS"]:
-            net.Update(settings["NetworkHPs"],logging,writer)
+            net.Update(settings["NetworkHPs"],logging,writer,sess.run(global_step))
             net.ClearTrajectory()
         if done.all():
             break
@@ -123,9 +124,10 @@ for i in range(settings["EnvHPs"]["MAX_EP"]):
     for functionString in envSettings["EpisodeClosingFunctions"]:
         EpisodeClosingFunction = GetFunction(functionString)
         finalDict = EpisodeClosingFunction(loggingDict,env,settings,envSettings,sess,progbar)
+    # tr.print_diff()
 
     if logging:
-        saver.save(sess, MODEL_PATH+'/ctf_policy.ckpt', global_step=sess.run(global_step))
+        Record(finalDict, writer, sess.run(global_step))
 
     if saving:
-        Record(finalDict, writer, i)
+        saver.save(sess, MODEL_PATH+'/ctf_policy.ckpt', global_step=sess.run(global_step))

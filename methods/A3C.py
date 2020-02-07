@@ -7,24 +7,30 @@ To Do:
 """
 from .method import Method
 from .buffer import Trajectory
+from .AdvantageEstimator import gae
 import tensorflow as tf
 import numpy as np
+from utils.utils import MovingAverage
+from utils.record import Record
 
 class A3C(Method):
 
-    def __init__(self,sharedModel,sess,stateShape,actionSize,scope,HPs,globalAC=None,):
+    def __init__(self,sharedModel,sess,stateShape,actionSize,scope,HPs,globalAC=None,nTrajs=1):
         """
         Initializes I/O placeholders used for Tensorflow session runs.
         Initializes and Actor and Critic Network to be used for the purpose of RL.
         """
         #Placeholders
-        self.buffer = Trajectory(depth=5)
+
         self.sess=sess
+        self.scope=scope
         self.Model = sharedModel
-        self.s = tf.placeholder(tf.float32, [None, stateShape], 'S')
+        self.s = tf.placeholder(tf.float32, [None] + stateShape, 'S')
         self.a_his = tf.placeholder(tf.int32, [None, ], 'A')
-        self.v_target = tf.placeholder(tf.float32, [None, 1], 'Vtarget')
-        out = self.Model(self.s)
+        self.v_target = tf.placeholder(tf.float32, [None], 'Vtarget')
+
+        input = {"state":self.s}
+        out = self.Model(input)
         self.a_prob = out["actor"]
         self.v = out["critic"]
 
@@ -33,6 +39,7 @@ class A3C(Method):
                 self.a_params = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=self.Model.scope + '/Shared') + tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=self.Model.scope+ '/Actor')
                 self.c_params = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=self.Model.scope + '/Shared') + tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=self.Model.scope+ '/Critic')
         else:   # local net, calculate losses
+            self.buffer = [Trajectory(depth=6) for _ in range(nTrajs)]
             with tf.variable_scope(scope+"_update"):
 
                 self.a_params = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=self.Model.scope + '/Shared') + tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=self.Model.scope+ '/Actor')
@@ -62,58 +69,116 @@ class A3C(Method):
                     self.update_a_op = tf.train.AdamOptimizer(HPs["Actor LR"]).apply_gradients(zip(self.a_grads, globalAC.a_params))
                     self.update_c_op = tf.train.AdamOptimizer(HPs["Critic LR"]).apply_gradients(zip(self.c_grads, globalAC.c_params))
 
-
+        self.a_loss_MA = MovingAverage(400)
+        self.c_loss_MA = MovingAverage(400)
+        self.a_grad_MA = MovingAverage(400)
+        self.c_grad_MA = MovingAverage(400)
 
     def GetAction(self, state):
         """
         Contains the code to run the network based on an input.
         """
         s = state[np.newaxis, :]
-        probs = self.sess.run(self.a_prob, {self.s: s})   # get probabilities for all actions
+        probs,v = self.sess.run([self.a_prob,self.v], {self.s: s})   # get probabilities for all actions
 
-        return np.random.choice(np.arange(probs.shape[1]), p=probs.ravel()) ,[]  # return a int and extra data that needs to be fed to buffer.
+        return np.random.choice(np.arange(probs.shape[1]), p=probs.ravel()) ,[v]  # return a int and extra data that needs to be fed to buffer.
 
-    def Update(self,HPs):
+    def Update(self,HPs,logging,writer,episode=0):
         """
         The main update function for A3C. The function pushes gradients to the global AC Network.
         The second function is to Pull
         """
         #Process the data from the buffer
-        self.ProcessBuffer(HPs)
+        for traj in range(len(self.buffer)):
+            clip = -1
+            try:
+                for j in range(2):
+                    clip = self.buffer[traj][4].index(True, clip + 1)
+            except:
+                clip=len(self.buffer[traj][4])
 
-        #Create a feedDict from the buffer
-        feedDict = {
-            self.s: np.vstack(self.buffer[0]),
-            self.a_his: np.array(self.buffer[1]),
-            self.v_target: np.vstack(self.buffer[2]),
-        }
+            td_target = self.ProcessBuffer(HPs,traj,clip)
 
-        #Perform update operations
-        self.sess.run([self.update_a_op, self.update_c_op], feedDict)   # local grads applied to global net.
-        self.sess.run([self.pull_a_params_op, self.pull_c_params_op])   # global variables synched to the local net.
+            #Create a feedDict from the buffer
+            feedDict = {
+                self.s: self.buffer[traj][0][:clip],
+                self.a_his: np.asarray(self.buffer[traj][1][:clip]).reshape(-1),
+                self.v_target: td_target,
+            }
 
-        #Clear of reset the buffer.
-        self.buffer.clear()
+            #Perform update operations
+            _,_, a_loss, a_grads, c_loss, c_grads=self.sess.run([self.update_a_op, self.update_c_op, self.a_loss, self.a_grads, self.c_loss, self.c_grads], feedDict)   # local grads applied to global net.
+            self.sess.run([self.pull_a_params_op, self.pull_c_params_op])   # global variables synched to the local net.
 
-    def ProcessBuffer(self,HPs):
-        """Take the buffer and calculate future rewards.
+            self.a_loss_MA.append(a_loss)
+            self.c_loss_MA.append(c_loss)
+
+            total_counter = 0
+            vanish_counter = 0
+            for grad in a_grads:
+                total_counter += np.prod(grad.shape)
+                vanish_counter += (np.absolute(grad)<1e-8).sum()
+            self.a_grad_MA.append(vanish_counter/total_counter)
+
+            total_counter = 0
+            vanish_counter = 0
+            for grad in c_grads:
+                total_counter += np.prod(grad.shape)
+                vanish_counter += (np.absolute(grad)<1e-8).sum()
+
+            self.c_grad_MA.append(vanish_counter/total_counter)
+
+        if logging:
+            dict = {"Training Results/Vanishing Gradient Actor":self.a_grad_MA(),
+            "Training Results/Critic Loss":self.a_loss_MA(),
+            "Training Results/Actor Loss":self.c_loss_MA(),
+            "Training Results/Vanishing Gradient Critic":self.c_grad_MA(),}
+            Record(dict,writer,episode)
+
+
+    def ProcessBuffer(self,HPs,traj,clip):
         """
-        buffer_v_s_ = []
-        for r in self.buffer[2][::-1]:
-            if self.buffer[4][-1]:
-                v_s_ = 0   # terminal
-            else:
-                v_s_ = self.sess.run(self.v, {self.s: self.buffer[3][-1][np.newaxis, :]})[0, 0]
+        Process the buffer to calculate td_target.
 
-            v_s_ = r + HPs["Gamma"] * v_s_
-            buffer_v_s_.append(v_s_)
+        Parameters
+        ----------
+        Model : HPs
+            Hyperparameters for training.
+        traj : Trajectory
+            Data stored by the neural network.
+        clip : list[bool]
+            List where the trajectory has finished.
 
-        buffer_v_s_.reverse()
-        self.buffer[2] = buffer_v_s_
+        Returns
+        -------
+        td_target : list
+            List Temporal Difference Target for particular states.
+        advantage : list
+            List of advantages for particular actions.
+        """
+        # print("Starting Processing Buffer\n")
+        # tracker.print_diff()
+
+        td_target, _ = gae(self.buffer[traj][2][:clip],self.buffer[traj][5][:clip],0,HPs["Gamma"],HPs["lambda"])
+        # tracker.print_diff()
+        return td_target
+
+        # buffer_v_s_ = []
+        # for r in self.buffer[2][::-1]:
+        #     if self.buffer[4][-1]:
+        #         v_s_ = 0   # terminal
+        #     else:
+        #         v_s_ = self.sess.run(self.v, {self.s: self.buffer[3][-1][np.newaxis, :]})[0, 0]
+        #
+        #     v_s_ = r + HPs["Gamma"] * v_s_
+        #     buffer_v_s_.append(v_s_)
+        #
+        # buffer_v_s_.reverse()
+        # self.buffer[2] = buffer_v_s_
 
     @property
     def getVars(self):
-        return self.Model.getVars
+        return self.Model.getVars(self.scope)
 
     @property
     def getAParams(self):

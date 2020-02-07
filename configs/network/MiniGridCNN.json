@@ -4,14 +4,14 @@
       { "layerType":"Conv2D",
         "layerName":"Conv2D_1",
         "layerInput":"input.state",
-        "filters":16,
+        "filters":32,
         "kernel_size":2,
         "strides":1,
         "activation":"relu"},
       { "layerType":"Conv2D",
         "layerName":"Conv2D_2",
         "layerInput":"Conv2D_1",
-        "filters":32,
+        "filters":64,
         "kernel_size":2,
         "strides":1,
         "activation":"relu"},
@@ -21,22 +21,27 @@
       { "layerType":"Dense",
         "layerName":"Dense1",
         "layerInput":"Flatten",
-        "outputSize":128,
+        "outputSize":256,
         "activation":null}
       ],
 
     "Actor":[
       { "layerType":"Dense",
-        "layerName":"Actor_FC",
+        "layerName":"Actor_FC1",
         "layerInput":"Dense1",
+        "outputSize":"64",
+        "activation":null},
+      { "layerType":"Dense",
+        "layerName":"Actor_FC2",
+        "layerInput":"Actor_FC1",
         "outputSize":"actionSize",
         "activation":null},
       { "layerType":"SoftMax",
         "layerName":"Logits",
-        "layerInput":"Actor_FC"},
+        "layerInput":"Actor_FC2"},
       { "layerType":"LogSoftMax",
         "layerName":"LogLogits",
-        "layerInput":"Actor_FC"}
+        "layerInput":"Actor_FC2"}
     ],
 
     "Critic":[

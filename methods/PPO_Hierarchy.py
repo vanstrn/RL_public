@@ -43,6 +43,7 @@ class PPO_Hierarchy(Method):
         self.actionSize = actionSize
         self.sess=sess
         self.Model = Model
+        self.method = "Greedy" #Create input for this.
 
         #Creating appropriate buffer for the method.
         self.buffer = [Trajectory(depth=7) for _ in range(nTrajs)]
@@ -95,9 +96,11 @@ class PPO_Hierarchy(Method):
                 self.optimizer = tf.keras.optimizers.Adam(HPs["LR"])
                 self.gradients = self.optimizer.get_gradients(loss, tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope))
                 self.update_ops = self.optimizer.apply_gradients(zip(self.gradients, tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope)))
-        self.method = "Greedy"
 
-    def GetAction(self, state):
+
+    def InitiateEpisode(self):
+        pass
+    def GetAction(self, state, episode, step):
         """
         Method to run data through hierarchical network
 
@@ -119,11 +122,22 @@ class PPO_Hierarchy(Method):
             List of data that is passed to the execution code to be bundled with state data.
         """
         #Determine number of steps and whether to initiate confidence based on the length of the Buffer.
-        
-        # Run the Meta Network
-        LL_probs,log_logits,v = self.sess.run([self.a_prob,self.log_logits,self.v], {self.s: state})
+        if step == 0:
+            self.InitiateEpisode()
+
+        # Run the Meta and Sub-policy Networks
+        targets = [self.a_prob,self.log_logits,self.v]+self.sub_a_prob[:-1]+self.sub_log_logits[:-1]+self.sub_v[:-1]
+        res = self.sess.run(targets, {self.s: state})
+
+        LL_probs=res[0]
+        HL_log_logits =res[1]
+        HL_v = res[2]
+        sub_probs = res[3:2+self.numOptions]
+        sub_log_logits = res[3+self.numOptions:2+2*self.numOptions]
+        sub_v = res[3+2*self.numOptions:]
+
         if self.method == "Greedy":
-            actions = np.array([np.random.choice(probs.shape[1], p=prob / sum(prob)) for prob in probs])
+            HL_actions = np.array([np.random.choice(probs.shape[1], p=prob / sum(prob)) for prob in LL_probs])
         elif self.method = "Fixed Step":
             pass
         elif self.method = "Confidence":
@@ -134,9 +148,12 @@ class PPO_Hierarchy(Method):
             pass
 
         # Run the Subpolicy Network
-        probs,log_logits,v = self.sess.run([self.sub_a_prob[],self.sub_log_logits,self.sub_v], {self.s: state})
+        actions = np.array([np.random.choice(self.actionSize, p=sub_probs[mod][idx] / sum(sub_probs[mod][idx])) for idx, mod in enumerate(HL_actions)])
+        critics = [sub_v[mod][idx] for idx, mod in enumerate(HL_actions)]
+        logits = [sub_log_logits[mod][idx] for idx, mod in enumerate(HL_actions)]
+
         actions = np.array([np.random.choice(probs.shape[1], p=prob / sum(prob)) for prob in probs])
-        return actions, [v,log_logits]
+        return actions, [critics, logits, HL_actions, HL_log_logits, HL_v]
 
     def Update(self,HPs):
         """
