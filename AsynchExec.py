@@ -63,7 +63,7 @@ GLOBAL_RUNNING_R = MovingAverage(400)
 
 progbar = tf.keras.utils.Progbar(None, unit_name='Training',stateful_metrics=["Reward"])
 #Creating the Networks and Methods of the Run.
-with tf.device('/gpu:0'):
+with tf.device('/cpu:0'):
     global_step = tf.Variable(0, trainable=False, name='global_step')
     global_step_next = tf.assign_add(global_step,1)
     network = Network("configs/network/"+settings["NetworkConfig"],nActions,netConfigOverride,scope="Global")

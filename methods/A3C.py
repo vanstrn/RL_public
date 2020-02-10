@@ -156,25 +156,9 @@ class A3C(Method):
         advantage : list
             List of advantages for particular actions.
         """
-        # print("Starting Processing Buffer\n")
-        # tracker.print_diff()
-
         td_target, _ = gae(self.buffer[traj][2][:clip],self.buffer[traj][5][:clip],0,HPs["Gamma"],HPs["lambda"])
-        # tracker.print_diff()
         return td_target
 
-        # buffer_v_s_ = []
-        # for r in self.buffer[2][::-1]:
-        #     if self.buffer[4][-1]:
-        #         v_s_ = 0   # terminal
-        #     else:
-        #         v_s_ = self.sess.run(self.v, {self.s: self.buffer[3][-1][np.newaxis, :]})[0, 0]
-        #
-        #     v_s_ = r + HPs["Gamma"] * v_s_
-        #     buffer_v_s_.append(v_s_)
-        #
-        # buffer_v_s_.reverse()
-        # self.buffer[2] = buffer_v_s_
 
     @property
     def getVars(self):

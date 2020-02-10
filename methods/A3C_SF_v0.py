@@ -37,7 +37,6 @@ class A3C(Method):
         self.a_prob = out["actor"]
         self.v = out["critic"]
         self.state_pred = out["prediction"]
-        self.reward_pred = out["reward_pred"]
         self.phi = out["phi"]
         self.psi = out["psi"]
 
@@ -46,7 +45,6 @@ class A3C(Method):
                 self.a_params = self.Model.GetVariables("Actor")
                 self.c_params = self.Model.GetVariables("Critic")
                 self.s_params = self.Model.GetVariables("Reconstruction")
-                self.r_params = self.Model.GetVariables("Reward")
         else:   # local net, calculate losses
             self.buffer = [Trajectory(depth=8) for _ in range(nTrajs)]
             with tf.variable_scope(scope+"_update"):
@@ -54,12 +52,10 @@ class A3C(Method):
                 self.a_params = self.Model.GetVariables("Actor")
                 self.c_params = self.Model.GetVariables("Critic")
                 self.s_params = self.Model.GetVariables("Reconstruction")
-                self.r_params = self.Model.GetVariables("Reward")
 
                 with tf.name_scope('c_loss'):
-                    sf_error = tf.subtract(self.td_target, self.psi, name='TD_error')
-                    sf_error = tf.square(sf_error)
-                    self.c_loss = tf.reduce_mean(sf_error,name="sf_loss")
+                    td = tf.subtract(self.td_target, self.psi, name='TD_error')
+                    self.c_loss = tf.reduce_mean(tf.square(td))
 
                 with tf.name_scope('a_loss'):
                     td = tf.subtract(self.v_target, self.v, name='TD_error')
@@ -72,43 +68,37 @@ class A3C(Method):
                 with tf.name_scope('s_loss'):
                     self.s_loss = tf.losses.mean_squared_error(self.state_pred,self.s_next)
 
-                with tf.name_scope('r_loss'):
-                    self.r_loss = tf.losses.mean_squared_error(self.reward,tf.squeeze(self.reward_pred))
-
                 with tf.name_scope('local_grad'):
                     self.a_grads = tf.gradients(self.a_loss, self.a_params)
                     self.c_grads = tf.gradients(self.c_loss, self.c_params)
                     self.s_grads = tf.gradients(self.s_loss, self.s_params)
-                    self.r_grads = tf.gradients(self.r_loss, self.r_params)
 
             with tf.name_scope('sync'):
                 with tf.name_scope('pull'):
                     self.pull_a_params_op = [l_p.assign(g_p) for l_p, g_p in zip(self.a_params, globalAC.a_params)]
                     self.pull_c_params_op = [l_p.assign(g_p) for l_p, g_p in zip(self.c_params, globalAC.c_params)]
                     self.pull_s_params_op = [l_p.assign(g_p) for l_p, g_p in zip(self.s_params, globalAC.s_params)]
-                    self.pull_r_params_op = [l_p.assign(g_p) for l_p, g_p in zip(self.r_params, globalAC.r_params)]
 
                 with tf.name_scope('push'):
                     self.update_a_op = tf.train.AdamOptimizer(HPs["Actor LR"]).apply_gradients(zip(self.a_grads, globalAC.a_params))
                     self.update_c_op = tf.train.AdamOptimizer(HPs["Critic LR"]).apply_gradients(zip(self.c_grads, globalAC.c_params))
-                    self.update_s_op = tf.train.AdamOptimizer(HPs["State LR"]).apply_gradients(zip(self.s_grads, globalAC.s_params))
-                    self.update_r_op = tf.train.AdamOptimizer(HPs["Reward LR"]).apply_gradients(zip(self.r_grads, globalAC.r_params))
+                    self.update_s_op = tf.train.AdamOptimizer(HPs["Actor LR"]).apply_gradients(zip(self.s_grads, globalAC.s_params))
 
-            self.update_ops = [self.update_a_op,self.update_c_op,self.update_s_op,self.update_r_op]
-            self.pull_ops = [self.pull_a_params_op,self.pull_c_params_op,self.pull_s_params_op,self.pull_r_params_op]
-            self.grads = [self.a_grads,self.c_grads,self.s_grads,self.r_grads]
-            self.losses = [self.a_loss,self.c_loss,self.s_loss,self.r_loss]
+            self.update_ops = [self.update_a_op,self.update_c_op,self.update_s_op,]
+            self.pull_ops = [self.pull_a_params_op,self.pull_c_params_op,self.pull_s_params_op,]
+            self.grads = [self.a_grads,self.c_grads,self.s_grads,]
+            self.losses = [self.a_loss,self.c_loss,self.s_loss,]
 
             self.grad_MA = [MovingAverage(400) for i in range(len(self.grads))]
             self.loss_MA = [MovingAverage(400) for i in range(len(self.grads))]
-            self.labels = ["Actor","Critic","State","Reward"]
+            self.labels = ["Actor","Critic","State",]
 
     def GetAction(self, state):
         """
         Contains the code to run the network based on an input.
         """
         s = state[np.newaxis, :]
-        probs,v,phi,psi = self.sess.run([self.a_prob,self.v, self.phi, self.psi], {self.s: s})   # get probabilities for all actions
+        probs,v,phi,psi = self.sess.run([self.a_prob,self.v,self.phi,self.psi], {self.s: s})   # get probabilities for all actions
 
         return np.random.choice(np.arange(probs.shape[1]), p=probs.ravel()) ,[v,phi,psi]  # return a int and extra data that needs to be fed to buffer.
 
@@ -138,7 +128,6 @@ class A3C(Method):
                 self.td_target: np.squeeze(td_target,1),
             }
 
-            self.sess.run(self.pull_ops)   # global variables synched to the local net.
             if not statistics:
                 self.sess.run(self.update_ops, feedDict)   # local grads applied to global net.
             else:
@@ -158,6 +147,8 @@ class A3C(Method):
                         total_counter += np.prod(grad.shape)
                         vanish_counter += (np.absolute(grad)<1e-8).sum()
                     self.grad_MA[i].append(vanish_counter/total_counter)
+
+            self.sess.run(self.pull_ops)   # global variables synched to the local net.
 
 
     def GetStatistics(self):
@@ -188,27 +179,12 @@ class A3C(Method):
         advantage : list
             List of advantages for particular actions.
         """
-        # print("Starting Processing Buffer\n")
-        # tracker.print_diff()
-
         v_target, _ = gae(self.buffer[traj][2][:clip],self.buffer[traj][5][:clip],0,HPs["Gamma"],HPs["lambda"])
-
         td_target, _ = gae(self.buffer[traj][6][:clip], self.buffer[traj][7][:clip], np.zeros_like(self.buffer[traj][6][0][:clip]),HPs["Gamma"],HPs["lambda"])
-        # tracker.print_diff()
-        return v_target, td_target
+        return v_target,td_target
+    def InitializeVariables(self):
+        self.sess.run(self.pull_ops)
 
-        # buffer_v_s_ = []
-        # for r in self.buffer[2][::-1]:
-        #     if self.buffer[4][-1]:
-        #         v_s_ = 0   # terminal
-        #     else:
-        #         v_s_ = self.sess.run(self.v, {self.s: self.buffer[3][-1][np.newaxis, :]})[0, 0]
-        #
-        #     v_s_ = r + HPs["Gamma"] * v_s_
-        #     buffer_v_s_.append(v_s_)
-        #
-        # buffer_v_s_.reverse()
-        # self.buffer[2] = buffer_v_s_
 
     @property
     def getVars(self):

@@ -1,4 +1,4 @@
-{ "RunName":"MiniGrid_Reconstruct",
+{ "RunName":"MG_PPOR",
   "GPUCapacitty":0.95,
   "NetworkHPs":{"Actor LR": 1E-5,
                 "Critic LR": 3E-5,
@@ -19,7 +19,7 @@
 
   "NumberENV":2,
   "EnvConfig":"MiniGrid.json",
-  "NetworkConfig":"MG_SF_v1.json",
-  "Method":"methods.A3C_SF.A3C"
+  "NetworkConfig":"MG_Reconstruct.json",
+  "Method":"methods.PPO_Reconstruction.PPO"
 
   }

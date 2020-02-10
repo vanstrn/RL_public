@@ -91,7 +91,7 @@ class PPO(Method):
                 loss = actor_loss + critic_loss * HPs["CriticBeta"]
 
                 # Build Trainer
-                self.optimizer = tf.keras.optimizers.Adam(HPs["LR"])
+                self.optimizer = tf.keras.optimizers.Adam(HPs["Critic LR"])
                 self.gradients = self.optimizer.get_gradients(loss, tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope))
                 self.update_ops = self.optimizer.apply_gradients(zip(self.gradients, tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope)))
 
@@ -179,7 +179,7 @@ class PPO(Method):
             self.GradMA = self.GradMA*.99 + vanish_counter/total_counter*0.1
 
 
-    def GetStatistics(self.):
+    def GetStatistics(self):
         dict = {"Training Results/Entropy":self.EntropyMA,
         "Training Results/Critic Loss":self.CriticLossMA,
         "Training Results/Actor Loss":self.ActorLossMA,

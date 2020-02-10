@@ -11,6 +11,7 @@ from .AdvantageEstimator import gae
 import tensorflow as tf
 import numpy as np
 import scipy
+from utils.record import Record
 
 
 class PPO(Method):
@@ -46,18 +47,20 @@ class PPO(Method):
         self.Model = Model
 
         #Creating appropriate buffer for the method.
-        self.buffer = [Trajectory(depth=7) for _ in range(nTrajs)]
+        self.buffer = [Trajectory(depth=9) for _ in range(nTrajs)]
 
         with self.sess.as_default(), self.sess.graph.as_default():
             with tf.name_scope(scope):
                 #Placeholders
                 print(stateShape)
                 self.s = tf.placeholder(tf.float32, [None]+stateShape, 'S')
+                self.s_next = tf.placeholder(tf.float32, [None]+stateShape, 'S_next')
                 self.a_his = tf.placeholder(tf.int32, [None, ], 'A')
-                self.td_target_ = tf.placeholder(tf.float32, [None], 'Vtarget')
+                self.reward = tf.placeholder(tf.int32, [None, ], 'R')
+                # self.td_target_ = tf.placeholder(tf.float32, [None], 'Vtarget')
                 self.advantage_ = tf.placeholder(shape=[None], dtype=tf.float32, name='adv_hold')
                 self.old_log_logits_ = tf.placeholder(shape=[None, actionSize], dtype=tf.float32, name='old_logit_hold')
-                self.state_next = tf.placeholder(shape=[None]+stateShape, dtype=tf.float32, name='State_next')
+                self.td_target = tf.placeholder(shape=[None, 128], dtype=tf.float32, name='td_target')
 
                 #Initializing Netowrk I/O
                 inputs = {"state":self.s}
@@ -65,16 +68,19 @@ class PPO(Method):
                 self.a_prob = out["actor"]
                 self.v = out["critic"]
                 self.log_logits = out["log_logits"]
+                self.psi = out["psi"]
+                self.phi = out["phi"]
+                self.reward_pred = out["reward_pred"]
                 self.state_pred = out["prediction"]
 
                 # Entropy
                 def _log(val):
                     return tf.log(tf.clip_by_value(val, 1e-10, 10.0))
-                entropy = -tf.reduce_mean(self.a_prob * _log(self.a_prob), name='entropy')
+                entropy = self.entropy = -tf.reduce_mean(self.a_prob * _log(self.a_prob), name='entropy')
 
                 # Critic Loss
-                td_error = self.td_target_ - self.v
-                critic_loss = tf.reduce_mean(tf.square(td_error), name='critic_loss')
+                td_error = self.td_target - self.psi
+                critic_loss = self.c_loss = tf.reduce_mean(tf.square(td_error), name='critic_loss')
 
                 # Actor Loss
                 action_OH = tf.one_hot(self.a_his, actionSize, dtype=tf.float32)
@@ -88,17 +94,41 @@ class PPO(Method):
                 surrogate_loss = tf.minimum(surrogate, clipped_surrogate, name='surrogate_loss')
                 actor_loss = -tf.reduce_mean(surrogate_loss, name='actor_loss')
 
-                reconstruction_loss = tf.losses.mean_squared_error(self.state_pred,self.state_next)
+                #State Loss
+                self.s_loss = tf.losses.mean_squared_error(self.state_pred,self.s_next)
 
-                actor_loss = actor_loss - entropy * HPs["EntropyBeta"]
-                loss = actor_loss + critic_loss * HPs["CriticBeta"] + reconstruction_loss * 0.1
+                #Reward Loss
+                self.r_loss = tf.losses.mean_squared_error(self.reward,tf.squeeze(self.reward_pred))
+
+                self.a_loss  = actor_loss - entropy * HPs["EntropyBeta"]
+
 
                 # Build Trainer
-                self.optimizer = tf.keras.optimizers.Adam(HPs["Critic LR"])
-                self.gradients = self.optimizer.get_gradients(loss, tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope))
-                self.update_ops = self.optimizer.apply_gradients(zip(self.gradients, tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope)))
+                self.c_optimizer = tf.keras.optimizers.Adam(HPs["Critic LR"])
+                self.c_gradients = self.c_optimizer.get_gradients(self.c_loss, self.Model.GetVariables("Critic"))
+                self.c_update_op = self.c_optimizer.apply_gradients(zip(self.c_gradients, self.Model.GetVariables("Critic")))
 
-    def GetAction(self, state, episode=0, step=0):
+                self.a_optimizer = tf.keras.optimizers.Adam(HPs["Actor LR"])
+                self.a_gradients = self.a_optimizer.get_gradients(self.a_loss, self.Model.GetVariables("Actor"))
+                self.a_update_op = self.a_optimizer.apply_gradients(zip(self.a_gradients, self.Model.GetVariables("Actor")))
+
+                self.s_optimizer = tf.keras.optimizers.Adam(HPs["State LR"])
+                self.s_gradients = self.s_optimizer.get_gradients(self.s_loss, self.Model.GetVariables("Reconstruction"))
+                self.s_update_op = self.s_optimizer.apply_gradients(zip(self.s_gradients, self.Model.GetVariables("Reconstruction")))
+
+                self.r_optimizer = tf.keras.optimizers.Adam(HPs["Reward LR"])
+                self.r_gradients = self.r_optimizer.get_gradients(self.r_loss, self.Model.GetVariables("Reward"))
+                self.r_update_op = self.r_optimizer.apply_gradients(zip(self.r_gradients, self.Model.GetVariables("Reward")))
+
+                self.update_ops = [self.c_update_op,self.a_update_op,self.s_update_op,self.r_update_op]
+
+        #Creating variable for logging.
+        self.EntropyMA = 0
+        self.CriticLossMA = 0
+        self.ActorLossMA = 0
+        self.GradMA = 0
+
+    def GetAction(self, state, episode=1,step=0):
         """
         Method to run data through the neural network.
 
@@ -115,16 +145,11 @@ class PPO(Method):
             List of data that is passed to the execution code to be bundled with state data.
         """
         try:
-            probs,log_logits,v = self.sess.run([self.a_prob,self.log_logits,self.v], {self.s: state})
+            probs,log_logits,v,phi,psi = self.sess.run([self.a_prob,self.log_logits,self.v,self.phi,self.psi], {self.s: state})
         except ValueError:
-            probs,log_logits,v = self.sess.run([self.a_prob,self.log_logits,self.v], {self.s: np.expand_dims(state,axis=0)})
-        probs[:,2] *= 2.0
-        probs[:,1] *= 0.75
-        probs[:,0] *= 0.75
-        probs=scipy.special.softmax(probs)
+            probs,log_logits,v,phi,psi = self.sess.run([self.a_prob,self.log_logits,self.v,self.phi,self.psi], {self.s: np.expand_dims(state,axis=0)})
         actions = np.array([np.random.choice(probs.shape[1], p=prob / sum(prob)) for prob in probs])
-        # print(probs,actions)
-        return actions, [v,log_logits]
+        return actions, [v,log_logits,phi,psi]
 
     def Update(self,HPs,episode=0):
         """
@@ -141,9 +166,10 @@ class PPO(Method):
         """
         for traj in range(len(self.buffer)):
 
+            #Finding if there are more than 1 done in the sequence. Clipping values if required.
             clip = -1
             try:
-                for j in range(1):
+                for j in range(2):
                     clip = self.buffer[traj][4].index(True, clip + 1)
             except:
                 clip=len(self.buffer[traj][4])
@@ -154,15 +180,30 @@ class PPO(Method):
             #Use a sampler to feed the update operation?
 
             #Staging Buffer inputs into the entries to run through the network.
+            # print(td_target)
             if len(self.buffer[traj][0][:clip]) == 0:
                 continue
             feed_dict = {self.s: self.buffer[traj][0][:clip],
-                         self.state_next: self.buffer[traj][3][:clip],
+                         self.reward: self.buffer[traj][2][:clip],
+                         self.s_next: self.buffer[traj][3][:clip],
                          self.a_his: np.asarray(self.buffer[traj][1][:clip]).reshape(-1),
-                         self.td_target_: td_target,
+                         self.td_target: np.squeeze(td_target,1),
                          self.advantage_: np.reshape(advantage, [-1]),
                          self.old_log_logits_: np.reshape(self.buffer[traj][6][:clip], [-1,self.actionSize])}
-            self.sess.run(self.update_ops, feed_dict)
+
+            aLoss, cLoss, entropy, _,_,_,_ = self.sess.run([self.a_loss,self.c_loss,self.entropy] +self.update_ops, feed_dict)
+
+            self.EntropyMA = self.EntropyMA*.99 + entropy*0.1
+            self.CriticLossMA = self.CriticLossMA*.99 + cLoss*0.1
+            self.ActorLossMA = self.ActorLossMA*.99 + aLoss*0.1
+
+
+    def GetStatistics(self):
+        dict = {"Training Results/Entropy":self.EntropyMA,
+        "Training Results/Critic Loss":self.CriticLossMA,
+        "Training Results/Actor Loss":self.ActorLossMA,
+        "Training Results/Vanishing Gradient":self.GradMA,}
+        return dict
 
 
     def ProcessBuffer(self,HPs,traj,clip):
@@ -185,13 +226,9 @@ class PPO(Method):
         advantage : list
             List of advantages for particular actions.
         """
-        # print("Starting Processing Buffer\n")
-        # tracker.print_diff()
-        td_target, advantage = gae(self.buffer[traj][2][:clip],self.buffer[traj][5][:clip],0,HPs["Gamma"],HPs["lambda"])
-        # tracker.print_diff()
+        _, advantage = gae(self.buffer[traj][2][:clip],self.buffer[traj][5][:clip],0,HPs["Gamma"],HPs["lambda"])
+        td_target, _ = gae(self.buffer[traj][7][:clip], self.buffer[traj][8][:clip], np.zeros_like(self.buffer[traj][7][0][:clip]),HPs["Gamma"],HPs["lambda"])
         return td_target, advantage
-    def GetStatistics(self):
-        return {}
 
     @property
     def getVars(self):

@@ -4,7 +4,7 @@ from utils.multiprocessing import SubprocVecEnv
 import numpy as np
 
 def RewardShape(s1,reward_raw,done_raw,env,envSettings,sess):
-    if not done_raw: reward_raw += -0.01
+    # if not done_raw: reward_raw += -0.01
     # else: reward_raw += 0.5
     return reward_raw, np.array(done_raw)
 
@@ -57,13 +57,13 @@ def Closing(loggingDict,env,settings,envSetting,sess,progbar,GLOBAL_RUNNING_R=No
 
             if 'running_reward' not in globals():
                 global running_reward
-                running_reward = 0
+                running_reward = ep_rs_sum
                 # progbar.add("Reward")
             running_reward = running_reward * 0.99 + ep_rs_sum * 0.01
 
-        # global_step = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, "global_step")
-        # progbar.update(sess.run(global_step)[0],values=[("Reward",running_reward)])
+        global_step = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, "global_step")
+        progbar.update(sess.run(global_step)[0],values=[("Reward",running_reward)])
         # print("episode:", sess.run(global_step), "  running reward:", int(running_reward),"  reward:",int(ep_rs_sum))
 
-        finalDict = {"Training Results/Reward":ep_rs_sum}
+        finalDict = {"Training Results/Reward":running_reward}
         return finalDict

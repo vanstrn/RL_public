@@ -123,7 +123,6 @@ for i in range(settings["EnvHPs"]["MAX_EP"]):
     for functionString in envSettings["EpisodeClosingFunctions"]:
         EpisodeClosingFunction = GetFunction(functionString)
         finalDict = EpisodeClosingFunction(loggingDict,env,settings,envSettings,sess,progbar)
-    # tr.print_diff()
 
     if logging:
         dict = net.GetStatistics()

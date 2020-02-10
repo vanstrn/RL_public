@@ -1,4 +1,4 @@
-{ "NetworkName" : "MG_Reconstruct",
+{ "NetworkName" : "MG_SF",
   "NetworkStructure":{
     "Shared":[
       { "layerType":"Conv2D",
@@ -24,6 +24,14 @@
         "outputSize":128,
         "activation":"relu"}
       ],
+      
+    "SucessorRepresentation":[
+      { "layerType":"Dense",
+        "layerName":"SuccessorWeights",
+        "layerInput":"Dense1",
+        "outputSize":1,
+        "activation":null}
+      ],
 
     "Actor":[
       { "layerType":"Dense",
@@ -44,13 +52,16 @@
         "layerName":"Critic_FC1",
         "layerInput":"Dense1",
         "outputSize":128,
-        "activation":"relu"},
+        "activation":"relu"}
+    ],
+
+    "Critic_SF":[
       { "layerType":"Dense",
         "layerName":"Critic_FC2",
         "layerInput":"Critic_FC1",
-        "outputSize":1,
-        "activation":"relu"}
+        "ReuseLayer":"SuccessorWeights"}
     ],
+
     "Reconstruction":[
       { "layerType":"Concatenate",
         "layerName":"Reconstruction_Concatenate",
@@ -98,11 +109,14 @@
     "log_logits":"LogLogits",
     "prediction":"Reconstruction_Round",
     "phi":"Dense1",
-    "psi":"Critic_FC1"
+    "psi":"Critic_FC1",
+    "reward_pred":"SuccessorWeights"
   },
+
   "NetworkVariableGroups":{
-    "Actor":["Actor","Shared"],
-    "Critic":["Critic","Shared"],
+    "Actor":["Actor"],
+    "Critic":["Critic"],
+    "Reward":["SucessorRepresentation"],
     "Reconstruction":["Reconstruction","Shared"]
   }
 

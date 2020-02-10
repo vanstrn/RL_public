@@ -22,15 +22,22 @@
         "layerName":"Dense1",
         "layerInput":"Flatten",
         "outputSize":128,
-        "activation":"relu"}
+        "activation":null}
       ],
 
+    "SucessorRepresentation":[
+      { "layerType":"Dense",
+        "layerName":"SuccessorWeights",
+        "layerInput":"Dense1",
+        "outputSize":1,
+        "activation":null}
+      ],
     "Actor":[
       { "layerType":"Dense",
         "layerName":"Actor_FC",
         "layerInput":"Dense1",
         "outputSize":"actionSize",
-        "activation":"relu"},
+        "activation":null},
       { "layerType":"SoftMax",
         "layerName":"Logits",
         "layerInput":"Actor_FC"},
@@ -45,11 +52,9 @@
         "layerInput":"Dense1",
         "outputSize":128,
         "activation":"relu"},
-      { "layerType":"Dense",
+      { "layerType":"Sum",
         "layerName":"Critic_FC2",
-        "layerInput":"Critic_FC1",
-        "outputSize":1,
-        "activation":"relu"}
+        "layerInput":"Critic_FC1"}
     ],
     "Reconstruction":[
       { "layerType":"Concatenate",
@@ -98,12 +103,14 @@
     "log_logits":"LogLogits",
     "prediction":"Reconstruction_Round",
     "phi":"Dense1",
-    "psi":"Critic_FC1"
+    "psi":"Critic_FC1",
+    "reward_pred":"SuccessorWeights"
   },
   "NetworkVariableGroups":{
     "Actor":["Actor","Shared"],
-    "Critic":["Critic","Shared"],
-    "Reconstruction":["Reconstruction","Shared"]
+    "Critic":["SucessorRepresentation","Critic","Shared"],
+    "Reconstruction":["Reconstruction","Shared"],
+    "Reward":["SucessorRepresentation","Shared"]
   }
 
   }
