@@ -9,7 +9,7 @@ from .layers.non_local import Non_local_nn
 from .layers.approx_round import *
 
 class Network(tf.keras.Model):
-    def __init__(self, configFile, actionSize, netConfigOverride, scope=None,debug=True):
+    def __init__(self, configFile, actionSize, netConfigOverride, scope=None,debug=False):
         """
         Reads a network config file and processes that into a netowrk with appropriate naming structure.
 
@@ -45,13 +45,17 @@ class Network(tf.keras.Model):
         self.networkOutputs = data["NetworkOutputs"]
 
         self.scope=namespace
+        print(self.scope)
 
         self.layerList = {}
         self.layerInputs = {}
         self.layerType = {}
         self.multiOutput = {}
+        self.layerGroupList = {}
+        self.varGroupings = {}
             #Creating all of the layers
         for sectionName,layerList in data["NetworkStructure"].items():
+            self.varGroupings[sectionName] = []
             for layerDict in layerList:
                 self.layerList[layerDict["layerName"]] = self.GetLayer(layerDict)
                 self.layerInputs[layerDict["layerName"]] = layerDict["layerInput"]
@@ -59,9 +63,9 @@ class Network(tf.keras.Model):
                     self.multiOutput[layerDict["layerName"]] = layerDict["multiOutput"]
                 else:
                     self.multiOutput[layerDict["layerName"]] = None
-
-
+                self.layerGroupList[layerDict["layerName"]] = sectionName
         self.networkVariables=data["NetworkVariableGroups"]
+        self.data=data
 
     def call(self,inputs):
         """Defines how the layers are called with a forward pass of the network.
@@ -99,6 +103,12 @@ class Network(tf.keras.Model):
             else:
                 self.layerOutputs[layerName] = output
             if self.debug: print("\tLayer Output",self.layerOutputs[layerName])
+
+            #Collecting Trainable Variable Weights
+            # if self.debug: print("\tLayer Details:",layer.trainable_weights)
+            try: self.varGroupings[self.layerGroupList[layerName]] += layer.variables
+            except: pass
+
         results = {}
         for outputName,layerOutput in self.networkOutputs.items():
             results[outputName] = self.layerOutputs[layerOutput]
@@ -163,6 +173,8 @@ class Network(tf.keras.Model):
                 layer = KL.LSTM(**dict["Parameters"],name=dict["layerName"])
             elif dict["layerType"] == "SimpleRNN":
                 layer = KL.SimpleRNN(**dict["Parameters"],name=dict["layerName"])
+            elif dict["layerType"] == "Sum":
+                layer = tf.keras.backend.sum
         self.layerType[dict["layerName"]] = dict["layerType"]
 
         return layer
@@ -173,10 +185,10 @@ class Network(tf.keras.Model):
         else:
             return tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=scope + "/" + self.scope)
 
-    def getVariables(self,name,scope):
-        vars = []
-        for section in self.networkVariables[name]:
-            vars.append(tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=scope + "/" + self.scope + "/" + section))
+    def GetVariables(self,groupName):
+        vars =[]
+        for sectionName in self.networkVariables[groupName]:
+            vars += self.varGroupings[sectionName]
         return vars
 
 if __name__ == "__main__":
