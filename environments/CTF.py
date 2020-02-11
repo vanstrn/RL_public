@@ -24,7 +24,7 @@ def Starting(settings,envSettings,sess):
     nTrajs = len(envs.get_team_blue().flatten())
 
     if envSettings["Centering"]:
-        N_F = (39,39,6)
+        N_F = (N_F[0]*2-1,N_F[1]*2-1,N_F[2])
 
     return envs, list(N_F), 5, nTrajs
 
@@ -38,7 +38,7 @@ def StartingSingle(settings,envSettings,sess):
     nTrajs = len(env.get_team_blue().flatten())
 
     if envSettings["Centering"]:
-        N_F = (39,39,6)
+        N_F = (N_F[0]*2-1,N_F[1]*2-1,N_F[2])
 
     return envs, list(N_F), 5, nTrajs
 

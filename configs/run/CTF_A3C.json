@@ -1,0 +1,25 @@
+{ "RunName":"CTFTest",
+  "GPUCapacitty":0.95,
+  "NetworkHPs":{"Actor LR": 1E-5,
+                "Critic LR": 3E-4,
+                "State LR": 1E-3,
+                "Reward LR": 1E-3,
+                "Gamma":0.98,
+                "lambda":0.98,
+                "EntropyBeta":0.01,
+                "CriticBeta":0.01,
+                "eps":0.2},
+
+  "EnvHPs":{"MAX_EP_STEPS":150,
+            "MAX_EP":10000,
+            "SAVE_FREQ" : 1000,
+            "UPDATE_GLOBAL_ITER":155,
+            "LOG_FREQ" : 100,
+            "Gamma":0.99},
+
+  "NumberENV":1,
+  "EnvConfig":"CTF.json",
+  "NetworkConfig":"ctf_ppo.json",
+  "Method":"methods.A3C.A3C"
+
+  }

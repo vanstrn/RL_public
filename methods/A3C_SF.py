@@ -109,8 +109,8 @@ class A3C(Method):
         """
         s = state[np.newaxis, :]
         probs,v,phi,psi = self.sess.run([self.a_prob,self.v, self.phi, self.psi], {self.s: s})   # get probabilities for all actions
-
-        return np.random.choice(np.arange(probs.shape[1]), p=probs.ravel()) ,[v,phi,psi]  # return a int and extra data that needs to be fed to buffer.
+        actions = np.array([np.random.choice(probs.shape[1], p=prob / sum(prob)) for prob in probs])
+        return actions ,[v,phi,psi]  # return a int and extra data that needs to be fed to buffer.
 
     def Update(self,HPs,episode=0,statistics=True):
         """
@@ -138,12 +138,11 @@ class A3C(Method):
                 self.td_target: np.squeeze(td_target,1),
             }
 
-            self.sess.run(self.pull_ops)   # global variables synched to the local net.
             if not statistics:
                 self.sess.run(self.update_ops, feedDict)   # local grads applied to global net.
             else:
                 #Perform update operations
-                out = self.sess.run(self.update_ops+self.losses+self.pull_ops, feedDict)   # local grads applied to global net.
+                out = self.sess.run(self.update_ops+self.losses+self.grads, feedDict)   # local grads applied to global net.
                 out = np.array_split(out,3)
                 losses = out[1]
                 grads = out[2]
@@ -158,6 +157,7 @@ class A3C(Method):
                         total_counter += np.prod(grad.shape)
                         vanish_counter += (np.absolute(grad)<1e-8).sum()
                     self.grad_MA[i].append(vanish_counter/total_counter)
+        self.sess.run(self.pull_ops)   # global variables synched to the local net.
 
 
     def GetStatistics(self):

@@ -12,6 +12,7 @@ import tensorflow as tf
 import numpy as np
 import scipy
 from utils.record import Record
+from utils.utils import MovingAverage
 
 
 class PPO(Method):
@@ -95,11 +96,11 @@ class PPO(Method):
                 self.gradients = self.optimizer.get_gradients(loss, tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope))
                 self.update_ops = self.optimizer.apply_gradients(zip(self.gradients, tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope)))
 
-        #Creating variable for logging.
-        self.EntropyMA = 0
-        self.CriticLossMA = 0
-        self.ActorLossMA = 0
-        self.GradMA = 0
+        #Creating variables for logging.
+        self.EntropyMA = MovingAverage(400)
+        self.CriticLossMA = MovingAverage(400)
+        self.ActorLossMA = MovingAverage(400)
+        self.GradMA = MovingAverage(400)
 
     def GetAction(self, state, episode=1,step=0):
         """
@@ -121,12 +122,7 @@ class PPO(Method):
             probs,log_logits,v = self.sess.run([self.a_prob,self.log_logits,self.v], {self.s: state})
         except ValueError:
             probs,log_logits,v = self.sess.run([self.a_prob,self.log_logits,self.v], {self.s: np.expand_dims(state,axis=0)})
-        # probs[:,2] *= 2.0
-        # probs[:,1] *= 0.75
-        # probs[:,0] *= 0.75
-        # probs=scipy.special.softmax(probs)
         actions = np.array([np.random.choice(probs.shape[1], p=prob / sum(prob)) for prob in probs])
-        # print(probs,actions)
         return actions, [v,log_logits]
 
     def Update(self,HPs,episode=0):
@@ -168,22 +164,22 @@ class PPO(Method):
                          self.old_log_logits_: np.reshape(self.buffer[traj][6][:clip], [-1,self.actionSize])}
             aLoss, cLoss, entropy,grads, _ = self.sess.run([self.actor_loss,self.critic_loss,self.entropy,self.gradients,self.update_ops], feed_dict)
 
-            self.EntropyMA = self.EntropyMA*.99 + entropy*0.1
-            self.CriticLossMA = self.CriticLossMA*.99 + cLoss*0.1
-            self.ActorLossMA = self.ActorLossMA*.99 + aLoss*0.1
+            self.EntropyMA.append(entropy)
+            self.CriticLossMA.append(cLoss)
+            self.ActorLossMA.append(aLoss)
             total_counter = 0
             vanish_counter = 0
             for grad in grads:
                 total_counter += np.prod(grad.shape)
                 vanish_counter += (np.absolute(grad)<1e-8).sum()
-            self.GradMA = self.GradMA*.99 + vanish_counter/total_counter*0.1
+            self.GradMA.append(vanish_counter/total_counter)
 
 
     def GetStatistics(self):
-        dict = {"Training Results/Entropy":self.EntropyMA,
-        "Training Results/Critic Loss":self.CriticLossMA,
-        "Training Results/Actor Loss":self.ActorLossMA,
-        "Training Results/Vanishing Gradient":self.GradMA,}
+        dict = {"Training Results/Entropy":self.EntropyMA(),
+        "Training Results/Loss Critic":self.CriticLossMA(),
+        "Training Results/Loss Actor":self.ActorLossMA(),
+        "Training Results/Vanishing Gradient":self.GradMA(),}
         return dict
 
 

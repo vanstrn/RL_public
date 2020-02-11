@@ -10,13 +10,13 @@
 
   "EnvHPs":{"MAX_EP_STEPS":300,
             "MAX_EP":100000,
-            "SAVE_FREQ" : 100,
+            "SAVE_FREQ" : 1000,
             "UPDATE_GLOBAL_ITER" : 300,
-            "LOG_FREQ" : 10,
+            "LOG_FREQ" : 100,
             "Gamma":0.9},
 
   "NumberENV":2,
-  "EnvConfig":"MiniGrid.json",
+  "EnvConfig":"MiniGrid_Asynch.json",
   "NetworkConfig":"MiniGridCNN.json",
   "Method":"methods.A3C.A3C"
 

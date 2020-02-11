@@ -69,21 +69,27 @@ class A3C(Method):
                     self.update_a_op = tf.train.AdamOptimizer(HPs["Actor LR"]).apply_gradients(zip(self.a_grads, globalAC.a_params))
                     self.update_c_op = tf.train.AdamOptimizer(HPs["Critic LR"]).apply_gradients(zip(self.c_grads, globalAC.c_params))
 
-        self.a_loss_MA = MovingAverage(400)
-        self.c_loss_MA = MovingAverage(400)
-        self.a_grad_MA = MovingAverage(400)
-        self.c_grad_MA = MovingAverage(400)
+            self.update_ops = [self.update_a_op,self.update_c_op,]
+            self.pull_ops = [self.pull_a_params_op,self.pull_c_params_op,]
+            self.grads = [self.a_grads,self.c_grads,]
+            self.losses = [self.a_loss,self.c_loss,]
+
+            self.grad_MA = [MovingAverage(400) for i in range(len(self.grads))]
+            self.loss_MA = [MovingAverage(400) for i in range(len(self.grads))]
+            self.labels = ["Actor","Critic",]
 
     def GetAction(self, state):
         """
         Contains the code to run the network based on an input.
         """
-        s = state[np.newaxis, :]
-        probs,v = self.sess.run([self.a_prob,self.v], {self.s: s})   # get probabilities for all actions
+        if len(state.shape) == 3:
+            state = state[np.newaxis, :]
+        probs,v = self.sess.run([self.a_prob,self.v], {self.s: state})   # get probabilities for all actions
 
-        return np.random.choice(np.arange(probs.shape[1]), p=probs.ravel()) ,[v]  # return a int and extra data that needs to be fed to buffer.
+        actions = np.array([np.random.choice(probs.shape[1], p=prob / sum(prob)) for prob in probs])
+        return actions ,[v]  # return a int and extra data that needs to be fed to buffer.
 
-    def Update(self,HPs,episode=0):
+    def Update(self,HPs,episode=0,statistics=True):
         """
         The main update function for A3C. The function pushes gradients to the global AC Network.
         The second function is to Pull
@@ -100,39 +106,39 @@ class A3C(Method):
             td_target = self.ProcessBuffer(HPs,traj,clip)
 
             #Create a feedDict from the buffer
+            print(np.vstack(self.buffer[traj][0][:clip]).shape)
             feedDict = {
                 self.s: self.buffer[traj][0][:clip],
                 self.a_his: np.asarray(self.buffer[traj][1][:clip]).reshape(-1),
                 self.v_target: td_target,
             }
-
+            if not statistics:
+                self.sess.run(self.update_ops, feedDict)
+            else:
             #Perform update operations
-            _,_, a_loss, a_grads, c_loss, c_grads=self.sess.run([self.update_a_op, self.update_c_op, self.a_loss, self.a_grads, self.c_loss, self.c_grads], feedDict)   # local grads applied to global net.
-            self.sess.run([self.pull_a_params_op, self.pull_c_params_op])   # global variables synched to the local net.
+                out = self.sess.run(self.update_ops+self.losses+self.grads, feedDict)   # local grads applied to global net.
+                out = np.array_split(out,3)
+                losses = out[1]
+                grads = out[2]
 
-            self.a_loss_MA.append(a_loss)
-            self.c_loss_MA.append(c_loss)
+                for i,loss in enumerate(losses):
+                    self.loss_MA[i].append(loss)
 
-            total_counter = 0
-            vanish_counter = 0
-            for grad in a_grads:
-                total_counter += np.prod(grad.shape)
-                vanish_counter += (np.absolute(grad)<1e-8).sum()
-            self.a_grad_MA.append(vanish_counter/total_counter)
+                for i,grads_i in enumerate(grads):
+                    total_counter = 0
+                    vanish_counter = 0
+                    for grad in grads_i:
+                        total_counter += np.prod(grad.shape)
+                        vanish_counter += (np.absolute(grad)<1e-8).sum()
+                    self.grad_MA[i].append(vanish_counter/total_counter)
 
-            total_counter = 0
-            vanish_counter = 0
-            for grad in c_grads:
-                total_counter += np.prod(grad.shape)
-                vanish_counter += (np.absolute(grad)<1e-8).sum()
-
-            self.c_grad_MA.append(vanish_counter/total_counter)
+        self.sess.run(self.pull_ops)   # global variables synched to the local net.
 
     def GetStatistics(self):
-        dict = {"Training Results/Vanishing Gradient Actor":self.a_grad_MA(),
-        "Training Results/Critic Loss":self.a_loss_MA(),
-        "Training Results/Actor Loss":self.c_loss_MA(),
-        "Training Results/Vanishing Gradient Critic":self.c_grad_MA(),}
+        dict ={}
+        for i,label in enumerate(self.labels):
+            dict["Training Results/Vanishing Gradient " + label] = self.grad_MA[i]()
+            dict["Training Results/Loss " + label] = self.loss_MA[i]()
         return dict
 
 

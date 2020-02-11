@@ -11,6 +11,8 @@ from .AdvantageEstimator import gae
 import tensorflow as tf
 import numpy as np
 import scipy
+from utils.utils import MovingAverage
+
 
 
 class PPO(Method):
@@ -74,7 +76,7 @@ class PPO(Method):
 
                 # Critic Loss
                 td_error = self.td_target_ - self.v
-                critic_loss = tf.reduce_mean(tf.square(td_error), name='critic_loss')
+                self.c_loss = tf.reduce_mean(tf.square(td_error), name='critic_loss')
 
                 # Actor Loss
                 action_OH = tf.one_hot(self.a_his, actionSize, dtype=tf.float32)
@@ -88,15 +90,31 @@ class PPO(Method):
                 surrogate_loss = tf.minimum(surrogate, clipped_surrogate, name='surrogate_loss')
                 actor_loss = -tf.reduce_mean(surrogate_loss, name='actor_loss')
 
-                reconstruction_loss = tf.losses.mean_squared_error(self.state_pred,self.state_next)
+                # self.s_loss = tf.losses.mean_squared_error(self.state_pred,self.state_next)
+                self.s_loss = tf.sqrt(tf.reduce_mean(tf.square(tf.subtract(self.state_pred,self.state_next))))
 
-                actor_loss = actor_loss - entropy * HPs["EntropyBeta"]
-                loss = actor_loss + critic_loss * HPs["CriticBeta"] + reconstruction_loss * 0.1
+                self.a_loss = actor_loss - entropy * HPs["EntropyBeta"]
 
                 # Build Trainer
-                self.optimizer = tf.keras.optimizers.Adam(HPs["Critic LR"])
-                self.gradients = self.optimizer.get_gradients(loss, tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope))
-                self.update_ops = self.optimizer.apply_gradients(zip(self.gradients, tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope)))
+                self.c_optimizer = tf.keras.optimizers.Adam(HPs["Critic LR"])
+                self.c_grads = self.c_optimizer.get_gradients(self.c_loss, self.Model.GetVariables("Critic"))
+                self.update_c_op = self.c_optimizer.apply_gradients(zip(self.c_grads, self.Model.GetVariables("Critic")))
+
+                self.a_optimizer = tf.keras.optimizers.Adam(HPs["Actor LR"])
+                self.a_grads = self.a_optimizer.get_gradients(self.a_loss, self.Model.GetVariables("Actor"))
+                self.update_a_op = self.a_optimizer.apply_gradients(zip(self.a_grads, self.Model.GetVariables("Actor")))
+
+                self.s_optimizer = tf.keras.optimizers.Adam(HPs["State LR"])
+                self.s_grads = self.s_optimizer.get_gradients(self.s_loss, self.Model.GetVariables("Reconstruction"))
+                self.update_s_op = self.s_optimizer.apply_gradients(zip(self.s_grads, self.Model.GetVariables("Reconstruction")))
+
+                self.update_ops = [self.update_a_op,self.update_c_op,self.update_s_op]
+                self.grads = [self.a_grads,self.c_grads,self.s_grads]
+                self.losses = [self.a_loss,self.c_loss,self.s_loss]
+
+                self.grad_MA = [MovingAverage(400) for i in range(len(self.grads))]
+                self.loss_MA = [MovingAverage(400) for i in range(len(self.grads))]
+                self.labels = ["Actor","Critic","State"]
 
     def GetAction(self, state, episode=0, step=0):
         """
@@ -118,15 +136,10 @@ class PPO(Method):
             probs,log_logits,v = self.sess.run([self.a_prob,self.log_logits,self.v], {self.s: state})
         except ValueError:
             probs,log_logits,v = self.sess.run([self.a_prob,self.log_logits,self.v], {self.s: np.expand_dims(state,axis=0)})
-        probs[:,2] *= 2.0
-        probs[:,1] *= 0.75
-        probs[:,0] *= 0.75
-        probs=scipy.special.softmax(probs)
         actions = np.array([np.random.choice(probs.shape[1], p=prob / sum(prob)) for prob in probs])
-        # print(probs,actions)
         return actions, [v,log_logits]
 
-    def Update(self,HPs,episode=0):
+    def Update(self,HPs,episode=0,statistics=True):
         """
         Process the buffer and backpropagates the loses through the NN.
 
@@ -162,7 +175,26 @@ class PPO(Method):
                          self.td_target_: td_target,
                          self.advantage_: np.reshape(advantage, [-1]),
                          self.old_log_logits_: np.reshape(self.buffer[traj][6][:clip], [-1,self.actionSize])}
-            self.sess.run(self.update_ops, feed_dict)
+            if not statistics:
+                self.sess.run(self.update_ops, feed_dict)
+            else:
+                #Perform update operations
+                out = self.sess.run(self.update_ops+self.losses+self.grads, feed_dict)   # local grads applied to global net.
+                out = np.array_split(out,3)
+                losses = out[1]
+                grads = out[2]
+
+                for i,loss in enumerate(losses):
+                    self.loss_MA[i].append(loss)
+
+                for i,grads_i in enumerate(grads):
+                    total_counter = 0
+                    vanish_counter = 0
+                    for grad in grads_i:
+                        total_counter += np.prod(grad.shape)
+                        vanish_counter += (np.absolute(grad)<1e-8).sum()
+                    self.grad_MA[i].append(vanish_counter/total_counter)
+
 
 
     def ProcessBuffer(self,HPs,traj,clip):
@@ -191,7 +223,11 @@ class PPO(Method):
         # tracker.print_diff()
         return td_target, advantage
     def GetStatistics(self):
-        return {}
+        dict ={}
+        for i,label in enumerate(self.labels):
+            dict["Training Results/Vanishing Gradient " + label] = self.grad_MA[i]()
+            dict["Training Results/Loss " + label] = self.loss_MA[i]()
+        return dict
 
     @property
     def getVars(self):

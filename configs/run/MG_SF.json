@@ -1,12 +1,12 @@
 { "RunName":"MiniGrid_Reconstruct",
   "GPUCapacitty":0.95,
   "NetworkHPs":{"Actor LR": 1E-5,
-                "Critic LR": 3E-5,
-                "State LR": 1E-4,
-                "Reward LR": 1E-4,
+                "Critic LR": 3E-4,
+                "State LR": 1E-3,
+                "Reward LR": 1E-3,
                 "Gamma":0.9,
                 "lambda":0.9,
-                "EntropyBeta":0.5,
+                "EntropyBeta":0.0,
                 "CriticBeta":0.001,
                 "eps":0.2},
 
@@ -18,7 +18,7 @@
             "Gamma":0.9},
 
   "NumberENV":2,
-  "EnvConfig":"MiniGrid.json",
+  "EnvConfig":"MiniGrid_Asynch.json",
   "NetworkConfig":"MG_SF_v1.json",
   "Method":"methods.A3C_SF.A3C"
 

@@ -95,8 +95,8 @@ class PPO(Method):
                 actor_loss = -tf.reduce_mean(surrogate_loss, name='actor_loss')
 
                 #State Loss
-                self.s_loss = tf.losses.mean_squared_error(self.state_pred,self.s_next)
-
+                # self.s_loss = tf.losses.mean_squared_error(self.state_pred,self.s_next)
+                self.s_loss = tf.sqrt(tf.reduce_mean(tf.square(tf.subtract(self.state_pred,self.s_next))))
                 #Reward Loss
                 self.r_loss = tf.losses.mean_squared_error(self.reward,tf.squeeze(self.reward_pred))
 
@@ -151,7 +151,7 @@ class PPO(Method):
         actions = np.array([np.random.choice(probs.shape[1], p=prob / sum(prob)) for prob in probs])
         return actions, [v,log_logits,phi,psi]
 
-    def Update(self,HPs,episode=0):
+    def Update(self,HPs,episode=0,statistics=True):
         """
         Process the buffer and backpropagates the loses through the NN.
 
@@ -191,18 +191,32 @@ class PPO(Method):
                          self.advantage_: np.reshape(advantage, [-1]),
                          self.old_log_logits_: np.reshape(self.buffer[traj][6][:clip], [-1,self.actionSize])}
 
-            aLoss, cLoss, entropy, _,_,_,_ = self.sess.run([self.a_loss,self.c_loss,self.entropy] +self.update_ops, feed_dict)
+            if not statistics:
+                self.sess.run(self.update_ops, feed_dict)
+            else:
+                #Perform update operations
+                out = self.sess.run(self.update_ops+self.losses+self.grads, feed_dict)   # local grads applied to global net.
+                out = np.array_split(out,3)
+                losses = out[1]
+                grads = out[2]
 
-            self.EntropyMA = self.EntropyMA*.99 + entropy*0.1
-            self.CriticLossMA = self.CriticLossMA*.99 + cLoss*0.1
-            self.ActorLossMA = self.ActorLossMA*.99 + aLoss*0.1
+                for i,loss in enumerate(losses):
+                    self.loss_MA[i].append(loss)
+
+                for i,grads_i in enumerate(grads):
+                    total_counter = 0
+                    vanish_counter = 0
+                    for grad in grads_i:
+                        total_counter += np.prod(grad.shape)
+                        vanish_counter += (np.absolute(grad)<1e-8).sum()
+                    self.grad_MA[i].append(vanish_counter/total_counter)
 
 
     def GetStatistics(self):
-        dict = {"Training Results/Entropy":self.EntropyMA,
-        "Training Results/Critic Loss":self.CriticLossMA,
-        "Training Results/Actor Loss":self.ActorLossMA,
-        "Training Results/Vanishing Gradient":self.GradMA,}
+        dict ={}
+        for i,label in enumerate(self.labels):
+            dict["Training Results/Vanishing Gradient " + label] = self.grad_MA[i]()
+            dict["Training Results/Loss " + label] = self.loss_MA[i]()
         return dict
 
 

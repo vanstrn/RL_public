@@ -17,7 +17,7 @@
             "LOG_FREQ" : 100,
             "Gamma":0.9},
 
-  "NumberENV":2,
+  "NumberENV":1,
   "EnvConfig":"MiniGrid.json",
   "NetworkConfig":"MiniGridCNN.json",
   "Method":"methods.PPO.PPO"

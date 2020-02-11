@@ -13,6 +13,11 @@ def Bootstrap(env,settings,envSettings,sess):
     loggingDict = {"tracking_r":[[] for _ in range(settings["NumberENV"])]}
     return s0, loggingDict
 
+def Bootstrap_Asynch(env,settings,envSettings,sess):
+    s0 = env.reset()
+    loggingDict = {"tracking_r":[[] for _ in range(1)]}
+    return s0, loggingDict
+
 def StateProcessing(s0,env,envSettings,sess):
     return s0["image"]
 
@@ -44,7 +49,7 @@ def Logging(loggingDict,s1,r,done,env,envSettings,sess):
 
 def Closing(loggingDict,env,settings,envSetting,sess,progbar,GLOBAL_RUNNING_R=None):
     if GLOBAL_RUNNING_R is not None:
-        for i in range(settings["NumberENV"]):
+        for i in range(len(loggingDict["tracking_r"])):
             GLOBAL_RUNNING_R.append(sum(loggingDict["tracking_r"][i]))
         finalDict = {"Training Results/Reward":GLOBAL_RUNNING_R()}
         return finalDict

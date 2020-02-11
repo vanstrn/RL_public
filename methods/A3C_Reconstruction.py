@@ -129,7 +129,7 @@ class A3C(Method):
                 self.sess.run(self.update_ops, feedDict)   # local grads applied to global net.
             else:
                 #Perform update operations
-                out = self.sess.run(self.update_ops+self.losses+self.pull_ops, feedDict)   # local grads applied to global net.
+                out = self.sess.run(self.update_ops+self.losses+self.grads, feedDict)   # local grads applied to global net.
                 out = np.array_split(out,3)
                 losses = out[1]
                 grads = out[2]
@@ -145,7 +145,7 @@ class A3C(Method):
                         vanish_counter += (np.absolute(grad)<1e-8).sum()
                     self.grad_MA[i].append(vanish_counter/total_counter)
 
-            self.sess.run(self.pull_ops)   # global variables synched to the local net.
+        self.sess.run(self.pull_ops)   # global variables synched to the local net.
 
 
     def GetStatistics(self):
