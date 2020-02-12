@@ -36,13 +36,20 @@ class Method(object):
         Also handles any data that needs to be processed in the network.
         """
         try:
+            target_shape = sample[0].shape[0]
+            if target_shape != len(self.buffer):
+                raise ValueError
+            for i in range(len(sample)-1):
+                if sample[i+1].shape[0] != target_shape:
+                    sample[i+1] = sample[i+1].reshape(target_shape)
+
             for i in range(len(sample[0])):
                 tmp = []
                 for j in range(len(sample)):
                     tmp.append(sample[j][i])
                 self.buffer[i].append(tmp)
-                
-        except: #Singular inputs.
+
+        except ValueError: #Singular inputs.
             self.buffer[0].append(sample)
 
     def ClearTrajectory(self):

@@ -1,7 +1,7 @@
 { "RunName":"CTFTest",
   "GPUCapacitty":0.95,
-  "NetworkHPs":{"Actor LR": 1E-5,
-                "Critic LR": 3E-4,
+  "NetworkHPs":{"Actor LR": 1E-6,
+                "Critic LR": 1E-5,
                 "State LR": 1E-3,
                 "Reward LR": 1E-3,
                 "Gamma":0.98,
@@ -17,7 +17,7 @@
             "LOG_FREQ" : 100,
             "Gamma":0.99},
 
-  "NumberENV":1,
+  "NumberENV":4,
   "EnvConfig":"CTF.json",
   "NetworkConfig":"ctf_ppo.json",
   "Method":"methods.A3C.A3C"

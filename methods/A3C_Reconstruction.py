@@ -30,6 +30,7 @@ class A3C(Method):
         self.a_his = tf.placeholder(tf.int32, [None, ], 'A')
         self.reward = tf.placeholder(tf.float32, [None, ], 'R')
         self.v_target = tf.placeholder(tf.float32, [None], 'Vtarget')
+        self.advantage = tf.placeholder(tf.float32, [None], 'Advantage')
 
         input = {"state":self.s}
         out = self.Model(input)
@@ -56,9 +57,9 @@ class A3C(Method):
                     self.c_loss = tf.reduce_mean(tf.square(td))
 
                 with tf.name_scope('a_loss'):
-                    td = tf.subtract(self.v_target, self.v, name='TD_error')
+                    # td = tf.subtract(self.v_target, self.v, name='TD_error')
                     log_prob = tf.reduce_sum(tf.log(self.a_prob + 1e-5) * tf.one_hot(self.a_his, actionSize, dtype=tf.float32), axis=1, keep_dims=True)
-                    exp_v = log_prob * tf.stop_gradient(td)
+                    exp_v = log_prob * tf.stop_gradient(self.advantage)
                     entropy = -tf.reduce_sum(self.a_prob * tf.log(self.a_prob + 1e-5),axis=1, keep_dims=True)  # encourage exploration
                     self.exp_v = HPs["EntropyBeta"] * entropy + exp_v
                     self.a_loss = tf.reduce_mean(-self.exp_v)
@@ -114,7 +115,7 @@ class A3C(Method):
             except:
                 clip=len(self.buffer[traj][4])
 
-            v_target = self.ProcessBuffer(HPs,traj,clip)
+            v_target,advantage = self.ProcessBuffer(HPs,traj,clip)
 
             #Create a feedDict from the buffer
             feedDict = {
@@ -123,6 +124,7 @@ class A3C(Method):
                 self.s_next: self.buffer[traj][3][:clip],
                 self.a_his: np.asarray(self.buffer[traj][1][:clip]).reshape(-1),
                 self.v_target: v_target,
+                self.advantage: np.asarray(advantage).reshape(-1),
             }
 
             if not statistics:
@@ -176,8 +178,8 @@ class A3C(Method):
         advantage : list
             List of advantages for particular actions.
         """
-        v_target, _ = gae(self.buffer[traj][2][:clip],self.buffer[traj][5][:clip],0,HPs["Gamma"],HPs["lambda"])
-        return v_target
+        v_target, advantage = gae(self.buffer[traj][2][:clip],self.buffer[traj][5][:clip],0,HPs["Gamma"],HPs["lambda"])
+        return v_target,advantage
     def InitializeVariables(self):
         self.sess.run(self.pull_ops)
 

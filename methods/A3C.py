@@ -106,7 +106,6 @@ class A3C(Method):
             td_target = self.ProcessBuffer(HPs,traj,clip)
 
             #Create a feedDict from the buffer
-            print(np.vstack(self.buffer[traj][0][:clip]).shape)
             feedDict = {
                 self.s: self.buffer[traj][0][:clip],
                 self.a_his: np.asarray(self.buffer[traj][1][:clip]).reshape(-1),

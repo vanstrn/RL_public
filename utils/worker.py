@@ -43,6 +43,7 @@ class Worker(object):
             for functionString in envSettings["BootstrapFunctions"]:
                 BootstrapFunctions = GetFunction(functionString)
                 s0, loggingDict = BootstrapFunctions(self.env,settings,envSettings,self.sess)
+
             for functionString in envSettings["StateProcessingFunctions"]:
                 StateProcessing = GetFunction(functionString)
                 s0 = StateProcessing(s0,self.env,envSettings,self.sess)
@@ -66,6 +67,11 @@ class Worker(object):
                     r,done = RewardProcessing(s1,r,done,self.env,envSettings,self.sess)
 
                 self.net.AddToTrajectory([s0,a,r,s1,done]+networkData)
+                # print(networkData[2].astype(float))
+                # print(networkData[1].astype(float),"\n\n")
+                # print(self.sess.run(self.net.r_params))
+                # print(networkData[0])
+                # print(a)
 
                 for functionString in envSettings["LoggingFunctions"]:
                     LoggingFunctions = GetFunction(functionString)
@@ -73,12 +79,10 @@ class Worker(object):
 
                 s0 = s1
 
-                if updating or done.all():   # update global and assign to local net
+                if updating or done.all() or j == settings["EnvHPs"]["MAX_EP_STEPS"]:   # update global and assign to local net
                     self.net.Update(settings["NetworkHPs"],self.sess.run(self.global_step))
                 if done.all() or j == settings["EnvHPs"]["MAX_EP_STEPS"]:
-                    self.net.Update(settings["NetworkHPs"],self.sess.run(self.global_step))
                     self.net.ClearTrajectory()
-                if done.all():
                     break
 
             #Closing Functions that will be executed after every episode.

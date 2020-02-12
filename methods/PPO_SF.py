@@ -12,6 +12,7 @@ import tensorflow as tf
 import numpy as np
 import scipy
 from utils.record import Record
+from utils.utils import MovingAverage
 
 
 class PPO(Method):
@@ -73,16 +74,14 @@ class PPO(Method):
                 self.reward_pred = out["reward_pred"]
                 self.state_pred = out["prediction"]
 
-                # Entropy
-                def _log(val):
-                    return tf.log(tf.clip_by_value(val, 1e-10, 10.0))
-                entropy = self.entropy = -tf.reduce_mean(self.a_prob * _log(self.a_prob), name='entropy')
-
                 # Critic Loss
                 td_error = self.td_target - self.psi
                 critic_loss = self.c_loss = tf.reduce_mean(tf.square(td_error), name='critic_loss')
 
                 # Actor Loss
+                def _log(val):
+                    return tf.log(tf.clip_by_value(val, 1e-10, 10.0))
+                entropy = self.entropy = -tf.reduce_mean(self.a_prob * _log(self.a_prob), name='entropy')
                 action_OH = tf.one_hot(self.a_his, actionSize, dtype=tf.float32)
                 log_prob = tf.reduce_sum(self.log_logits * action_OH, 1)
                 old_log_prob = tf.reduce_sum(self.old_log_logits_ * action_OH, 1)
@@ -93,6 +92,7 @@ class PPO(Method):
                 clipped_surrogate = tf.clip_by_value(ratio, 1-HPs["eps"], 1+HPs["eps"]) * self.advantage_
                 surrogate_loss = tf.minimum(surrogate, clipped_surrogate, name='surrogate_loss')
                 actor_loss = -tf.reduce_mean(surrogate_loss, name='actor_loss')
+                self.a_loss  = actor_loss - entropy * HPs["EntropyBeta"]
 
                 #State Loss
                 # self.s_loss = tf.losses.mean_squared_error(self.state_pred,self.s_next)
@@ -100,7 +100,6 @@ class PPO(Method):
                 #Reward Loss
                 self.r_loss = tf.losses.mean_squared_error(self.reward,tf.squeeze(self.reward_pred))
 
-                self.a_loss  = actor_loss - entropy * HPs["EntropyBeta"]
 
 
                 # Build Trainer
@@ -121,12 +120,11 @@ class PPO(Method):
                 self.r_update_op = self.r_optimizer.apply_gradients(zip(self.r_gradients, self.Model.GetVariables("Reward")))
 
                 self.update_ops = [self.c_update_op,self.a_update_op,self.s_update_op,self.r_update_op]
-
-        #Creating variable for logging.
-        self.EntropyMA = 0
-        self.CriticLossMA = 0
-        self.ActorLossMA = 0
-        self.GradMA = 0
+                self.grads = [self.a_gradients,self.c_gradients,self.s_gradients,self.r_gradients]
+                self.losses = [self.a_loss,self.c_loss,self.s_loss,self.r_loss]
+                self.grad_MA = [MovingAverage(400) for i in range(len(self.grads))]
+                self.loss_MA = [MovingAverage(400) for i in range(len(self.grads))]
+                self.labels = ["Actor","Critic","State","Reward"]
 
     def GetAction(self, state, episode=1,step=0):
         """

@@ -24,7 +24,7 @@
         "outputSize":128,
         "activation":"relu"}
       ],
-      
+
     "SucessorRepresentation":[
       { "layerType":"Dense",
         "layerName":"SuccessorWeights",
@@ -116,7 +116,7 @@
   "NetworkVariableGroups":{
     "Actor":["Actor"],
     "Critic":["Critic"],
-    "Reward":["SucessorRepresentation"],
+    "Reward":["SucessorRepresentation","Shared"],
     "Reconstruction":["Reconstruction","Shared"]
   }
 

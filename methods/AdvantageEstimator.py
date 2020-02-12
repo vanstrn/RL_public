@@ -14,7 +14,6 @@ def discount_rewards(rewards, gamma, normalized=False, mask_array=None):
         numpy.list : Return discounted reward
 
     """
-
     if mask_array is None:
         return scipy.signal.lfilter([1.0], [1.0, -gamma], rewards[::-1], axis=-1)[::-1]
     else:
@@ -49,6 +48,7 @@ def gae(reward_list, value_list, bootstrap, gamma:float, lambd:float, normalize=
     td_target: list
     advantage: list
     """
+    
     reward_np = np.array(reward_list)
     value_ext = np.array(value_list+[bootstrap])
 

@@ -59,7 +59,7 @@ for functionString in envSettings["StartingFunctions"]:
     StartingFunction = GetFunction(functionString)
     _,dFeatures,nActions,nTrajs = StartingFunction(settings,envSettings,sess)
 
-GLOBAL_RUNNING_R = MovingAverage(400)
+GLOBAL_RUNNING_R = MovingAverage(1000)
 
 progbar = tf.keras.utils.Progbar(None, unit_name='Training',stateful_metrics=["Reward"])
 #Creating the Networks and Methods of the Run.

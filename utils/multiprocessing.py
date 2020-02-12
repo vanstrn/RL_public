@@ -102,12 +102,15 @@ class SubprocVecEnv:
         obs, rews, dones, infos = zip(*results)
         obs = np.stack(obs)
         rews = np.stack(rews)
+        reward = (rews - self.prev_rew - 0.01)/100.0
+        self.prev_rew = reward
         dones = np.stack(dones)
-        return obs, rews, dones, infos
+        return obs, reward, dones, infos
 
     def reset(self, **kwargs):
         for remote in self.remotes:
             remote.send(('_reset', kwargs))
+        self.prev_rew= np.zeros(len(self.remotes))
         return np.stack([remote.recv() for remote in self.remotes], axis=0)
 
     def get_static_map(self):
