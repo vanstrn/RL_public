@@ -17,7 +17,7 @@
 
   "NumberENV":2,
   "EnvConfig":"MiniGrid_Asynch.json",
-  "NetworkConfig":"MG_Reconstruct.json",
+  "NetworkConfig":"MG_Reconstruct_v1.json",
   "Method":"methods.A3C_Reconstruction.A3C"
 
   }

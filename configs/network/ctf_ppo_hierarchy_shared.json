@@ -1,5 +1,6 @@
 { "NetworkName" : "DefaultCtF",
   "Description":"Hierarchical Network where the feature encoder is shared by all sub-networks. Uses shared network structure to ",
+  "NetworkBuilder":"networkHierarchy",
   "NumOptions":3,
   "NetworkStructure":{
     "SharedNetworkStructure":{
@@ -33,7 +34,7 @@
       { "layerType":"Dense",
         "layerName":"Dense1",
         "layerInput":"Flatten",
-        "outputSize":128,
+        "units":128,
         "activation":null}
       ]
     },
@@ -43,7 +44,7 @@
       { "layerType":"Dense",
         "layerName":"Meta_Actor_FC1",
         "layerInput":"Dense1",
-        "outputSize":"actionSize",
+        "units":"actionSize",
         "activation":null},
       { "layerType":"SoftMax",
         "layerName":"Meta_Actor_logits",
@@ -56,7 +57,7 @@
       { "layerType":"Dense",
         "layerName":"MetaCritic",
         "layerInput":"Dense1",
-        "outputSize":1,
+        "units":1,
         "activation":null}
     ]
   },
@@ -67,7 +68,7 @@
       { "layerType":"Dense",
         "layerName":"Sub_Actor_FC1",
         "layerInput":"Dense1",
-        "outputSize":"actionSize",
+        "units":"actionSize",
         "activation":null},
       { "layerType":"SoftMax",
         "layerName":"Sub_Actor_logits",
@@ -81,7 +82,7 @@
       { "layerType":"Dense",
         "layerName":"SubCritic",
         "layerInput":"Dense1",
-        "outputSize":1,
+        "units":1,
         "activation":null}
     ]
   }
@@ -97,6 +98,7 @@
   "NetworkVariableGroups":{
     "Actor":["Actor","Shared"],
     "Critic":["Critic","Shared"]
-  }
+  },
+  "TestInput":{"state":[null,39,39,6]}
 
   }

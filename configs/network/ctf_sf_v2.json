@@ -1,50 +1,51 @@
 { "NetworkName" : "Example",
+  "NetworkBuilder":"network",
   "NetworkStructure":{
     "Feature Encoder":[
       { "layerType":"SeparableConv",
         "layerName":"SeparableConv",
         "layerInput":"input.state",
-        "filters":16,
-        "kernel_size":5,
-        "strides":3,
-        "padding":"valid",
-        "depth_multiplier":2,
-        "activation":"relu"},
+        "Parameters":{"filters":16,
+                      "kernel_size":5,
+                      "strides":3,
+                      "padding":"valid",
+                      "depth_multiplier":2,
+                      "activation":"relu"}},
       { "layerType":"Conv2D",
         "layerName":"Conv2D_1",
         "layerInput":"SeparableConv",
-        "filters":32,
-        "kernel_size":3,
-        "strides":2,
-        "activation":"relu"},
+        "Parameters":{"filters":32,
+                      "kernel_size":3,
+                      "strides":2,
+                      "activation":"relu"}},
       { "layerType":"Flatten",
         "layerName":"Flatten",
         "layerInput":"Conv2D_1"},
       { "layerType":"Dense",
         "layerName":"Dense1",
         "layerInput":"Flatten",
-        "outputSize":256,
-        "activation":"relu"}
+        "Parameters":{"units":256,
+                      "activation":"relu"}}
       ],
     "Phi":[
       { "layerType":"Dense",
         "layerName":"Phi_FC1",
         "layerInput":"Dense1",
-        "outputSize":512,
-        "activation":"relu"},
+        "Parameters":{"units":512,
+                      "activation":"relu"}},
       { "layerType":"Dense",
         "layerName":"Phi_Out",
         "layerInput":"Phi_FC1",
-        "outputSize":1024,
-        "activation":"relu"}
+        "Parameters":{"units":1024,
+                      "activation":"relu"}}
       ],
 
     "Actor":[
       { "layerType":"Dense",
         "layerName":"Actor_FC",
         "layerInput":"Phi_Out",
-        "outputSize":"actionSize",
-        "activation":null},
+        "Parameters":{"units":"actionSize",
+                      "activation":null}},
       { "layerType":"SoftMax",
         "layerName":"Logits",
         "layerInput":"Actor_FC"},
@@ -58,21 +59,21 @@
       { "layerType":"Dense",
         "layerName":"Psi_FC1",
         "layerInput":"Phi_Out",
-        "outputSize":256,
-        "activation":"relu"},
+        "Parameters":{"units":256,
+                      "activation":"relu"}},
       { "layerType":"Dense",
         "layerName":"Psi_FC2",
         "layerInput":"Psi_FC1",
-        "outputSize":1024,
-        "activation":"relu"}
+        "Parameters":{"units":1024,
+                      "activation":"relu"}}
     ],
 
     "Reward Prediction":[
       { "layerType":"Dense",
         "layerName":"Reward_out",
         "layerInput":"Phi_Out",
-        "outputSize":1,
-        "activation":"relu"}
+        "Parameters":{"units":1,
+                      "activation":"relu"}}
     ]
 
   },
@@ -82,13 +83,14 @@
     "log_logits":"LogLogits",
     "phi":"Phi_Out",
     "psi":"Psi_FC2",
-    "reward_pred":"reward_out"
+    "reward_pred":"Reward_out"
   },
 
   "NetworkVariableGroups":{
     "Actor":["Actor","Phi","Feature Encoder"],
     "Critic":["Psi","Phi","Feature Encoder"],
     "Reward":["Reward Prediction","Phi", "Feature Encoder"]
-  }
+  },
+  "TestInput":{"state":[null,39,39,6]}
 
 }

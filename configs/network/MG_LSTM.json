@@ -1,27 +1,28 @@
 { "NetworkName" : "DefaultCtF",
+  "NetworkBuilder":"network",
   "NetworkStructure":{
     "Shared":[
       { "layerType":"Conv2D",
         "layerName":"Conv2D_1",
         "layerInput":"input.state",
-        "filters":16,
-        "kernel_size":3,
-        "strides":2,
-        "activation":"relu"},
+        "Parameters":{"filters":16,
+                      "kernel_size":3,
+                      "strides":2,
+                      "activation":"relu"}},
       { "layerType":"Conv2D",
         "layerName":"Conv2D_2",
         "layerInput":"Conv2D_1",
-        "filters":32,
-        "kernel_size":3,
-        "strides":2,
-        "activation":"relu"},
+        "Parameters":{"filters":32,
+                      "kernel_size":3,
+                      "strides":2,
+                      "activation":"relu"}},
       { "layerType":"Flatten",
         "layerName":"Flatten",
         "layerInput":"Conv2D_2"},
       { "layerType":"Reshape",
         "layerName":"Reshape",
         "layerInput":"Flatten",
-        "target_shape":[1,32]},
+        "Parameters":{"target_shape":[1,32]}},
       { "layerType":"LSTM",
         "layerName":"LSTM1",
         "layerInput":["Reshape","input.hiddenState"],
@@ -33,16 +34,16 @@
       { "layerType":"Dense",
         "layerName":"Dense1",
         "layerInput":"LSTM1",
-        "outputSize":128,
-        "activation":null}
+        "Parameters":{"units":128,
+                      "activation":null}}
       ],
 
     "Actor":[
       { "layerType":"Dense",
         "layerName":"Actor_FC",
         "layerInput":"Dense1",
-        "outputSize":"actionSize",
-        "activation":null},
+        "Parameters":{"units":"actionSize",
+                      "activation":null}},
       { "layerType":"SoftMax",
         "layerName":"Logits",
         "layerInput":"Actor_FC"},
@@ -55,8 +56,8 @@
       { "layerType":"Dense",
         "layerName":"Critic_FC1",
         "layerInput":"Dense1",
-        "outputSize":1,
-        "activation":null}
+        "Parameters":{"units":1,
+                      "activation":null}}
     ]
   },
   "NetworkOutputs":{
@@ -69,6 +70,8 @@
   "NetworkVariableGroups":{
     "Actor":["Actor","Shared"],
     "Critic":["Critic","Shared"]
-  }
+  },
+  "TestInput":{ "state":[null,7,7,4],
+                "hiddenState":256}
 
   }

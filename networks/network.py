@@ -9,7 +9,7 @@ from .layers.non_local import Non_local_nn
 from .layers.approx_round import *
 
 class Network(tf.keras.Model):
-    def __init__(self, configFile, actionSize, netConfigOverride, scope=None,debug=False):
+    def __init__(self, configFile, actionSize, netConfigOverride={}, scope=None,debug=False):
         """
         Reads a network config file and processes that into a netowrk with appropriate naming structure.
 
@@ -30,6 +30,7 @@ class Network(tf.keras.Model):
         -------
         N/A
         """
+
         self.debug =debug
         self.actionSize = actionSize
 
@@ -42,10 +43,13 @@ class Network(tf.keras.Model):
             namespace = scope
         super(Network,self).__init__(name=namespace)
         # Reading in the configFile
+        if data["NetworkBuilder"] != "network":
+            self.built = False
+            return
+
         self.networkOutputs = data["NetworkOutputs"]
 
         self.scope=namespace
-        print(self.scope)
 
         self.layerList = {}
         self.layerInputs = {}
@@ -67,10 +71,15 @@ class Network(tf.keras.Model):
         self.networkVariables=data["NetworkVariableGroups"]
         self.data=data
 
+        self.testInputs = data["TestInput"]
+        self.built = True
+
     def call(self,inputs):
         """Defines how the layers are called with a forward pass of the network.
         The methodology employed assumes sections and layers of the network are stictly forward pass.
-         """
+        """
+        if not self.built:
+            return {}
         self.layerOutputs = {}
         for layerName,layer in self.layerList.items():
             if self.debug: print("Creating Layer:",layerName)
@@ -120,55 +129,29 @@ class Network(tf.keras.Model):
             layer = self.layerList[dict["ReuseLayer"]]
         else:
             if dict["layerType"] == "Dense":
-                if dict["outputSize"] == "actionSize":
-                    output = self.actionSize
-                else:
-                    output = dict["outputSize"]
-                layer = KL.Dense(   output,
-                                    activation=dict["activation"],
-                                    # kernel_initializer=dict["kernel_initializer"],  # weights
-                                    # bias_initializer=dict["bias_initializer"],  # biases
-                                    name=dict["layerName"])
-
+                if dict["Parameters"]["units"] == "actionSize":
+                    dict["Parameters"]["units"] = self.actionSize
+                layer = KL.Dense( **dict["Parameters"],name=dict["layerName"])
             elif dict["layerType"] == "Conv2D":
-                layer = KL.Conv2D( filters=dict["filters"],
-                                kernel_size=dict["kernel_size"],
-                                strides=dict["strides"],
-                                activation=dict["activation"],
-                                name=dict["layerName"])
+                layer = KL.Conv2D( **dict["Parameters"],name=dict["layerName"])
             elif dict["layerType"] == "Conv2DTranspose":
-                if "padding" in dict:
-                    padding = dict["padding"]
-                else:
-                    padding="valid"
-                layer = KL.Conv2DTranspose( filters=dict["filters"],
-                                kernel_size=dict["kernel_size"],
-                                strides=dict["strides"],
-                                activation=dict["activation"],
-                                name=dict["layerName"],
-                                padding=padding)
+                layer = KL.Conv2DTranspose( **dict["Parameters"],name=dict["layerName"])
             elif dict["layerType"] == "SeparableConv":
-                layer = KL.SeparableConv2D( filters=dict["filters"],
-                                            kernel_size=dict["kernel_size"],
-                                            strides=dict["strides"],
-                                            padding=dict["padding"],
-                                            depth_multiplier=dict["depth_multiplier"],
-                                            name=dict["layerName"],
-                                            )
+                layer = KL.SeparableConv2D( **dict["Parameters"],name=dict["layerName"])
             elif dict["layerType"] == "Round":
                 layer= RoundingSine()
             elif dict["layerType"] == "Flatten":
                 layer= KL.Flatten()
             elif dict["layerType"] == "NonLocalNN":
-                layer= Non_local_nn(channels=dict["channels"])
+                layer= Non_local_nn( **dict["Parameters"],name=dict["layerName"])
             elif dict["layerType"] == "LogSoftMax":
                 layer = tf.nn.log_softmax
             elif dict["layerType"] == "SoftMax":
                 layer = KL.Activation('softmax')
             elif dict["layerType"] == "Concatenate":
-                layer = KL.Concatenate(axis=dict["axis"])
+                layer = KL.Concatenate( **dict["Parameters"],name=dict["layerName"])
             elif dict["layerType"] == "Reshape":
-                layer = KL.Reshape(target_shape=dict["target_shape"])
+                layer = KL.Reshape( **dict["Parameters"],name=dict["layerName"])
             elif dict["layerType"] == "LSTM":
                 layer = KL.LSTM(**dict["Parameters"],name=dict["layerName"])
             elif dict["layerType"] == "SimpleRNN":

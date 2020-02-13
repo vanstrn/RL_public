@@ -39,6 +39,7 @@ Reformat losses
 
 Switch to environment wrappers as they are cut down on run script.
 
-Switch to Moving Average
-
 Update all Save Statistics so they are uniform.
+
+Add something that runs through all parameters and then fills in with any inputs that come from configs
+  Ex. ActionSize should be replaced with the appropriate Integer

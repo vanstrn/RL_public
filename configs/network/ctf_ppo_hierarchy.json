@@ -1,4 +1,5 @@
 { "NetworkName" : "DefaultCtF",
+  "NetworkBuilder":"networkHierarchy",
   "MetaNetworkStructure":{
     "Shared":[
       { "layerType":"SeparableConv",
@@ -30,7 +31,7 @@
       { "layerType":"Dense",
         "layerName":"Dense1",
         "layerInput":"Flatten",
-        "outputSize":128,
+        "units":128,
         "activation":null}
       ],
 
@@ -38,7 +39,7 @@
       { "layerType":"Dense",
         "layerName":"Actor_FC",
         "layerInput":"Dense1",
-        "outputSize":"actionSize",
+        "units":"actionSize",
         "activation":null},
       { "layerType":"SoftMax",
         "layerName":"Logits",
@@ -52,7 +53,7 @@
       { "layerType":"Dense",
         "layerName":"Critic_FC1",
         "layerInput":"Dense1",
-        "outputSize":1,
+        "units":1,
         "activation":null}
     ]
   },
@@ -87,7 +88,7 @@
       { "layerType":"Dense",
         "layerName":"Dense1",
         "layerInput":"Flatten",
-        "outputSize":128,
+        "units":128,
         "activation":null}
       ],
 
@@ -95,7 +96,7 @@
       { "layerType":"Dense",
         "layerName":"Actor_FC",
         "layerInput":"Dense1",
-        "outputSize":"actionSize",
+        "units":"actionSize",
         "activation":null},
       { "layerType":"SoftMax",
         "layerName":"Logits",
@@ -109,7 +110,7 @@
       { "layerType":"Dense",
         "layerName":"Critic_FC1",
         "layerInput":"Dense1",
-        "outputSize":1,
+        "units":1,
         "activation":null}
     ]
   },
@@ -121,6 +122,7 @@
   "NetworkVariableGroups":{
     "Actor":["Actor","Shared"],
     "Critic":["Critic","Shared"]
-  }
+  },
+  "TestInput":{"state":[null,39,39,6]}
 
   }

@@ -1,34 +1,36 @@
 { "NetworkName" : "Example",
+  "NetworkBuilder":"network",
   "NetworkStructure":{
     "Shared":[
       { "layerType":"Dense",
         "layerName":"Shared_FC1",
         "layerInput":"input.state",
-        "outputSize":20,
-        "activation":"relu"}],
+        "Parameters":{"units":20,
+                      "activation":"relu"}}
+      ],
     "Actor":[
       { "layerType":"Dense",
         "layerName":"Actor_FC1",
         "layerInput":"Shared_FC1",
-        "outputSize":20,
-        "activation":"relu"},
+        "Parameters":{"units":20,
+                      "activation":"relu"}},
       { "layerType":"Dense",
         "layerName":"Actor_FC2",
         "layerInput":"Actor_FC1",
-        "outputSize":"actionSize",
-        "activation":"softmax"}
+        "Parameters":{"units":"actionSize",
+                      "activation":"softmax"}}
     ],
     "Critic":[
       { "layerType":"Dense",
         "layerName":"Critic_FC1",
         "layerInput":"Shared_FC1",
-        "outputSize":20,
-        "activation":"relu"},
+        "Parameters":{"units":20,
+                      "activation":"relu"}},
       { "layerType":"Dense",
         "layerName":"Critic_FC2",
         "layerInput":"Critic_FC1",
-        "outputSize":1,
-        "activation":"relu"}
+        "Parameters":{"units":1,
+                      "activation":"relu"}}
     ]
   },
   "NetworkOutputs":{
@@ -38,6 +40,7 @@
   "NetworkVariableGroups":{
     "Actor":["Actor","Shared"],
     "Critic":["Critic","Shared"]
-  }
+  },
+  "TestInput":{"state":[null,20]}
 
   }
