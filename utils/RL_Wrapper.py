@@ -2,8 +2,7 @@ import numpy as np
 
 import tensorflow as tf
 
-from utility.utils import store_args
-from utility.utils import discount_rewards
+from utils.utils import store_args
 
 class TrainedNetwork:
     """TrainedNetwork
@@ -12,7 +11,6 @@ class TrainedNetwork:
 
     It does not include any training sequence.
     """
-
     @store_args
     def __init__(
         self,
