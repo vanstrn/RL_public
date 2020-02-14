@@ -104,7 +104,7 @@ class A3C(Method):
             self.loss_MA = [MovingAverage(400) for i in range(len(self.grads))]
             self.labels = ["Actor","Critic","State","Reward"]
 
-    def GetAction(self, state):
+    def GetAction(self, state,episode=0,step=0):
         """
         Contains the code to run the network based on an input.
         """

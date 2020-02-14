@@ -81,7 +81,7 @@ sess = tf.Session(config=config)
 
 for functionString in envSettings["StartingFunctions"]:
     StartingFunction = GetFunction(functionString)
-    _,dFeatures,nActions,nTrajs = StartingFunction(settings,envSettings,sess)
+    env,dFeatures,nActions,nTrajs = StartingFunction(settings,envSettings,sess)
 
 GLOBAL_RUNNING_R = MovingAverage(1000)
 
@@ -94,8 +94,8 @@ with tf.device('/cpu:0'):
     Method = GetFunction(settings["Method"])
     net = Method(network,sess,stateShape=dFeatures,actionSize=nActions,scope="Global",HPs=settings["NetworkHPs"])
 
-saver = tf.train.Saver(max_to_keep=3, var_list=GLOBAL_AC.getVars+[global_step])
-GLOBAL_AC.InitializeVariablesFromFile(saver,MODEL_PATH)
+saver = tf.train.Saver(max_to_keep=3, var_list=net.getVars+[global_step])
+net.InitializeVariablesFromFile(saver,MODEL_PATH)
 InitializeVariables(sess)
 # x= np.random.random([7,7,3])
 # y,_ = GLOBAL_AC.GetAction(x)
@@ -116,8 +116,8 @@ for i in range(settings["EnvHPs"]["SampleEpisodes"]):
     for j in range(settings["EnvHPs"]["MAX_EP_STEPS"]+1):
 
         a, networkData = net.GetAction(state=s0,episode=sess.run(global_step),step=j)
-        phiSamples = networkData[0]
-        psiSamples = networkData[1]
+        phiSamples.append(networkData[0])
+        psiSamples.append(networkData[1])
 
         for functionString in envSettings["ActionProcessingFunctions"]:
             ActionProcessing = GetFunction(functionString)
@@ -136,3 +136,14 @@ for i in range(settings["EnvHPs"]["SampleEpisodes"]):
 
         if done.all():
             break
+
+psiSamples = np.vstack(psiSamples)
+# print(psiSamples[:128,:].shape)
+
+w_g,v_g = np.linalg.eig(psiSamples[:128,:])
+# print(np.real(v_g[127,:]))
+# def filter()
+
+
+x = np.matmul(np.matrix(phiSamples[0]) , np.matrix(np.real(v_g[127,:])))
+print(x)
