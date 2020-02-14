@@ -6,21 +6,21 @@ from tensorflow.keras.regularizers import l2
 
 class Inception(Layer):
     """Does approximate rounding with Sawtooth wave."""
-    def __init__(self,name='inception',**kwargs):
+    def __init__(self,filters=[64,64,32,32],name='inception',**kwargs):
         super(Inception, self).__init__(**kwargs)
 
-        self.inception_1x1 = KL.Conv2D(64, (1,1), padding='same', activation='relu', name=name+'/1x1', kernel_regularizer=l2(0.0002))
+        self.inception_1x1 = KL.Conv2D(filters[0], (1,1), padding='same', activation='relu', name=name+'/1x1', kernel_regularizer=l2(0.0002))
 
-        self.inception_3x3_reduce = KL.Conv2D(32, (1,1), padding='same', activation='relu', name=name+'/3x3_reduce', kernel_regularizer=l2(0.0002))
+        self.inception_3x3_reduce = KL.Conv2D(filters[1]//2, (1,1), padding='same', activation='relu', name=name+'/3x3_reduce', kernel_regularizer=l2(0.0002))
         self.inception_3x3_pad = KL.ZeroPadding2D(padding=(1, 1))
-        self.inception_3x3 = KL.Conv2D(64, (3,3), padding='valid', activation='relu', name=name+'/3x3', kernel_regularizer=l2(0.0002))
+        self.inception_3x3 = KL.Conv2D(filters[1], (3,3), padding='valid', activation='relu', name=name+'/3x3', kernel_regularizer=l2(0.0002))
 
-        self.inception_5x5_reduce = KL.Conv2D(16, (1,1), padding='same', activation='relu', name=name+'/5x5_reduce', kernel_regularizer=l2(0.0002))
+        self.inception_5x5_reduce = KL.Conv2D(filters[2]//2, (1,1), padding='same', activation='relu', name=name+'/5x5_reduce', kernel_regularizer=l2(0.0002))
         self.inception_5x5_pad = KL.ZeroPadding2D(padding=(2, 2))
-        self.inception_5x5 = KL.Conv2D(32, (5,5), padding='valid', activation='relu', name=name+'/5x5', kernel_regularizer=l2(0.0002))
+        self.inception_5x5 = KL.Conv2D(filters[2], (5,5), padding='valid', activation='relu', name=name+'/5x5', kernel_regularizer=l2(0.0002))
 
         self.inception_pool = KL.MaxPooling2D(pool_size=(3,3), strides=(1,1), padding='same', name=name+'/pool')
-        self.inception_pool_proj = KL.Conv2D(32, (1,1), padding='same', activation='relu', name=name+'/pool_proj', kernel_regularizer=l2(0.0002))
+        self.inception_pool_proj = KL.Conv2D(filters[3], (1,1), padding='same', activation='relu', name=name+'/pool_proj', kernel_regularizer=l2(0.0002))
 
         self.inception_output = KL.Concatenate(axis=3, name=name+'/output')
 

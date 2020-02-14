@@ -7,6 +7,8 @@ import tensorflow.keras.layers as KL
 import json
 from .layers.non_local import Non_local_nn
 from .layers.approx_round import *
+from .layers.inception import Inception
+from .layers.reverse_inception import ReverseInception
 
 class Network(tf.keras.Model):
     def __init__(self, configFile, actionSize, netConfigOverride={}, scope=None,debug=False):
@@ -158,6 +160,10 @@ class Network(tf.keras.Model):
                 layer = KL.SimpleRNN(**dict["Parameters"],name=dict["layerName"])
             elif dict["layerType"] == "Sum":
                 layer = tf.keras.backend.sum
+            elif dict["layerType"] == "Inception":
+                layer = Inception(**dict["Parameters"],name=dict["layerName"])
+            elif dict["layerType"] == "ReverseInception":
+                layer = ReverseInception(**dict["Parameters"],name=dict["layerName"])
         self.layerType[dict["layerName"]] = dict["layerType"]
 
         return layer

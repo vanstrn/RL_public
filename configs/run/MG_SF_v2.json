@@ -1,4 +1,4 @@
-{ "RunName":"MG_SF",
+{ "RunName":"MG_SF_v2",
   "GPUCapacitty":0.95,
   "NetworkHPs":{"Actor LR": 1E-5,
                 "Critic LR": 1E-6,
@@ -19,7 +19,7 @@
 
   "NumberENV":8,
   "EnvConfig":"MiniGrid_Asynch.json",
-  "NetworkConfig":"MG_SF_v1.json",
+  "NetworkConfig":"MG_SF_v2.json",
   "Method":"methods.A3C_SF.A3C"
 
   }

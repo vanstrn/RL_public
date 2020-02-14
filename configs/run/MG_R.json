@@ -15,7 +15,7 @@
             "LOG_FREQ" : 100,
             "Gamma":0.9},
 
-  "NumberENV":2,
+  "NumberENV":8,
   "EnvConfig":"MiniGrid_Asynch.json",
   "NetworkConfig":"MG_Reconstruct_v1.json",
   "Method":"methods.A3C_Reconstruction.A3C"
