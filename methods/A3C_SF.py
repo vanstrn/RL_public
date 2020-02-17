@@ -31,7 +31,7 @@ class A3C(Method):
         self.reward = tf.placeholder(tf.float32, [None, ], 'R')
         self.v_target = tf.placeholder(tf.float32, [None], 'Vtarget')
         self.advantage = tf.placeholder(tf.float32, [None], 'Advantage')
-        self.td_target = tf.placeholder(tf.float32, [None,128], 'TDtarget')
+        self.td_target = tf.placeholder(tf.float32, [None,64], 'TDtarget')
 
         input = {"state":self.s}
         out = self.Model(input)
@@ -104,13 +104,17 @@ class A3C(Method):
             self.loss_MA = [MovingAverage(400) for i in range(len(self.grads))]
             self.labels = ["Actor","Critic","State","Reward"]
 
-    def GetAction(self, state,episode=0,step=0):
+    def GetAction(self, state,episode=0,step=0,deterministic=False,debug=False):
         """
         Contains the code to run the network based on an input.
         """
         s = state[np.newaxis, :]
         probs,v,phi,psi = self.sess.run([self.a_prob,self.v, self.phi, self.psi], {self.s: s})   # get probabilities for all actions
-        actions = np.array([np.random.choice(probs.shape[1], p=prob / sum(prob)) for prob in probs])
+        if deterministic:
+            actions = np.array([np.argmax(prob / sum(prob)) for prob in probs])
+        else:
+            actions = np.array([np.random.choice(probs.shape[1], p=prob / sum(prob)) for prob in probs])
+        if debug: print(probs)
         return actions ,[v,phi,psi]  # return a int and extra data that needs to be fed to buffer.
 
     def Update(self,HPs,episode=0,statistics=True):
@@ -198,18 +202,6 @@ class A3C(Method):
         # tracker.print_diff()
         return v_target,advantage, td_target
 
-        # buffer_v_s_ = []
-        # for r in self.buffer[2][::-1]:
-        #     if self.buffer[4][-1]:
-        #         v_s_ = 0   # terminal
-        #     else:
-        #         v_s_ = self.sess.run(self.v, {self.s: self.buffer[3][-1][np.newaxis, :]})[0, 0]
-        #
-        #     v_s_ = r + HPs["Gamma"] * v_s_
-        #     buffer_v_s_.append(v_s_)
-        #
-        # buffer_v_s_.reverse()
-        # self.buffer[2] = buffer_v_s_
 
     @property
     def getVars(self):

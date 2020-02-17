@@ -28,7 +28,7 @@ class Worker(object):
         self.envSettings =envSettings
         self.progbar =progbar
 
-    def work(self,COORD,writer,MODEL_PATH,settings,envSettings,saver,GLOBAL_RUNNING_R):
+    def work(self,COORD,writer,MODEL_PATH,settings,envSettings,saver,GLOBAL_RUNNING_R,GLOBAL_EP_LEN):
         """Main function of the Workers. This runs the environment and the experience
         is used to update the main Actor Critic Network.
         """
@@ -67,11 +67,6 @@ class Worker(object):
                     r,done = RewardProcessing(s1,r,done,self.env,envSettings,self.sess)
 
                 self.net.AddToTrajectory([s0,a,r,s1,done]+networkData)
-                # print(networkData[2].astype(float))
-                # print(networkData[1].astype(float),"\n\n")
-                # print(self.sess.run(self.net.r_params))
-                # print(networkData[0])
-                # print(a)
 
                 for functionString in envSettings["LoggingFunctions"]:
                     LoggingFunctions = GetFunction(functionString)
@@ -88,7 +83,7 @@ class Worker(object):
             #Closing Functions that will be executed after every episode.
             for functionString in envSettings["EpisodeClosingFunctions"]:
                 EpisodeClosingFunction = GetFunction(functionString)
-                finalDict = EpisodeClosingFunction(loggingDict,self.env,settings,envSettings,self.sess,self.progbar,GLOBAL_RUNNING_R)
+                finalDict = EpisodeClosingFunction(loggingDict,self.env,settings,envSettings,self.sess,self.progbar,GLOBAL_RUNNING_R,GLOBAL_EP_LEN)
 
             self.progbar.update(self.sess.run(self.global_step))
 

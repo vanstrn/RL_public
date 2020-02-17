@@ -59,7 +59,8 @@ for functionString in envSettings["StartingFunctions"]:
     StartingFunction = GetFunction(functionString)
     _,dFeatures,nActions,nTrajs = StartingFunction(settings,envSettings,sess)
 
-GLOBAL_RUNNING_R = MovingAverage(1000)
+GLOBAL_RUNNING_R = MovingAverage(400)
+GLOBAL_EP_LEN = MovingAverage(400)
 
 progbar = tf.keras.utils.Progbar(None, unit_name='Training',stateful_metrics=["Reward"])
 #Creating the Networks and Methods of the Run.
@@ -90,7 +91,7 @@ InitializeVariables(sess) #Included to catch if there are any uninitalized varia
 COORD = tf.train.Coordinator()
 worker_threads = []
 for worker in workers:
-    job = lambda: worker.work(COORD,writer,MODEL_PATH,settings,envSettings,saver,GLOBAL_RUNNING_R)
+    job = lambda: worker.work(COORD,writer,MODEL_PATH,settings,envSettings,saver,GLOBAL_RUNNING_R,GLOBAL_EP_LEN)
     t = threading.Thread(target=job)
     t.start()
     worker_threads.append(t)
