@@ -10,6 +10,29 @@ from .layers.approx_round import *
 from .layers.inception import Inception
 from .layers.reverse_inception import ReverseInception
 
+import collections.abc
+
+def update(d, u):
+    for k, v in d.items():
+        if isinstance(v, collections.abc.Mapping):
+            d[k] = update(d.get(k, {}), u)
+        elif isinstance(v,list):
+            list_new = []
+            for val in v:
+                if isinstance(val, collections.abc.Mapping):
+                    tmp_dict = update(val, u)
+                    list_new.append(tmp_dict)
+                elif val in u.keys():
+                    list_new.append(u[val])
+                else:
+                    list_new.append(val)
+            d[k] = list_new
+        else:
+            if v in u.keys():
+                d[k] = u[v]
+    return d
+
+
 class Network(tf.keras.Model):
     def __init__(self, configFile, actionSize, netConfigOverride={}, scope=None,debug=False):
         """
@@ -59,6 +82,11 @@ class Network(tf.keras.Model):
         self.multiOutput = {}
         self.layerGroupList = {}
         self.varGroupings = {}
+
+        #Creating Recursion sweep to go through dictionaries and lists in the networkConfig to insert user defined values.
+        if "DefaultParams" in data.keys():
+            data["NetworkStructure"] = update(data["NetworkStructure"],data["DefaultParams"])
+
             #Creating all of the layers
         for sectionName,layerList in data["NetworkStructure"].items():
             self.varGroupings[sectionName] = []
@@ -169,10 +197,10 @@ class Network(tf.keras.Model):
         return layer
 
     def getVars(self,scope=None):
-        if scope is None:
-            return tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=self.scope)
-        else:
-            return tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=scope + "/" + self.scope)
+        vars = []
+        for name,var in self.varGroupings.items():
+            vars += var
+        return list(set(vars))
 
     def GetVariables(self,groupName):
         vars =[]
@@ -181,5 +209,17 @@ class Network(tf.keras.Model):
         return vars
 
 if __name__ == "__main__":
-    sess = tf.Session()
-    test = Network(configFile="test.json",actionSize=4)
+    # sess = tf.Session()
+    # test = Network(configFile="test.json",actionSize=4)
+    test = {"K1":1,
+            "K2":2,
+            "K3":"V1",
+            "K4":2,
+            "K5":{"test":["V1","V2"]},
+            "K6":"V2",
+            "K7":2,
+            }
+    test2 = {"V1":4,"V2":5}
+    dict=update(test,test2)
+    # ReplaceValues(test,test2)
+    print(dict)
