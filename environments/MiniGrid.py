@@ -1,12 +1,71 @@
 import gym
 import tensorflow as tf
 from utils.multiprocessing import SubprocVecEnv
+from utils.utils import MovingAverage
 import numpy as np
+from gym_minigrid.wrappers import *
+
+class DiscreteAction(gym.core.Wrapper):
+    """
+    Fully observable gridworld using a compact grid encoding
+    """
+
+    def __init__(self, env):
+        super().__init__(env)
+
+        self.action_space = spaces.Discrete(4)
+
+    def step(self,action):
+        env = self.unwrapped
+        if action == 0: # Go Up
+            env.agent_dir = 3
+        if action == 1: # Go Right
+            env.agent_dir = 0
+        if action == 2: # Go Down
+            env.agent_dir = 1
+        if action == 3: # Go Left
+            env.agent_dir = 2
+        obs, reward, done, info = env.step(2)
+        return obs, reward, done, info
+
+class FullyObsWrapper_v2(gym.core.ObservationWrapper):
+    """
+    Fully observable gridworld using a compact grid encoding
+    """
+
+    def __init__(self, env):
+        super().__init__(env)
+
+        self.observation_space.spaces["image"] = spaces.Box(
+            low=0,
+            high=255,
+            shape=(self.env.width, self.env.height, 2),  # number of cells
+            dtype='uint8'
+        )
+
+    def observation(self, obs):
+        env = self.unwrapped
+        full_grid = env.grid.encode()
+        full_grid[env.agent_pos[0]][env.agent_pos[1]] = np.array([
+            OBJECT_TO_IDX['agent'],
+            COLOR_TO_IDX['red'],
+            env.agent_dir
+        ])
+
+        return {
+            'mission': obs['mission'],
+            'image': full_grid[:,:,:2]
+        }
+
 
 def RewardShape(s1,reward_raw,done_raw,env,envSettings,sess):
     # if not done_raw: reward_raw += -0.01
     # else: reward_raw += 0.5
-    return reward_raw, np.array(done_raw)
+    if reward_raw != 0:
+        reward=1
+    else:
+        reward=0
+    return reward, np.array(done_raw)
 
 def Bootstrap(env,settings,envSettings,sess):
     s0 = env.reset()
@@ -34,9 +93,11 @@ def Starting(settings,envSettings,sess):
 
 def StartingSingle(settings,envSettings,sess):
     env = gym.make(envSettings["EnvName"])
+    env = DiscreteAction(env)
+    env = FullyObsWrapper_v2(env)
     numberFeatures = env.observation_space["image"].shape
     numberActions = env.action_space.n
-    numberActions=3
+    # numberActions=3
 
     return env, list(numberFeatures), numberActions, 1
 
@@ -47,28 +108,32 @@ def Logging(loggingDict,s1,r,done,env,envSettings,sess):
     except: loggingDict["tracking_r"][0].append(r)
     return loggingDict
 
-def Closing(loggingDict,env,settings,envSetting,sess,progbar,GLOBAL_RUNNING_R=None):
+def Closing(loggingDict,env,settings,envSetting,sess,progbar,GLOBAL_RUNNING_R=None,GLOBAL_EP_LEN=None):
     if GLOBAL_RUNNING_R is not None:
         for i in range(len(loggingDict["tracking_r"])):
             GLOBAL_RUNNING_R.append(sum(loggingDict["tracking_r"][i]))
-        finalDict = {"Training Results/Reward":GLOBAL_RUNNING_R()}
+            GLOBAL_EP_LEN.append(len(loggingDict["tracking_r"][i]))
+        finalDict = {"Training Results/Reward":GLOBAL_RUNNING_R(),
+                    "Training Results/Episode Length": GLOBAL_EP_LEN()}
         return finalDict
 
 
     else:
         for i in range(settings["NumberENV"]):
-            # print(loggingDict["tracking_r"][i])
             ep_rs_sum = sum(loggingDict["tracking_r"][i])
-
             if 'running_reward' not in globals():
                 global running_reward
-                running_reward = ep_rs_sum
-                # progbar.add("Reward")
-            running_reward = running_reward * 0.99 + ep_rs_sum * 0.01
+                running_reward = MovingAverage(100)
+            if 'episode_length' not in globals():
+                global episode_length
+                episode_length =  MovingAverage(100)
+            running_reward.append(ep_rs_sum)
+            episode_length.append(len(loggingDict["tracking_r"][i]))
 
         global_step = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, "global_step")
         progbar.update(sess.run(global_step)[0],values=[("Reward",running_reward)])
         # print("episode:", sess.run(global_step), "  running reward:", int(running_reward),"  reward:",int(ep_rs_sum))
 
-        finalDict = {"Training Results/Reward":running_reward}
+        finalDict = {"Training Results/Reward":running_reward(),
+                     "Training Results/Episode Length": episode_length()}
         return finalDict
