@@ -11,7 +11,7 @@
                 "eps":0.2},
 
   "EnvHPs":{"MAX_EP_STEPS":300,
-            "SampleEpisodes":10,
+            "SampleEpisodes":25,
             "Gamma":0.9},
 
   "NumberENV":8,

@@ -70,6 +70,7 @@ with tf.device('/cpu:0'):
     network = Network("configs/network/"+settings["NetworkConfig"],nActions,netConfigOverride,scope="Global")
     Method = GetFunction(settings["Method"])
     GLOBAL_AC = Method(network,sess,stateShape=dFeatures,actionSize=nActions,scope="Global",HPs=settings["NetworkHPs"])
+    GLOBAL_AC.Model.summary()
 
 # Create worker
     workers = []

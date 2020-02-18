@@ -1,17 +1,17 @@
-{ "RunName":"MG4R_SF",
+{ "RunName":"MG4R_A3C",
   "GPUCapacitty":0.95,
   "NetworkHPs":{"Actor LR": 1E-5,
-                "Critic LR": 1E-5,
-                "State LR": 1E-5,
-                "Reward LR": 1E-3,
+                "Critic LR": 3E-5,
+                "State LR": 1E-4,
+                "Reward LR": 1E-4,
                 "Gamma":0.9,
                 "lambda":0.9,
-                "EntropyBeta":0.1,
+                "EntropyBeta":0.5,
                 "CriticBeta":0.001,
                 "eps":0.2},
 
   "EnvHPs":{"MAX_EP_STEPS":300,
-            "MAX_EP":500000,
+            "MAX_EP":100000,
             "SAVE_FREQ" : 1000,
             "UPDATE_GLOBAL_ITER" : 300,
             "LOG_FREQ" : 100,
@@ -19,7 +19,7 @@
 
   "NumberENV":8,
   "EnvConfig":"MG_4R_Asynch.json",
-  "NetworkConfig":"MG4R_SF_v1.json",
-  "Method":"methods.A3C_SF.A3C"
+  "NetworkConfig":"MG4R_Base.json",
+  "Method":"methods.A3C.A3C"
 
   }

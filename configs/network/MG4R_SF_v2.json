@@ -16,7 +16,7 @@
         "Parameters":{"filters":["Filters","Filters","Filters","Filters"]}},
       { "layerType":"Conv2D",
         "layerName":"Conv2D_3",
-        "layerInput":"Conv2D_2",
+        "layerInput":"Inception",
         "Parameters":{"filters":64,
                       "kernel_size":2,
                       "strides":1,

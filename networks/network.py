@@ -11,17 +11,8 @@ from .layers.inception import Inception
 from .layers.reverse_inception import ReverseInception
 
 import collections.abc
-import re
-
-def StringParser(string):
-    """Evaluates if an input string has any math in it. """
-    list = string.split("|")
-    # match = re.findall(r'(?<=\[).+?(?=\])',string)
-    # math="".join(re.split("[^a-zA-Z]*", s))
-    return list
 
 def update(d, u):
-    """Updates a nested Dict/List with values from a dictionary list """
     for k, v in d.items():
         if isinstance(v, collections.abc.Mapping):
             d[k] = update(d.get(k, {}), u)
@@ -201,8 +192,6 @@ class Network(tf.keras.Model):
                 layer = Inception(**dict["Parameters"],name=dict["layerName"])
             elif dict["layerType"] == "ReverseInception":
                 layer = ReverseInception(**dict["Parameters"],name=dict["layerName"])
-            elif dict["layerType"] == "MaxPooling2D":
-                layer = KL.MaxPooling2D(**dict["Parameters"],name=dict["layerName"])
         self.layerType[dict["layerName"]] = dict["layerType"]
 
         return layer

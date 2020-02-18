@@ -126,7 +126,7 @@ for i in range(settings["EnvHPs"]["SampleEpisodes"]):
             a = ActionProcessing(a,env,envSettings,sess)
 
         s1,r,done,_ = env.step(a)
-        env.render()
+        # env.render()
         for functionString in envSettings["StateProcessingFunctions"]:
             StateProcessing = GetFunction(functionString)
             s1 = StateProcessing(s1,env,envSettings,sess)
@@ -140,7 +140,6 @@ for i in range(settings["EnvHPs"]["SampleEpisodes"]):
         if done.all():
             break
 psiSamples = np.vstack(psiSamples)
-# print(psiSamples[:128,:].shape)
 
 w_g,v_g = np.linalg.eig(psiSamples[:128,:])
 # print(np.real(v_g[127,:]))
@@ -157,13 +156,15 @@ def ConstructSample(env,position):
 
 import itertools
 v=np.zeros((dFeatures[0],dFeatures[1]))
-psi0=np.zeros((dFeatures[0],dFeatures[1],128))
+v_option=np.zeros((dFeatures[0],dFeatures[1],128))
+psiSamples = []
 for i,j in itertools.product(range(dFeatures[0]),range(dFeatures[1])):
     grid = ConstructSample(env,[i,j])
     if grid is None: continue
     a, networkData = net.GetAction(state=grid,episode=sess.run(global_step),step=j)
     v[i,j]=networkData[0]
-    psi0[i,j,:]=np.matrix(networkData[1])* np.matrix(np.real(v_g))
+    v_option[i,j,:]=np.multiply(np.matrix(networkData[1])* np.matrix(np.real(v_g)),np.real(w_g))
+    psiSamples.append(networkData[2])
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 
@@ -171,11 +172,45 @@ def Check0(array):
     counter = 0
     for i,j in itertools.product(range(array.shape[0]),range(array.shape[1])):
         if array[i,j] <= 0.0001: counter += 1
-    if counter >= 2: return True
+    if counter >= 10: return True
     return False
 
-for i in range(128):
-    if Check0(psi0[1:-2,1:-2,i]):
-        continue
-    imgplot = plt.imshow(psi0[1:-2,1:-2,i])
-    plt.show()
+if True:
+    CreatePath("./images/SF_7x7grid2/")
+    imgplot = plt.imshow(v[1:-2,1:-2])
+    plt.title("Value Estimate")
+    plt.savefig("images/SF_7x7grid2/value.png")
+    for i in range(128):
+        if Check0(v_option[1:-2,1:-2,i]):
+            continue
+        imgplot = plt.imshow(v_option[1:-2,1:-2,i])
+        plt.title("Option Value Estimate")
+        plt.savefig("images/SF_7x7grid2/option"+str(i)+".png")
+        # plt.show()
+
+
+psiSamples = np.vstack(psiSamples+psiSamples+psiSamples+psiSamples)
+
+w_g,v_g = np.linalg.eig(psiSamples[:128,:])
+
+v=np.zeros((dFeatures[0],dFeatures[1]))
+v_option=np.zeros((dFeatures[0],dFeatures[1],128))
+for i,j in itertools.product(range(dFeatures[0]),range(dFeatures[1])):
+    grid = ConstructSample(env,[i,j])
+    if grid is None: continue
+    a, networkData = net.GetAction(state=grid,episode=sess.run(global_step),step=j)
+    v[i,j]=networkData[0]
+    v_option[i,j,:]=np.multiply(np.matrix(networkData[1])* np.matrix(np.real(v_g)),np.real(w_g))
+
+if True:
+    CreatePath("./images/SF_7x7grid_uniform2/")
+    imgplot = plt.imshow(v[1:-2,1:-2])
+    plt.title("Value Estimate")
+    plt.savefig("images/SF_7x7grid_uniform2/value.png")
+    for i in range(128):
+        if Check0(v_option[1:-2,1:-2,i]):
+            continue
+        imgplot = plt.imshow(v_option[1:-2,1:-2,i])
+        plt.title("Option Value Estimate")
+        plt.savefig("images/SF_7x7grid_uniform2/option"+str(i)+".png")
+        # plt.show()

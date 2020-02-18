@@ -93,6 +93,7 @@ def Starting(settings,envSettings,sess):
 
 def StartingSingle(settings,envSettings,sess):
     env = gym.make(envSettings["EnvName"])
+    env.max_steps=settings["EnvHPs"]["MAX_EP_STEPS"]
     env = DiscreteAction(env)
     env = FullyObsWrapper_v2(env)
     numberFeatures = env.observation_space["image"].shape

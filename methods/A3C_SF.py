@@ -147,21 +147,30 @@ class A3C(Method):
                 self.sess.run(self.update_ops, feedDict)   # local grads applied to global net.
             else:
                 #Perform update operations
-                out = self.sess.run(self.update_ops+self.losses+self.grads, feedDict)   # local grads applied to global net.
-                out = np.array_split(out,3)
-                losses = out[1]
-                grads = out[2]
+                try:
+                    out = self.sess.run(self.update_ops+self.losses+self.grads, feedDict)   # local grads applied to global net.
+                    out = np.array_split(out,3)
+                    losses = out[1]
+                    grads = out[2]
 
-                for i,loss in enumerate(losses):
-                    self.loss_MA[i].append(loss)
+                    for i,loss in enumerate(losses):
+                        self.loss_MA[i].append(loss)
 
-                for i,grads_i in enumerate(grads):
-                    total_counter = 0
-                    vanish_counter = 0
-                    for grad in grads_i:
-                        total_counter += np.prod(grad.shape)
-                        vanish_counter += (np.absolute(grad)<1e-8).sum()
-                    self.grad_MA[i].append(vanish_counter/total_counter)
+                    for i,grads_i in enumerate(grads):
+                        total_counter = 0
+                        vanish_counter = 0
+                        for grad in grads_i:
+                            total_counter += np.prod(grad.shape)
+                            vanish_counter += (np.absolute(grad)<1e-8).sum()
+                        self.grad_MA[i].append(vanish_counter/total_counter)
+                except:
+                    out = self.sess.run(self.update_ops+self.losses, feedDict)   # local grads applied to global net.
+                    out = np.array_split(out,2)
+                    losses = out[1]
+
+                    for i,loss in enumerate(losses):
+                        self.loss_MA[i].append(loss)
+
         self.sess.run(self.pull_ops)   # global variables synched to the local net.
 
 
