@@ -92,7 +92,10 @@ def Starting(settings,envSettings,sess):
     return envs, N_F[0], N_A,nTrajs
 
 def StartingSingle(settings,envSettings,sess):
-    env = gym.make(envSettings["EnvName"])
+    if False:
+        env = gym.make(envSettings["EnvName"],agent_pos=[1,1],goal_pos=[15,15])
+    else:
+        env = gym.make(envSettings["EnvName"])
     env.max_steps=settings["EnvHPs"]["MAX_EP_STEPS"]
     env = DiscreteAction(env)
     env = FullyObsWrapper_v2(env)
