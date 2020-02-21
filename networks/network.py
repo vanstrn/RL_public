@@ -192,6 +192,8 @@ class Network(tf.keras.Model):
                 layer = Inception(**dict["Parameters"],name=dict["layerName"])
             elif dict["layerType"] == "ReverseInception":
                 layer = ReverseInception(**dict["Parameters"],name=dict["layerName"])
+            elif dict["layerType"] == "UpSampling2D":
+                layer = KL.UpSampling2D(**dict["Parameters"],name=dict["layerName"])
         self.layerType[dict["layerName"]] = dict["layerType"]
 
         return layer

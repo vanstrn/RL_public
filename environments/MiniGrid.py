@@ -92,7 +92,12 @@ def Starting(settings,envSettings,sess):
     return envs, N_F[0], N_A,nTrajs
 
 def StartingSingle(settings,envSettings,sess):
-    env = gym.make(envSettings["EnvName"])
+    if envSettings["EnvName"] == "MiniGrid-Empty-8x8-v0":
+        env = gym.make(envSettings["EnvName"],)
+    elif envSettings["EnvName"]=="MiniGrid-FourRooms-v0":
+        env = gym.make(envSettings["EnvName"],goal_pos=envSettings["GoalLocation"],agent_pos=envSettings["AgentLocation"])
+    else:
+        env = gym.make(envSettings["EnvName"],)
     env.max_steps=settings["EnvHPs"]["MAX_EP_STEPS"]
     env = DiscreteAction(env)
     env = FullyObsWrapper_v2(env)

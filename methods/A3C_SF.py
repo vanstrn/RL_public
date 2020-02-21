@@ -31,7 +31,7 @@ class A3C(Method):
         self.reward = tf.placeholder(tf.float32, [None, ], 'R')
         self.v_target = tf.placeholder(tf.float32, [None], 'Vtarget')
         self.advantage = tf.placeholder(tf.float32, [None], 'Advantage')
-        self.td_target = tf.placeholder(tf.float32, [None,64], 'TDtarget')
+        self.td_target = tf.placeholder(tf.float32, [None,data["DefaultParams"]["SFSize"]], 'TDtarget')
 
         input = {"state":self.s}
         out = self.Model(input)
