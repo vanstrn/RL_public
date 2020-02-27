@@ -1,0 +1,18 @@
+{ "RunName":"MG4R_AE_M4E",
+  "GPUCapacitty":0.95,
+  "NetworkHPs":{"State LR": 1E-3,
+                "loss":"M4E"},
+
+  "EnvHPs":{"MAX_EP_STEPS":300,
+            "MAX_EP":500000,
+            "SAVE_FREQ" : 1000,
+            "UPDATE_GLOBAL_ITER" : 350,
+            "LOG_FREQ" : 100,
+            "Gamma":0.9},
+
+  "NumberENV":8,
+  "EnvConfig":"MG_4R_Asynch.json",
+  "NetworkConfig":"MG4R_AE_v1.1.json",
+  "Method":"methods.AutoEncoder.AE"
+
+  }
