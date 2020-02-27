@@ -1,6 +1,6 @@
 { "NetworkName" : "MG_SF",
   "NetworkBuilder":"network",
-  "DefaultParams":{"SFSize":36},
+  "DefaultParams":{"SFSize":128},
   "NetworkStructure":{
     "Shared":[
       { "layerType":"Conv2D",
@@ -65,9 +65,13 @@
     ],
 
     "Reconstruction":[
+      { "layerType":"Concatenate",
+        "layerName":"Reconstruction_Concatenate",
+        "layerInput":["Dense1","Logits"],
+        "Parameters":{"axis":1}},
       { "layerType":"Dense",
         "layerName":"Reconstruction_Dense",
-        "layerInput":"Dense1",
+        "layerInput":"Reconstruction_Concatenate",
         "Parameters":{"units":256,
                       "activation":"relu"}},
       { "layerType":"Reshape",
@@ -114,7 +118,7 @@
   "NetworkVariableGroups":{
     "Actor":["Actor"],
     "Critic":["Critic"],
-    "Reward":["Shared"],
+    "Reward":["SucessorRepresentation","Shared"],
     "Reconstruction":["Reconstruction","Shared"]
   },
   "TestInput":{"state":[null,7,7,4]}

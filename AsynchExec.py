@@ -71,6 +71,8 @@ with tf.device('/cpu:0'):
     Method = GetFunction(settings["Method"])
     GLOBAL_AC = Method(network,sess,stateShape=dFeatures,actionSize=nActions,scope="Global",HPs=settings["NetworkHPs"])
     GLOBAL_AC.Model.summary()
+    saver = tf.train.Saver(max_to_keep=3, var_list=GLOBAL_AC.getVars+[global_step])
+    GLOBAL_AC.InitializeVariablesFromFile(saver,MODEL_PATH)
 
 # Create worker
     workers = []
@@ -79,13 +81,11 @@ with tf.device('/cpu:0'):
         network = Network("configs/network/"+settings["NetworkConfig"],nActions,netConfigOverride,scope=i_name)
         Method = GetFunction(settings["Method"])
         localNetwork = Method(network,sess,stateShape=dFeatures,actionSize=nActions,scope=i_name,HPs=settings["NetworkHPs"],globalAC=GLOBAL_AC,nTrajs=nTrajs)
+        localNetwork.InitializeVariablesFromFile(saver,MODEL_PATH)
         workers.append(Worker(i_name,localNetwork,sess, settings["EnvHPs"],global_step,global_step_next,settings,envSettings,progbar))
-
 
 #Creating Auxilary Functions for logging and saving.
 writer = tf.summary.FileWriter(LOG_PATH,graph=sess.graph)
-saver = tf.train.Saver(max_to_keep=3, var_list=GLOBAL_AC.getVars+[global_step])
-GLOBAL_AC.InitializeVariablesFromFile(saver,MODEL_PATH)
 InitializeVariables(sess) #Included to catch if there are any uninitalized variables.
 
 

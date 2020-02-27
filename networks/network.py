@@ -34,7 +34,7 @@ def update(d, u):
 
 
 class Network(tf.keras.Model):
-    def __init__(self, configFile, actionSize, netConfigOverride={}, scope=None,debug=False):
+    def __init__(self, configFile, actionSize, netConfigOverride={}, scope=None,debug=True, training=True):
         """
         Reads a network config file and processes that into a netowrk with appropriate naming structure.
 
@@ -122,8 +122,10 @@ class Network(tf.keras.Model):
                     else:
                         layerInputs.append(self.layerOutputs[layerInput])
                 if self.debug: print("\tLayer Inputs",layerInputs)
-                if self.layerType[layerName] == "Concatenate":
+                if self.layerType[layerName] == "Concatenate" or self.layerType[layerName] == "Multiply" or self.layerType[layerName] == "Add":
                     output = layer(layerInputs)
+                if self.layerType[layerName] == "GaussianNoise":
+                    output = layer(layerInputs,training=training)
                 else:
                     output = layer(*layerInputs)
             else: # Single input layers
@@ -169,7 +171,8 @@ class Network(tf.keras.Model):
             elif dict["layerType"] == "SeparableConv":
                 layer = KL.SeparableConv2D( **dict["Parameters"],name=dict["layerName"])
             elif dict["layerType"] == "Round":
-                layer= RoundingSine()
+                layer= RoundingSine(name=dict["layerName"])
+                # layer= RoundingSine(**dict["Parameters"],name=dict["layerName"])
             elif dict["layerType"] == "Flatten":
                 layer= KL.Flatten()
             elif dict["layerType"] == "NonLocalNN":
@@ -180,6 +183,10 @@ class Network(tf.keras.Model):
                 layer = KL.Activation('softmax')
             elif dict["layerType"] == "Concatenate":
                 layer = KL.Concatenate( **dict["Parameters"],name=dict["layerName"])
+            elif dict["layerType"] == "Multiply":
+                layer = KL.Multiply( **dict["Parameters"],name=dict["layerName"])
+            elif dict["layerType"] == "Add":
+                layer = KL.Add( **dict["Parameters"],name=dict["layerName"])
             elif dict["layerType"] == "Reshape":
                 layer = KL.Reshape( **dict["Parameters"],name=dict["layerName"])
             elif dict["layerType"] == "LSTM":
@@ -194,6 +201,8 @@ class Network(tf.keras.Model):
                 layer = ReverseInception(**dict["Parameters"],name=dict["layerName"])
             elif dict["layerType"] == "UpSampling2D":
                 layer = KL.UpSampling2D(**dict["Parameters"],name=dict["layerName"])
+            elif dict["layerType"] == "GaussianNoise":
+                layer = KL.GaussianNoise(**dict["Parameters"],name=dict["layerName"])
         self.layerType[dict["layerName"]] = dict["layerType"]
 
         return layer
