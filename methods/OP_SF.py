@@ -13,7 +13,7 @@ import numpy as np
 from utils.utils import MovingAverage
 from utils.record import Record
 
-class A3C(Method):
+class SF(Method):
 
     def __init__(self,sharedModel,sess,stateShape,actionSize,scope,HPs,globalAC=None,nTrajs=1):
         """
@@ -27,16 +27,11 @@ class A3C(Method):
         self.Model = sharedModel
         self.s = tf.placeholder(tf.float32, [None] + stateShape, 'S')
         self.s_next = tf.placeholder(tf.float32, [None] + stateShape, 'S_next')
-        self.a_his = tf.placeholder(tf.int32, [None, ], 'A')
         self.reward = tf.placeholder(tf.float32, [None, ], 'R')
-        self.v_target = tf.placeholder(tf.float32, [None], 'Vtarget')
-        self.advantage = tf.placeholder(tf.float32, [None], 'Advantage')
         self.td_target = tf.placeholder(tf.float32, [None,data["DefaultParams"]["SFSize"]], 'TDtarget')
 
         input = {"state":self.s}
         out = self.Model(input)
-        self.a_prob = out["actor"]
-        self.v = out["critic"]
         self.state_pred = out["prediction"]
         self.reward_pred = out["reward_pred"]
         self.phi = out["phi"]
@@ -44,15 +39,13 @@ class A3C(Method):
 
         if globalAC is None:   # get global network
             with tf.variable_scope(scope):
-                self.a_params = self.Model.GetVariables("Actor")
                 self.c_params = self.Model.GetVariables("Critic")
                 self.s_params = self.Model.GetVariables("Reconstruction")
                 self.r_params = self.Model.GetVariables("Reward")
         else:   # local net, calculate losses
-            self.buffer = [Trajectory(depth=8) for _ in range(nTrajs)]
+            self.buffer = [Trajectory(depth=7) for _ in range(nTrajs)]
             with tf.variable_scope(scope+"_update"):
 
-                self.a_params = self.Model.GetVariables("Actor")
                 self.c_params = self.Model.GetVariables("Critic")
                 self.s_params = self.Model.GetVariables("Reconstruction")
                 self.r_params = self.Model.GetVariables("Reward")
@@ -62,14 +55,6 @@ class A3C(Method):
                     sf_error = tf.square(sf_error)
                     self.c_loss = tf.reduce_mean(sf_error,name="sf_loss")
 
-                with tf.name_scope('a_loss'):
-                    # td = tf.subtract(self.v_target, self.v, name='TD_error')
-                    log_prob = tf.reduce_sum(tf.log(self.a_prob + 1e-5) * tf.one_hot(self.a_his, actionSize, dtype=tf.float32), axis=1, keep_dims=True)
-                    exp_v = log_prob * self.advantage
-                    entropy = -tf.reduce_sum(self.a_prob * tf.log(self.a_prob + 1e-5),axis=1, keep_dims=True)  # encourage exploration
-                    self.exp_v = HPs["EntropyBeta"] * entropy + exp_v
-                    self.a_loss = tf.reduce_mean(-self.exp_v)
-
                 with tf.name_scope('s_loss'):
                     self.s_loss = tf.losses.mean_squared_error(self.state_pred,self.s_next)
 
@@ -77,45 +62,43 @@ class A3C(Method):
                     self.r_loss = tf.losses.mean_squared_error(self.reward,tf.squeeze(self.reward_pred))
 
                 with tf.name_scope('local_grad'):
-                    self.a_grads = tf.gradients(self.a_loss, self.a_params)
                     self.c_grads = tf.gradients(self.c_loss, self.c_params)
                     self.s_grads = tf.gradients(self.s_loss, self.s_params)
                     self.r_grads = tf.gradients(self.r_loss, self.r_params)
 
             with tf.name_scope('sync'):
                 with tf.name_scope('pull'):
-                    self.pull_a_params_op = [l_p.assign(g_p) for l_p, g_p in zip(self.a_params, globalAC.a_params)]
                     self.pull_c_params_op = [l_p.assign(g_p) for l_p, g_p in zip(self.c_params, globalAC.c_params)]
                     self.pull_s_params_op = [l_p.assign(g_p) for l_p, g_p in zip(self.s_params, globalAC.s_params)]
                     self.pull_r_params_op = [l_p.assign(g_p) for l_p, g_p in zip(self.r_params, globalAC.r_params)]
 
                 with tf.name_scope('push'):
-                    self.update_a_op = tf.train.AdamOptimizer(HPs["Actor LR"]).apply_gradients(zip(self.a_grads, globalAC.a_params))
                     self.update_c_op = tf.train.AdamOptimizer(HPs["Critic LR"]).apply_gradients(zip(self.c_grads, globalAC.c_params))
                     self.update_s_op = tf.train.AdamOptimizer(HPs["State LR"]).apply_gradients(zip(self.s_grads, globalAC.s_params))
                     self.update_r_op = tf.train.AdamOptimizer(HPs["Reward LR"]).apply_gradients(zip(self.r_grads, globalAC.r_params))
 
-            self.update_ops = [self.update_a_op,self.update_c_op,self.update_s_op,self.update_r_op]
-            self.pull_ops = [self.pull_a_params_op,self.pull_c_params_op,self.pull_s_params_op,self.pull_r_params_op]
-            self.grads = [self.a_grads,self.c_grads,self.s_grads,self.r_grads]
-            self.losses = [self.a_loss,self.c_loss,self.s_loss,self.r_loss]
+            self.update_ops = [,self.update_c_op,self.update_s_op,self.update_r_op]
+            self.pull_ops = [,self.pull_c_params_op,self.pull_s_params_op,self.pull_r_params_op]
+            self.grads = [,self.c_grads,self.s_grads,self.r_grads]
+            self.losses = [,self.c_loss,self.s_loss,self.r_loss]
 
             self.grad_MA = [MovingAverage(400) for i in range(len(self.grads))]
             self.loss_MA = [MovingAverage(400) for i in range(len(self.grads))]
-            self.labels = ["Actor","Critic","State","Reward"]
+            self.labels = ["Critic","State","Reward"]
 
     def GetAction(self, state,episode=0,step=0,deterministic=False,debug=False):
         """
         Contains the code to run the network based on an input.
         """
         s = state[np.newaxis, :]
-        probs,v,phi,psi = self.sess.run([self.a_prob,self.v, self.phi, self.psi], {self.s: s})   # get probabilities for all actions
-        if deterministic:
-            actions = np.array([np.argmax(prob / sum(prob)) for prob in probs])
-        else:
-            actions = np.array([np.random.choice(probs.shape[1], p=prob / sum(prob)) for prob in probs])
+        phi,psi = self.sess.run([self.phi, self.psi], {self.s: s})   # get probabilities for all actions
+
+        p = 1/self.actionSize
+        probs =np.full((state[0],self.actionSize),p)
+        actions = np.array([np.random.choice(probs.shape[1], p=prob / sum(prob)) for prob in probs])
+
         if debug: print(probs)
-        return actions ,[v,phi,psi]  # return a int and extra data that needs to be fed to buffer.
+        return actions ,[phi,psi]  # return a int and extra data that needs to be fed to buffer.
 
     def Update(self,HPs,episode=0,statistics=True):
         """
@@ -131,15 +114,13 @@ class A3C(Method):
             except:
                 clip=len(self.buffer[traj][4])
 
-            v_target,advantage,td_target = self.ProcessBuffer(HPs,traj,clip)
+            td_target = self.ProcessBuffer(HPs,traj,clip)
 
             #Create a feedDict from the buffer
             feedDict = {
                 self.s: self.buffer[traj][0][:clip],
                 self.reward: self.buffer[traj][2][:clip],
                 self.s_next: self.buffer[traj][3][:clip],
-                self.a_his: np.asarray(self.buffer[traj][1][:clip]).reshape(-1),
-                self.advantage: np.asarray(advantage).reshape(-1),
                 self.td_target: np.squeeze(td_target,1),
             }
 
@@ -205,11 +186,10 @@ class A3C(Method):
         # print("Starting Processing Buffer\n")
         # tracker.print_diff()
 
-        v_target, advantage = gae(self.buffer[traj][2][:clip],self.buffer[traj][5][:clip],0,HPs["Gamma"],HPs["lambda"])
 
-        td_target, _ = gae(self.buffer[traj][6][:clip], self.buffer[traj][7][:clip], np.zeros_like(self.buffer[traj][6][0][:clip]),HPs["Gamma"],HPs["lambda"])
+        td_target, _ = gae(self.buffer[traj][5][:clip], self.buffer[traj][6][:clip], np.zeros_like(self.buffer[traj][5][0][:clip]),HPs["Gamma"],HPs["lambda"])
         # tracker.print_diff()
-        return v_target,advantage, td_target
+        return td_target
 
 
     @property

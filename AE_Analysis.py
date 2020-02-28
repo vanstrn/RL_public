@@ -1,3 +1,27 @@
+import tensorflow as tf
+import numpy as np
+import gym, gym_minigrid, gym_cap
+
+from utils.RL_Wrapper import TrainedNetwork
+from utils.utils import InitializeVariables
+
+# net = TrainedNetwork("models/MG_A3C_SF_Testing/",
+#     input_tensor="S:0",
+#     output_tensor="Global/activation/Softmax:0",
+#     device='/cpu:0'
+#     )
+#
+# # session = tf.keras.backend.get_session()
+# # init = tf.global_variables_initializer()
+# # session.run(init)
+#
+# InitializeVariables(net.sess)
+# x=np.random.random([1,7,7,3])
+#
+# out = net.get_action(x)
+# print(out)
+
+
 """
 Framework for setting up an experiment.
 """
@@ -16,7 +40,9 @@ import json
 from utils.worker import Worker as Worker
 from utils.utils import MovingAverage
 import threading
-
+import itertools
+import matplotlib.pyplot as plt
+import matplotlib.image as mpimg
 
 #Input arguments to override the default Config Files
 parser = argparse.ArgumentParser()
@@ -57,10 +83,9 @@ sess = tf.Session(config=config)
 
 for functionString in envSettings["StartingFunctions"]:
     StartingFunction = GetFunction(functionString)
-    _,dFeatures,nActions,nTrajs = StartingFunction(settings,envSettings,sess)
+    env,dFeatures,nActions,nTrajs = StartingFunction(settings,envSettings,sess)
 
-GLOBAL_RUNNING_R = MovingAverage(400)
-GLOBAL_EP_LEN = MovingAverage(400)
+GLOBAL_RUNNING_R = MovingAverage(1000)
 
 progbar = tf.keras.utils.Progbar(None, unit_name='Training',stateful_metrics=["Reward"])
 #Creating the Networks and Methods of the Run.
@@ -69,31 +94,32 @@ with tf.device('/cpu:0'):
     global_step_next = tf.assign_add(global_step,1)
     network = Network("configs/network/"+settings["NetworkConfig"],nActions,netConfigOverride,scope="Global")
     Method = GetFunction(settings["Method"])
-    GLOBAL_AC = Method(network,sess,stateShape=dFeatures,actionSize=nActions,scope="Global",HPs=settings["NetworkHPs"])
-    GLOBAL_AC.Model.summary()
-    saver = tf.train.Saver(max_to_keep=3, var_list=GLOBAL_AC.getVars+[global_step])
-    GLOBAL_AC.InitializeVariablesFromFile(saver,MODEL_PATH)
+    net = Method(network,sess,stateShape=dFeatures,actionSize=nActions,scope="Global",HPs=settings["NetworkHPs"])
 
-# Create worker
-    workers = []
-    for i in range(settings["NumberENV"]):
-        i_name = 'W_%i' % i   # worker name
-        network = Network("configs/network/"+settings["NetworkConfig"],nActions,netConfigOverride,scope=i_name)
-        Method = GetFunction(settings["Method"])
-        localNetwork = Method(network,sess,stateShape=dFeatures,actionSize=nActions,scope=i_name,HPs=settings["NetworkHPs"],globalAC=GLOBAL_AC,nTrajs=nTrajs)
-        localNetwork.InitializeVariablesFromFile(saver,MODEL_PATH)
-        workers.append(Worker(i_name,localNetwork,sess, settings["EnvHPs"],global_step,global_step_next,settings,envSettings,progbar))
-
-#Creating Auxilary Functions for logging and saving.
-writer = tf.summary.FileWriter(LOG_PATH,graph=sess.graph)
-InitializeVariables(sess) #Included to catch if there are any uninitalized variables.
+saver = tf.train.Saver(max_to_keep=3, var_list=net.getVars+[global_step])
+net.InitializeVariablesFromFile(saver,MODEL_PATH)
+print(sess.run(tf.report_uninitialized_variables()))
+InitializeVariables(sess)
 
 
-COORD = tf.train.Coordinator()
-worker_threads = []
-for worker in workers:
-    job = lambda: worker.work(COORD,writer,MODEL_PATH,settings,envSettings,saver,GLOBAL_RUNNING_R,GLOBAL_EP_LEN)
-    t = threading.Thread(target=job)
-    t.start()
-    worker_threads.append(t)
-COORD.join(worker_threads)
+
+def ConstructSample(env,position):
+    grid = env.grid.encode()
+    if grid[position[0],position[1],1] == 5:
+        return None
+    grid[position[0],position[1],0] = 10
+    return grid[:,:,:2]
+
+for i,j in itertools.product(range(dFeatures[0]),range(dFeatures[1])):
+    grid = ConstructSample(env,[i,j])
+    if grid is None: continue
+    state_new = net.PredictState(state=grid)
+    fig=plt.figure(figsize=(5.5, 8))
+    fig.add_subplot(2,1,1)
+    plt.title("State")
+    imgplot = plt.imshow(grid[1:-1,1:-1,0])
+    fig.add_subplot(2,1,2)
+    plt.title("Predicted Next State")
+    imgplot = plt.imshow(state_new[0][0,1:-1,1:-1,0])
+    plt.show()
+    # input()

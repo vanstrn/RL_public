@@ -1,5 +1,7 @@
 { "EnvName":"MiniGrid-FourRooms-v0",
   "Seed":1,
+  "AgentLocation":[4,15],
+  "GoalLocation":[15,4],
   "ParralelFunctions":[],
   "StartingFunctions":["environments.MiniGrid.StartingSingle"],
   "BootstrapFunctions":["environments.MiniGrid.Bootstrap_Asynch"],

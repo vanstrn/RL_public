@@ -1,0 +1,95 @@
+{ "NetworkName" : "MG_SF",
+  "NetworkBuilder":"network",
+  "DefaultParams":{"SFSize":36},
+  "NetworkStructure":{
+    "Shared":[
+      { "layerType":"Conv2D",
+        "layerName":"Conv2D_1",
+        "layerInput":"input.state",
+        "Parameters":{"filters":16,
+                      "kernel_size":2,
+                      "strides":1,
+                      "activation":"relu"}},
+      { "layerType":"Conv2D",
+        "layerName":"Conv2D_2",
+        "layerInput":"Conv2D_1",
+        "Parameters":{"filters":32,
+                      "kernel_size":2,
+                      "strides":1,
+                      "activation":"relu"}},
+      { "layerType":"Flatten",
+        "layerName":"Flatten",
+        "layerInput":"Conv2D_2"},
+      { "layerType":"Dense",
+        "layerName":"Mean",
+        "layerInput":"Flatten",
+        "Parameters":{"units":"SFSize",
+                      "activation":"relu"}},
+      { "layerType":"Dense",
+        "layerName":"stdv",
+        "layerInput":"Flatten",
+        "Parameters":{"units":"SFSize",
+                      "activation":"relu"}}
+      ],
+
+    "GaussianNoise":[
+      { "layerType":"GaussianNoise",
+        "layerName":"GaussianNoise",
+        "layerInput":null,
+        "Parameters":{"stddev":0.1}},
+      { "layerType":"Multiply",
+        "layerName":"StandardDeviation",
+        "layerInput":["GaussianNoise","stdv"],
+        "Parameters":{}},
+      { "layerType":"Add",
+        "layerName":"Phi",
+        "layerInput":["Mean","StandardDeviation"],
+        "Parameters":{}}
+
+    ],
+
+    "Reconstruction":[
+      { "layerType":"Dense",
+        "layerName":"Reconstruction_Dense",
+        "layerInput":"Phi",
+        "Parameters":{"units":256,
+                      "activation":"relu"}},
+      { "layerType":"Reshape",
+        "layerName":"Reconstruction_Reshape",
+        "Parameters":{"target_shape":[4,4,16]},
+        "layerInput":"Reconstruction_Dense"},
+      { "layerType":"Conv2DTranspose",
+        "layerName":"Reconstruction_Conv1",
+        "layerInput":"Reconstruction_Reshape",
+        "Parameters":{"filters":16,
+                      "kernel_size":3,
+                      "strides":1,
+                      "activation":"relu"}},
+      { "layerType":"Conv2DTranspose",
+        "layerName":"Reconstruction_Conv2",
+        "layerInput":"Reconstruction_Conv1",
+        "Parameters":{"filters":8,
+                      "kernel_size":2,
+                      "strides":1,
+                      "activation":"relu"}},
+      { "layerType":"Conv2DTranspose",
+        "layerName":"Reconstruction_Conv3",
+        "layerInput":"Reconstruction_Conv2",
+        "Parameters":{"filters":2,
+                      "kernel_size":2,
+                      "strides":1,
+                      "activation":"relu"}}
+    ]
+
+  },
+  "NetworkOutputs":{
+    "prediction":"Reconstruction_Conv3",
+    "phi":"Dense1"
+  },
+
+  "NetworkVariableGroups":{
+    "Reconstruction":["Reconstruction","Shared"]
+  },
+  "TestInput":{"state":[null,7,7,4]}
+
+  }

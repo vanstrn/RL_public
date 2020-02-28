@@ -2,13 +2,14 @@ from tensorflow.keras import backend as K
 from tensorflow.keras.layers import Layer
 import numpy as np
 
-class ApproxRounding(Layer):
+class RoundingSawtooth(Layer):
     """Does approximate rounding with Sawtooth wave."""
-    def __init__(self, **kwargs):
+    def __init__(self, interval=1.0, **kwargs):
         super(ApproxRounding, self).__init__(**kwargs)
+        self.interval=interval
 
     def call(self, inputs):
-        return inputs - (K.sin(2*np.pi*inputs)-K.sin(4*np.pi*inputs)/2)/np.pi
+        return inputs - (K.sin(2*np.pi*inputs/self.interval)-K.sin(4*np.pi*inputs/self.interval)/2)/np.pi/self.interval
 
     def compute_output_shape(self, input_shape):
         return input_shape
@@ -21,11 +22,12 @@ class ApproxRounding(Layer):
 class RoundingSine(Layer):
     """Activation that rounds to integer within local region, else very linear"""
 
-    def __init__(self, **kwargs):
+    def __init__(self, interval=1.0, **kwargs):
         super(RoundingSine, self).__init__(**kwargs)
+        self.interval=interval
 
     def call(self, inputs):
-        return inputs - (K.sin(2*np.pi*inputs))/(2*np.pi)
+        return inputs - (K.sin(2*np.pi*inputs/self.interval))/(2*np.pi/self.interval)
 
     def compute_output_shape(self, input_shape):
         return input_shape
