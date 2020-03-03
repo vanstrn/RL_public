@@ -70,11 +70,10 @@ class Network(tf.keras.Model):
         else:
             for (dirpath, dirnames, filenames) in os.walk("configs/network"):
                 for filename in filenames:
-                    if "MG4R" in filename:
+                    if configFile in filename:
                         configFile = os.path.join(dirpath,filename)
                         break
             # raise
-
         with open(configFile) as json_file:
             data = json.load(json_file)
         data.update(netConfigOverride)

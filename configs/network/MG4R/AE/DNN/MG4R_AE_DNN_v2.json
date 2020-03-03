@@ -1,6 +1,6 @@
 { "NetworkName" : "MG4R_AE_DNN_v2",
   "NetworkBuilder":"network",
-  "DefaultParams":{"SFSize":36},
+  "DefaultParams":{"SFSize":400},
   "NetworkStructure":{
     "Shared":[
       { "layerType":"Flatten",
@@ -11,29 +11,35 @@
         "layerName":"Dense1",
         "layerInput":"Flatten",
         "Parameters":{"units":"SFSize",
-                      "activation":"elu"}}
+                      "activation":"relu"}},
+      { "layerType":"Dense",
+        "layerName":"Dense2",
+        "layerInput":"Dense1",
+        "Parameters":{"units":"SFSize",
+                      "activation":"relu"}}
       ],
 
     "Reconstruction":[
       { "layerType":"Dense",
-        "layerName":"Reconstruction_Dense",
-        "layerInput":"Dense1",
+        "layerName":"Reconstruction_Dense1",
+        "layerInput":"Dense2",
+        "Parameters":{"units":"SFSize",
+                      "activation":"relu"}},
+      { "layerType":"Dense",
+        "layerName":"Reconstruction_Dense2",
+        "layerInput":"Reconstruction_Dense1",
         "Parameters":{"units":722,
-                      "activation":"elu"}},
+                      "activation":"relu"}},
       { "layerType":"Reshape",
         "layerName":"Reconstruction_Reshape",
         "Parameters":{"target_shape":[19,19,2]},
-        "layerInput":"Reconstruction_Dense"},
-      { "layerType":"Round",
-        "layerName":"Reconstruction_Round",
-        "layerInput":"Reconstruction_Reshape",
-        "Parameters":{"interval":0.25}}
+        "layerInput":"Reconstruction_Dense2"}
     ]
 
   },
   "NetworkOutputs":{
-    "prediction":"Reconstruction_Round",
-    "phi":"Dense1"
+    "prediction":"Reconstruction_Reshape",
+    "phi":"Dense2"
   },
 
   "NetworkVariableGroups":{

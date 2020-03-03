@@ -84,7 +84,7 @@ class AE(Method):
             probs =np.full((state.shape[0],self.actionSize),p)
         actions = np.array([np.random.choice(probs.shape[1], p=prob / sum(prob)) for prob in probs])
         if debug: print(probs)
-        return actions ,[]  # return a int and extra data that needs to be fed to buffer.
+        return actions , []  # return a int and extra data that needs to be fed to buffer.
 
     def PredictState(self,state):
         s = state[np.newaxis, :]
@@ -111,7 +111,6 @@ class AE(Method):
                 self.s: self.buffer[traj][0][:clip],
                 self.s_next: self.buffer[traj][3][:clip],
                 self.a: np.asarray(self.buffer[traj][1][:clip]).reshape(-1),
-                # self.a_his: np.asarray(self.buffer[traj][1][:clip]).reshape(-1),
             }
 
             if not statistics:
@@ -155,11 +154,3 @@ class AE(Method):
     @property
     def getVars(self):
         return self.Model.getVars(self.scope)
-
-    @property
-    def getAParams(self):
-        return tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=self.Model.scope + '/Shared') + tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=self.Model.scope+ 'Actor')
-
-    @property
-    def getCParams(self):
-        return tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=self.Model.scope + '/Shared') + tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=self.Model.scope+ '/Critic')

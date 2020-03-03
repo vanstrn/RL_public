@@ -6,13 +6,14 @@
   "EnvHPs":{"MAX_EP_STEPS":300,
             "MAX_EP":500000,
             "SAVE_FREQ" : 1000,
-            "UPDATE_GLOBAL_ITER" : 350,
+            "UPDATE_GLOBAL_ITER" : 100,
             "LOG_FREQ" : 100,
-            "Gamma":0.9},
+            "Gamma":0.9,
+            "SampleEpisodes":10},
 
   "NumberENV":8,
   "EnvConfig":"MG_4R_Asynch.json",
-  "NetworkConfig":"MG4R_AE_v1.1.json",
+  "NetworkConfig":"MG4R_AE_CNN_v1.json",
   "Method":"methods.AutoEncoder.AE"
 
   }

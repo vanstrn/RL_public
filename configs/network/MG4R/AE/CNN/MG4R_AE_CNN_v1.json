@@ -1,6 +1,6 @@
 { "NetworkName" : "MG_SF",
   "NetworkBuilder":"network",
-  "DefaultParams":{"SFSize":36},
+  "DefaultParams":{"SFSize":400},
   "NetworkStructure":{
     "Shared":[
       { "layerType":"Conv2D",

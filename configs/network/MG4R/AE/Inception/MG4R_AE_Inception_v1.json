@@ -1,4 +1,4 @@
-{ "NetworkName" : "MG_SF",
+{ "NetworkName" : "MG_AE_Inception_v1",
   "NetworkBuilder":"network",
   "DefaultParams":{"SFSize":128},
   "NetworkStructure":{
