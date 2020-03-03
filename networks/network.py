@@ -11,6 +11,7 @@ from .layers.inception import Inception
 from .layers.reverse_inception import ReverseInception
 
 import collections.abc
+import os
 
 def update(d, u):
     for k, v in d.items():
@@ -34,7 +35,7 @@ def update(d, u):
 
 
 class Network(tf.keras.Model):
-    def __init__(self, configFile, actionSize, netConfigOverride={}, scope=None,debug=True, training=True):
+    def __init__(self, configFile, actionSize, netConfigOverride={}, scope=None,debug=False, training=True):
         """
         Reads a network config file and processes that into a netowrk with appropriate naming structure.
 
@@ -58,6 +59,21 @@ class Network(tf.keras.Model):
 
         self.debug =debug
         self.actionSize = actionSize
+
+        #Checking if JSON file is fully defined path or just a file name without path.
+        #If just a name, then it will search in default directory.
+        if "/" in configFile:
+            if ".json" in configFile:
+                pass
+            else:
+                configFile = configFile + ".json"
+        else:
+            for (dirpath, dirnames, filenames) in os.walk("configs/network"):
+                for filename in filenames:
+                    if "MG4R" in filename:
+                        configFile = os.path.join(dirpath,filename)
+                        break
+            # raise
 
         with open(configFile) as json_file:
             data = json.load(json_file)

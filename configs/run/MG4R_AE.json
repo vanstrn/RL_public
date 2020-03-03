@@ -1,7 +1,7 @@
-{ "RunName":"MG4R_AE_M4E",
+{ "RunName":"MG4R_AE_MSE",
   "GPUCapacitty":0.95,
-  "NetworkHPs":{"State LR": 1E-3,
-                "loss":"M4E"},
+  "NetworkHPs":{"State LR": 1E-2,
+                "loss":"MSE"},
 
   "EnvHPs":{"MAX_EP_STEPS":300,
             "MAX_EP":500000,

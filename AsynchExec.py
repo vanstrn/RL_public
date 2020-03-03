@@ -67,7 +67,7 @@ progbar = tf.keras.utils.Progbar(None, unit_name='Training',stateful_metrics=["R
 with tf.device('/cpu:0'):
     global_step = tf.Variable(0, trainable=False, name='global_step')
     global_step_next = tf.assign_add(global_step,1)
-    network = Network("configs/network/"+settings["NetworkConfig"],nActions,netConfigOverride,scope="Global")
+    network = Network(settings["NetworkConfig"],nActions,netConfigOverride,scope="Global")
     Method = GetFunction(settings["Method"])
     GLOBAL_AC = Method(network,sess,stateShape=dFeatures,actionSize=nActions,scope="Global",HPs=settings["NetworkHPs"])
     GLOBAL_AC.Model.summary()
@@ -78,7 +78,7 @@ with tf.device('/cpu:0'):
     workers = []
     for i in range(settings["NumberENV"]):
         i_name = 'W_%i' % i   # worker name
-        network = Network("configs/network/"+settings["NetworkConfig"],nActions,netConfigOverride,scope=i_name)
+        network = Network(settings["NetworkConfig"],nActions,netConfigOverride,scope=i_name)
         Method = GetFunction(settings["Method"])
         localNetwork = Method(network,sess,stateShape=dFeatures,actionSize=nActions,scope=i_name,HPs=settings["NetworkHPs"],globalAC=GLOBAL_AC,nTrajs=nTrajs)
         localNetwork.InitializeVariablesFromFile(saver,MODEL_PATH)

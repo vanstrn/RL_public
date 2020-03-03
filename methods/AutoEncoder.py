@@ -26,9 +26,10 @@ class AE(Method):
         self.scope=scope
         self.Model = sharedModel
         self.s = tf.placeholder(tf.float32, [None] + stateShape, 'S')
+        self.a = tf.placeholder(tf.float32, [None], 'A')
         self.s_next = tf.placeholder(tf.float32, [None] + stateShape, 'S_next')
 
-        input = {"state":self.s}
+        input = {"state":self.s,"action":self.a}
         out = self.Model(input)
         self.state_pred = out["prediction"]
         self.phi = out["phi"]
@@ -109,6 +110,7 @@ class AE(Method):
             feedDict = {
                 self.s: self.buffer[traj][0][:clip],
                 self.s_next: self.buffer[traj][3][:clip],
+                self.a: np.asarray(self.buffer[traj][1][:clip]).reshape(-1),
                 # self.a_his: np.asarray(self.buffer[traj][1][:clip]).reshape(-1),
             }
 
