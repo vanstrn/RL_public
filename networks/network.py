@@ -32,8 +32,13 @@ def update(d, u):
             if v in u.keys():
                 d[k] = u[v]
     return d
-
-
+def Update(defaultSettings,overrides):
+    for label,override in overrides.items():
+        if isinstance(override, collections.abc.Mapping):
+            Update(defaultSettings[label],override)
+        else:
+            defaultSettings[label] = override
+    return defaultSettings
 class Network(tf.keras.Model):
     def __init__(self, configFile, actionSize, netConfigOverride={}, scope=None,debug=False, training=True):
         """
@@ -76,7 +81,7 @@ class Network(tf.keras.Model):
             # raise
         with open(configFile) as json_file:
             data = json.load(json_file)
-        data.update(netConfigOverride)
+        data = Update(data,netConfigOverride)
         if scope is None:
             namespace = data["NetworkName"]
         else:

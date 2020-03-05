@@ -16,6 +16,7 @@ import json
 from utils.worker import Worker as Worker
 from utils.utils import MovingAverage
 import threading
+import collections.abc
 
 
 #Input arguments to override the default Config Files
@@ -36,13 +37,21 @@ else: envConfigOverride = {}
 if args.network is not None: netConfigOverride = json.loads(unquote(args.network))
 else: netConfigOverride = {}
 
+def Update(defaultSettings,overrides):
+    for label,override in overrides.items():
+        if isinstance(override, collections.abc.Mapping):
+            Update(defaultSettings[label],override)
+        else:
+            defaultSettings[label] = override
+    return defaultSettings
+
 #Defining parameters and Hyperparameters for the run.
 with open("configs/run/"+args.file) as json_file:
     settings = json.load(json_file)
-    settings.update(configOverride)
+    settings = Update(settings,configOverride)
 with open("configs/environment/"+settings["EnvConfig"]) as json_file:
     envSettings = json.load(json_file)
-    envSettings.update(envConfigOverride)
+    envSettings = Update(envSettings,envConfigOverride)
 
 EXP_NAME = settings["RunName"]
 MODEL_PATH = './models/'+EXP_NAME
