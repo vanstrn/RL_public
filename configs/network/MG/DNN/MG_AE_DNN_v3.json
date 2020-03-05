@@ -1,6 +1,6 @@
 { "NetworkName" : "MG4R_AE_DNN_v2",
   "NetworkBuilder":"network",
-  "DefaultParams":{"SFSize":20,"Hidden1":200},
+  "DefaultParams":{"SFSize":36,"Hidden1":200,"Hidden2":100},
   "NetworkStructure":{
     "Shared":[
       { "layerType":"Flatten",
@@ -10,11 +10,16 @@
       { "layerType":"Dense",
         "layerName":"Dense1",
         "layerInput":"Flatten",
-        "Parameters":{"units":"Hidden1",
+        "Parameters":{"units":"SFSize",
                       "activation":"relu"}},
       { "layerType":"Dense",
         "layerName":"Dense2",
         "layerInput":"Dense1",
+        "Parameters":{"units":"SFSize",
+                      "activation":"relu"}},
+      { "layerType":"Dense",
+        "layerName":"Dense3",
+        "layerInput":"Dense2",
         "Parameters":{"units":"SFSize",
                       "activation":"relu"}}
       ],
@@ -22,29 +27,34 @@
     "Reconstruction":[
       { "layerType":"Dense",
         "layerName":"Reconstruction_Dense1",
-        "layerInput":"Dense2",
-        "Parameters":{"units":"Hidden1",
+        "layerInput":"Dense3",
+        "Parameters":{"units":"SFSize",
                       "activation":"relu"}},
       { "layerType":"Dense",
         "layerName":"Reconstruction_Dense2",
         "layerInput":"Reconstruction_Dense1",
-        "Parameters":{"units":722,
+        "Parameters":{"units":"SFSize",
+                      "activation":"relu"}},
+      { "layerType":"Dense",
+        "layerName":"Reconstruction_Dense3",
+        "layerInput":"Reconstruction_Dense2",
+        "Parameters":{"units":128,
                       "activation":"relu"}},
       { "layerType":"Reshape",
         "layerName":"Reconstruction_Reshape",
-        "Parameters":{"target_shape":[19,19,2]},
-        "layerInput":"Reconstruction_Dense2"}
+        "Parameters":{"target_shape":[8,8,2]},
+        "layerInput":"Reconstruction_Dense3"}
     ]
 
   },
   "NetworkOutputs":{
     "prediction":"Reconstruction_Reshape",
-    "phi":"Dense2"
+    "phi":"Dense3"
   },
 
   "NetworkVariableGroups":{
     "Reconstruction":["Reconstruction","Shared"]
   },
-  "TestInput":{"state":[null,7,7,4]}
+  "TestInput":{"state":[null,8,8,2]}
 
   }

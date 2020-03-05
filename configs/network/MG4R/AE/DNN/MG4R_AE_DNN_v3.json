@@ -1,6 +1,6 @@
 { "NetworkName" : "MG4R_AE_DNN_v2",
   "NetworkBuilder":"network",
-  "DefaultParams":{"SFSize":400},
+  "DefaultParams":{"SFSize":100},
   "NetworkStructure":{
     "Shared":[
       { "layerType":"Flatten",
