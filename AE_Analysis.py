@@ -92,7 +92,7 @@ progbar = tf.keras.utils.Progbar(None, unit_name='Training',stateful_metrics=["R
 with tf.device('/cpu:0'):
     global_step = tf.Variable(0, trainable=False, name='global_step')
     global_step_next = tf.assign_add(global_step,1)
-    network = Network("configs/network/"+settings["NetworkConfig"],nActions,netConfigOverride,scope="Global")
+    network = Network(settings["NetworkConfig"],nActions,netConfigOverride,scope="Global")
     Method = GetFunction(settings["Method"])
     net = Method(network,sess,stateShape=dFeatures,actionSize=nActions,scope="Global",HPs=settings["NetworkHPs"])
 
@@ -101,7 +101,8 @@ net.InitializeVariablesFromFile(saver,MODEL_PATH)
 print(sess.run(tf.report_uninitialized_variables()))
 InitializeVariables(sess)
 
-
+LOG_PATH = './images/AE/'+EXP_NAME
+CreatePath(LOG_PATH)
 
 def ConstructSample(env,position):
     grid = env.grid.encode()
@@ -110,16 +111,25 @@ def ConstructSample(env,position):
     grid[position[0],position[1],0] = 10
     return grid[:,:,:2]
 
+#Add something for randomly sampling figures.
 for i,j in itertools.product(range(dFeatures[0]),range(dFeatures[1])):
     grid = ConstructSample(env,[i,j])
     if grid is None: continue
     state_new = net.PredictState(state=grid)
-    fig=plt.figure(figsize=(5.5, 8))
-    fig.add_subplot(2,1,1)
+    fig=plt.figure(figsize=(8, 8))
+    fig.add_subplot(2,2,1)
     plt.title("State")
     imgplot = plt.imshow(grid[1:-1,1:-1,0])
-    fig.add_subplot(2,1,2)
+    fig.add_subplot(2,2,2)
     plt.title("Predicted Next State")
     imgplot = plt.imshow(state_new[0][0,1:-1,1:-1,0])
-    plt.show()
+    fig.add_subplot(2,2,3)
+    plt.title("State")
+    imgplot = plt.imshow(grid[1:-1,1:-1,1])
+    fig.add_subplot(2,2,4)
+    plt.title("Predicted Next State")
+    imgplot = plt.imshow(state_new[0][0,1:-1,1:-1,1])
+    # plt.show()
+    plt.savefig(LOG_PATH+"/state"+str(i)+"_"+str(j)+".png")
+    plt.close()
     # input()
