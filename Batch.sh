@@ -1,0 +1,7 @@
+python AsynchExec.py -f MG_AE.json -c '{"RunName":"MG_AE_DNN_v2_Adam_4_200_16","NetworkConfig":"MG_AE_DNN_v2","NetworkHPs":{"State LR": 1E-4,"Optimizer":"Adam"}}' -n '{"DefaultParams":{"SFSize":16,"Hidden1":200}}' &
+python AsynchExec.py -f MG_AE.json -c '{"RunName":"MG_AE_DNN_v2_Adam_4_200_32","NetworkConfig":"MG_AE_DNN_v2","NetworkHPs":{"State LR": 1E-4,"Optimizer":"Adam"}}' -n '{"DefaultParams":{"SFSize":32,"Hidden1":200}}' &
+python AsynchExec.py -f MG_AE.json -c '{"RunName":"MG_AE_DNN_v2_Adam_4_200_64","NetworkConfig":"MG_AE_DNN_v2","NetworkHPs":{"State LR": 1E-4,"Optimizer":"Adam"}}' -n '{"DefaultParams":{"SFSize":64,"Hidden1":200}}' &
+python AsynchExec.py -f MG_AE.json -c '{"RunName":"MG_AE_DNN_v2_Adam_4_200_128","NetworkConfig":"MG_AE_DNN_v2","NetworkHPs":{"State LR": 1E-4,"Optimizer":"Adam"}}' -n '{"DefaultParams":{"SFSize":128,"Hidden1":200}}' &
+python AsynchExec.py -f MG_AE.json -c '{"RunName":"MG_AE_DNN_v2_Adam_4_200_256","NetworkConfig":"MG_AE_DNN_v2","NetworkHPs":{"State LR": 1E-4,"Optimizer":"Adam"}}' -n '{"DefaultParams":{"SFSize":256,"Hidden1":200}}' &
+python AsynchExec.py -f MG_AE.json -c '{"RunName":"MG_AE_DNN_v2_Adam_4_200_512","NetworkConfig":"MG_AE_DNN_v2","NetworkHPs":{"State LR": 1E-4,"Optimizer":"Adam"}}' -n '{"DefaultParams":{"SFSize":512,"Hidden1":200}}' &
+python AsynchExec.py -f MG_AE.json -c '{"RunName":"MG_AE_DNN_v2_Adam_4_200_1024","NetworkConfig":"MG_AE_DNN_v2","NetworkHPs":{"State LR": 1E-4,"Optimizer":"Adam"}}' -n '{"DefaultParams":{"SFSize":1024,"Hidden1":200}}'

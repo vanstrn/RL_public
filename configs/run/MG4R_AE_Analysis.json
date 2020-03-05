@@ -15,7 +15,7 @@
             "Gamma":0.9},
 
   "EnvConfig":"MG_4R_Asynch.json",
-  "NetworkConfig":"MG4R_AE_v1.1.json",
+  "NetworkConfig":"MG4R_AE_CNN_v1.json",
   "Method":"methods.AutoEncoder.AE"
 
   }

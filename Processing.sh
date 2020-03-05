@@ -1,0 +1,8 @@
+python AE_Analysis.py -f MG_AE_Analysis.json -c '{"RunName":"MG_AE_DNN_v1_RMS_3_128","NetworkConfig":"MG_AE_DNN_v1","NetworkHPs":{"State LR": 1E-3,"Optimizer":"RMS"}}' -n '{"DefaultParams":{"SFSize":128}}' 
+python AE_Analysis.py -f MG_AE_Analysis.json -c '{"RunName":"MG_AE_DNN_v1_RMS_4_128","NetworkConfig":"MG_AE_DNN_v1","NetworkHPs":{"State LR": 1E-4,"Optimizer":"RMS"}}' -n '{"DefaultParams":{"SFSize":128}}'
+python AE_Analysis.py -f MG_AE_Analysis.json -c '{"RunName":"MG_AE_DNN_v1_RMS_5_128","NetworkConfig":"MG_AE_DNN_v1","NetworkHPs":{"State LR": 1E-5,"Optimizer":"RMS"}}' -n '{"DefaultParams":{"SFSize":128}}'
+python AE_Analysis.py -f MG_AE_Analysis.json -c '{"RunName":"MG_AE_DNN_v1_RMS_6_128","NetworkConfig":"MG_AE_DNN_v1","NetworkHPs":{"State LR": 1E-6,"Optimizer":"RMS"}}' -n '{"DefaultParams":{"SFSize":128}}'
+python AE_Analysis.py -f MG_AE_Analysis.json -c '{"RunName":"MG_AE_DNN_v1_RMS_3_256","NetworkConfig":"MG_AE_DNN_v1","NetworkHPs":{"State LR": 1E-3,"Optimizer":"RMS"}}' -n '{"DefaultParams":{"SFSize":256}}'
+python AE_Analysis.py -f MG_AE_Analysis.json -c '{"RunName":"MG_AE_DNN_v1_RMS_4_256","NetworkConfig":"MG_AE_DNN_v1","NetworkHPs":{"State LR": 1E-4,"Optimizer":"RMS"}}' -n '{"DefaultParams":{"SFSize":256}}'
+python AE_Analysis.py -f MG_AE_Analysis.json -c '{"RunName":"MG_AE_DNN_v1_RMS_5_256","NetworkConfig":"MG_AE_DNN_v1","NetworkHPs":{"State LR": 1E-5,"Optimizer":"RMS"}}' -n '{"DefaultParams":{"SFSize":256}}'
+python AE_Analysis.py -f MG_AE_Analysis.json -c '{"RunName":"MG_AE_DNN_v1_RMS_6_256","NetworkConfig":"MG_AE_DNN_v1","NetworkHPs":{"State LR": 1E-6,"Optimizer":"RMS"}}' -n '{"DefaultParams":{"SFSize":256}}'
