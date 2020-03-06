@@ -23,6 +23,8 @@ def update(d, u):
                 if isinstance(val, collections.abc.Mapping):
                     tmp_dict = update(val, u)
                     list_new.append(tmp_dict)
+                elif isinstance(val, list):
+                    pass
                 elif val in u.keys():
                     list_new.append(u[val])
                 else:
@@ -40,7 +42,7 @@ def Update(defaultSettings,overrides):
             defaultSettings[label] = override
     return defaultSettings
 class Network(tf.keras.Model):
-    def __init__(self, configFile, actionSize, netConfigOverride={}, scope=None,debug=False, training=True):
+    def __init__(self, configFile, actionSize, netConfigOverride={}, scope=None,debug=True, training=True):
         """
         Reads a network config file and processes that into a netowrk with appropriate naming structure.
 

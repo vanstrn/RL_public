@@ -57,6 +57,134 @@ class FullyObsWrapper_v2(gym.core.ObservationWrapper):
             'image': full_grid[:,:,:2]
         }
 
+class FullyObsWrapper_v3(gym.core.ObservationWrapper):
+    """
+    Fully observable gridworld using a compact grid encoding
+    """
+
+    def __init__(self, env):
+        super().__init__(env)
+
+        self.observation_space.spaces["image"] = spaces.Box(
+            low=0,
+            high=255,
+            shape=(self.env.width, self.env.height, 1),  # number of cells
+            dtype='uint8'
+        )
+
+    def observation(self, obs):
+        env = self.unwrapped
+        full_grid = env.grid.encode()
+        full_grid[env.agent_pos[0]][env.agent_pos[1]] = np.array([
+            OBJECT_TO_IDX['agent'],
+            COLOR_TO_IDX['red'],
+            env.agent_dir
+        ])
+
+        return {
+            'mission': obs['mission'],
+            'image': full_grid[:,:,:1]
+        }
+class FullyObsWrapper_v4(gym.core.ObservationWrapper):
+    """
+    Fully observable gridworld using a compact grid encoding
+    """
+
+    def __init__(self, env):
+        super().__init__(env)
+
+        self.observation_space.spaces["image"] = spaces.Box(
+            low=0,
+            high=255,
+            shape=(self.env.width, self.env.height, 1),  # number of cells
+            dtype='uint8'
+        )
+
+    def observation(self, obs):
+        env = self.unwrapped
+        full_grid = env.grid.encode()
+        full_grid[env.agent_pos[0]][env.agent_pos[1]] = np.array([
+            OBJECT_TO_IDX['agent'],
+            COLOR_TO_IDX['red'],
+            env.agent_dir
+        ])
+        full_grid /= np.maximum(full_grid)
+        return {
+            'mission': obs['mission'],
+            'image': full_grid[:,:,:1]
+        }
+
+class StackedFrames_v1(gym.core.ObservationWrapper):
+    """
+    Fully observable gridworld using a compact grid encoding
+    """
+
+    def __init__(self, env,stackedFrames=4):
+        super().__init__(env)
+
+        self.observation_space.spaces["image"] = spaces.Box(
+            low=0,
+            high=255,
+            shape=(self.env.width, self.env.height, stackedFrames),  # number of cells
+            dtype='uint8'
+        )
+        self.stackedFrames = stackedFrames
+
+    def observation(self, obs):
+        env = self.unwrapped
+        full_grid = env.grid.encode()
+        full_grid[env.agent_pos[0]][env.agent_pos[1]] = np.array([
+            OBJECT_TO_IDX['agent'],
+            COLOR_TO_IDX['red'],
+            env.agent_dir
+        ])
+
+        if env.step_count == 0:
+            self.stack = [full_grid[:,:,:1]] * self.stackedFrames
+        else:
+            self.stack.append(full_grid[:,:,:1])
+            self.stack.pop(0)
+
+        np.squeeze(np.stack(self.stack,2))
+        return {
+            'mission': obs['mission'],
+            'image': np.squeeze(np.stack(self.stack,2))
+        }
+class StackedFrames_v2(gym.core.ObservationWrapper):
+    """
+    Fully observable gridworld using a compact grid encoding
+    """
+
+    def __init__(self, env,stackedFrames=4):
+        super().__init__(env)
+
+        self.observation_space.spaces["image"] = spaces.Box(
+            low=0,
+            high=255,
+            shape=(self.env.width, self.env.height, stackedFrames),  # number of cells
+            dtype='uint8'
+        )
+        self.stackedFrames = stackedFrames
+
+    def observation(self, obs):
+        env = self.unwrapped
+        full_grid = env.grid.encode()
+        full_grid[env.agent_pos[0]][env.agent_pos[1]] = np.array([
+            OBJECT_TO_IDX['agent'],
+            COLOR_TO_IDX['red'],
+            env.agent_dir
+        ])
+        full_grid /= np.maximum(full_grid)
+        if env.step_count == 0:
+            self.stack = [full_grid[:,:,:1]] * self.stackedFrames
+        else:
+            self.stack.append(full_grid[:,:,:1])
+            self.stack.pop(0)
+        return {
+            'mission': obs['mission'],
+            'image': np.squeeze(np.stack(self.stack,2))
+        }
+
 
 def RewardShape(s1,reward_raw,done_raw,env,envSettings,sess):
     # if not done_raw: reward_raw += -0.01
@@ -101,6 +229,38 @@ def StartingSingle(settings,envSettings,sess):
     env.max_steps=settings["EnvHPs"]["MAX_EP_STEPS"]
     env = DiscreteAction(env)
     env = FullyObsWrapper_v2(env)
+    numberFeatures = env.observation_space["image"].shape
+    numberActions = env.action_space.n
+    # numberActions=3
+
+    return env, list(numberFeatures), numberActions, 1
+
+def StartingSinglePixel(settings,envSettings,sess):
+    if envSettings["EnvName"] == "MiniGrid-Empty-8x8-v0":
+        env = gym.make(envSettings["EnvName"],)
+    elif envSettings["EnvName"]=="MiniGrid-FourRooms-v0":
+        env = gym.make(envSettings["EnvName"],goal_pos=envSettings["GoalLocation"],agent_pos=envSettings["AgentLocation"])
+    else:
+        env = gym.make(envSettings["EnvName"],)
+    env.max_steps=settings["EnvHPs"]["MAX_EP_STEPS"]
+    env = DiscreteAction(env)
+    env = RGBImgObsWrapper(env,tile_size=6)
+    numberFeatures = env.observation_space["image"].shape
+    numberActions = env.action_space.n
+    # numberActions=3
+
+    return env, list(numberFeatures), numberActions, 1
+
+def StartingSingleStacked(settings,envSettings,sess):
+    if envSettings["EnvName"] == "MiniGrid-Empty-8x8-v0":
+        env = gym.make(envSettings["EnvName"],)
+    elif envSettings["EnvName"]=="MiniGrid-FourRooms-v0":
+        env = gym.make(envSettings["EnvName"],goal_pos=envSettings["GoalLocation"],agent_pos=envSettings["AgentLocation"])
+    else:
+        env = gym.make(envSettings["EnvName"],)
+    env.max_steps=settings["EnvHPs"]["MAX_EP_STEPS"]
+    env = DiscreteAction(env)
+    env = StackedFrames_v1(env)
     numberFeatures = env.observation_space["image"].shape
     numberActions = env.action_space.n
     # numberActions=3

@@ -28,7 +28,10 @@ class AE(Method):
         self.Model = sharedModel
         self.s = tf.placeholder(tf.float32, [None] + stateShape, 'S')
         self.a = tf.placeholder(tf.float32, [None], 'A')
-        self.s_next = tf.placeholder(tf.float32, [None] + stateShape, 'S_next')
+        if "StackedDim" in self.HPs:
+            self.s_next = tf.placeholder(tf.float32, [None] + stateShape[:-1] +[self.HPs["StackedDim"]], 'S_next')
+        else:
+            self.s_next = tf.placeholder(tf.float32, [None] + stateShape, 'S_next')
 
         input = {"state":self.s,"action":self.a}
         out = self.Model(input)
@@ -64,6 +67,8 @@ class AE(Method):
                     self.optimizer = tf.keras.optimizers.Adamax(HPs["State LR"])
                 elif HPs["Optimizer"] == "Nadam":
                     self.optimizer = tf.keras.optimizers.Nadam(HPs["State LR"])
+                elif HPs["Optimizer"] == "SGD":
+                    self.optimizer = tf.keras.optimizers.SGD(HPs["State LR"])
                 elif HPs["Optimizer"] == "Amsgrad":
                     self.optimizer = tf.keras.optimizers.Nadam(HPs["State LR"],amsgrad=True)
 
@@ -125,7 +130,13 @@ class AE(Method):
             #Create a feedDict from the buffer
             batches = len(self.buffer[traj][0][:clip])//self.HPs["MinibatchSize"]+1
             s = np.array_split(self.buffer[traj][0][:clip], batches)
-            s_next = np.array_split(self.buffer[traj][3][:clip],batches)
+            if "StackedDim" in self.HPs:
+                # print(-self.HPs["StackedDim"])
+                # print(np.stack(self.buffer[traj][3][:clip])[:,:,:,-self.HPs["StackedDim"]].shape)
+                # print(self.buffer[traj][3][:clip][:,:,-self.HPs["StackedDim"]])
+                s_next = np.array_split(np.expand_dims(np.stack(self.buffer[traj][3][:clip])[:,:,:,-self.HPs["StackedDim"]],3),batches)
+            else:
+                s_next = np.array_split(self.buffer[traj][3][:clip],batches)
             a = np.array_split(np.asarray(self.buffer[traj][1][:clip]).reshape(-1),batches)
 
             for i in range(batches):
