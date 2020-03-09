@@ -4,7 +4,7 @@
                 "loss":"MSE",
                 "MinibatchSize":32,
                 "Optimizer":"Adam",
-                "StackedDim":1},
+                "StackedDim":4},
 
   "EnvHPs":{"MAX_EP_STEPS":300,
             "MAX_EP":15000,

@@ -33,7 +33,7 @@ import tensorflow as tf
 import argparse
 from urllib.parse import unquote
 
-from networks.network import Network
+from networks.networkAE import FFNetwork
 from utils.utils import InitializeVariables, CreatePath, interval_flag, GetFunction
 from utils.record import Record,SaveHyperparams
 import json
@@ -89,11 +89,11 @@ GLOBAL_RUNNING_R = MovingAverage(1000)
 
 progbar = tf.keras.utils.Progbar(None, unit_name='Training',stateful_metrics=["Reward"])
 #Creating the Networks and Methods of the Run.
-with tf.device('/cpu:0'):
+with tf.device('/gpu:0'):
     global_step = tf.Variable(0, trainable=False, name='global_step')
     global_step_next = tf.assign_add(global_step,1)
-    AE = Network(settings["NetworkConfig"],nActions,netConfigOverride,scope="Global")
-    AE.compile(optimizer="adadelta", loss="binary_crossentropy")
+    AE = FFNetwork(settings["NetworkConfig"],nActions,netConfigOverride,scope="Global")
+    AE.compile(optimizer="adadelta", loss="mse")
 
 # saver = tf.train.Saver(max_to_keep=3, var_list=net.getVars+[global_step])
 def GetAction(state,episode=0,step=0,deterministic=False,debug=False):
@@ -112,7 +112,7 @@ def GetAction(state,episode=0,step=0,deterministic=False,debug=False):
 s = []
 s_next = []
 for i in range(settings["EnvHPs"]["SampleEpisodes"]):
-
+    print(i)
     for functionString in envSettings["BootstrapFunctions"]:
         BootstrapFunctions = GetFunction(functionString)
         s0, loggingDict = BootstrapFunctions(env,settings,envSettings,sess)
@@ -145,34 +145,33 @@ for i in range(settings["EnvHPs"]["SampleEpisodes"]):
         if done.all():
             break
 
-print(len(s))
-print(len(s_next))
+print(np.stack(s).shape)
 
 AE.fit(
-    {"state":s},
-    s_next,
-    epochs=50,
+    np.stack(s),
+    np.stack(s_next),
+    epochs=5000,
     batch_size=256,
     shuffle=True)
     # validation_data=(s_test, s_next_test))
 
-# def ConstructSample(env,position):
-#     grid = env.grid.encode()
-#     if grid[position[0],position[1],1] == 5:
-#         return None
-#     grid[position[0],position[1],0] = 10
-#     return grid[:,:,:2]
+def ConstructSample(env,position):
+    grid = env.grid.encode()
+    if grid[position[0],position[1],1] == 5:
+        return None
+    grid[position[0],position[1],0] = 10
+    return grid[:,:,:2]
 #
-# for i,j in itertools.product(range(dFeatures[0]),range(dFeatures[1])):
-#     grid = ConstructSample(env,[i,j])
-#     if grid is None: continue
-#     state_new = net.PredictState(state=grid)
-#     fig=plt.figure(figsize=(5.5, 8))
-#     fig.add_subplot(2,1,1)
-#     plt.title("State")
-#     imgplot = plt.imshow(grid[1:-1,1:-1,0])
-#     fig.add_subplot(2,1,2)
-#     plt.title("Predicted Next State")
-#     imgplot = plt.imshow(state_new[0][0,1:-1,1:-1,0])
-#     plt.show()
-#     # input()
+for i,j in itertools.product(range(dFeatures[0]),range(dFeatures[1])):
+    grid = ConstructSample(env,[i,j])
+    if grid is None: continue
+    state_new = AE.predict(np.expand_dims(grid,0))
+    fig=plt.figure(figsize=(5.5, 8))
+    fig.add_subplot(2,1,1)
+    plt.title("State")
+    imgplot = plt.imshow(grid[1:-1,1:-1,0])
+    fig.add_subplot(2,1,2)
+    plt.title("Predicted Next State")
+    imgplot = plt.imshow(state_new[0,1:-1,1:-1,0])
+    plt.show()
+    # input()

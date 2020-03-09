@@ -134,7 +134,10 @@ class AE(Method):
                 # print(-self.HPs["StackedDim"])
                 # print(np.stack(self.buffer[traj][3][:clip])[:,:,:,-self.HPs["StackedDim"]].shape)
                 # print(self.buffer[traj][3][:clip][:,:,-self.HPs["StackedDim"]])
-                s_next = np.array_split(np.expand_dims(np.stack(self.buffer[traj][3][:clip])[:,:,:,-self.HPs["StackedDim"]],3),batches)
+                if self.HPs["StackedDim"] > 1:
+                    s_next = np.array_split(np.squeeze(self.buffer[traj][3][:clip])[:,:,:,-self.HPs["StackedDim"]:],3,batches)
+                else:
+                    s_next = np.array_split(np.expand_dims(np.stack(self.buffer[traj][3][:clip])[:,:,:,-self.HPs["StackedDim"]],3),batches)
             else:
                 s_next = np.array_split(self.buffer[traj][3][:clip],batches)
             a = np.array_split(np.asarray(self.buffer[traj][1][:clip]).reshape(-1),batches)

@@ -1,20 +1,19 @@
-{ "RunName":"MG4RSS_AE",
+{ "RunName":"MG4RP_AE",
   "GPUCapacitty":0.95,
   "NetworkHPs":{"State LR": 1E-4,
                 "loss":"MSE",
                 "MinibatchSize":32,
-                "Optimizer":"Adam",
-                "StackedDim":1},
+                "Optimizer":"Adam"},
 
   "EnvHPs":{"MAX_EP_STEPS":300,
             "MAX_EP":15000,
             "SAVE_FREQ" : 1000,
-            "UPDATE_GLOBAL_ITER" : 100,
+            "UPDATE_GLOBAL_ITER" : 301,
             "LOG_FREQ" : 100},
 
-  "NumberENV":4,
-  "EnvConfig":"MG4RSS_Asynch.json",
-  "NetworkConfig":"MG4RSS_AE_CNN_v1.json",
+  "NumberENV":1,
+  "EnvConfig":"MG4RG_Asynch.json",
+  "NetworkConfig":"MG4RP_AE_Lit.json",
   "Method":"methods.AutoEncoder.AE"
 
   }

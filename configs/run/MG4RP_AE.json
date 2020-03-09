@@ -8,7 +8,7 @@
   "EnvHPs":{"MAX_EP_STEPS":300,
             "MAX_EP":15000,
             "SAVE_FREQ" : 1000,
-            "UPDATE_GLOBAL_ITER" : 100,
+            "UPDATE_GLOBAL_ITER" : 301,
             "LOG_FREQ" : 100},
 
   "NumberENV":1,

@@ -29,6 +29,8 @@ parser.add_argument("-e", "--environment", required=False,
                     help="JSON configuration string to override environment parameters")
 parser.add_argument("-n", "--network", required=False,
                     help="JSON configuration string to override network parameters")
+parser.add_argument("-p", "--processor", required=False, default="/gpu:0",
+                    help="Processor identifier string. Ex. /cpu:0 /gpu:0")
 args = parser.parse_args()
 if args.config is not None: configOverride = json.loads(unquote(args.config))
 else: configOverride = {}
@@ -73,7 +75,7 @@ GLOBAL_EP_LEN = MovingAverage(400)
 
 progbar = tf.keras.utils.Progbar(None, unit_name='Training',stateful_metrics=["Reward"])
 #Creating the Networks and Methods of the Run.
-with tf.device('/cpu:0'):
+with tf.device(args.processor):
     global_step = tf.Variable(0, trainable=False, name='global_step')
     global_step_next = tf.assign_add(global_step,1)
     network = Network(settings["NetworkConfig"],nActions,netConfigOverride,scope="Global")

@@ -1,0 +1,13 @@
+{ "EnvName":"MiniGrid-FourRooms-v0",
+  "Seed":1,
+  "AgentLocation":null,
+  "GoalLocation":null,
+  "ParralelFunctions":[],
+  "StartingFunctions":["environments.MiniGrid.StartingSingleGrayscaleStacked"],
+  "BootstrapFunctions":["environments.MiniGrid.Bootstrap_Asynch"],
+  "ActionProcessingFunctions":[],
+  "StateProcessingFunctions":["environments.MiniGrid.StateProcessing"],
+  "RewardProcessingFunctions":["environments.MiniGrid.RewardShape"],
+  "LoggingFunctions":["environments.MiniGrid.Logging"],
+  "EpisodeClosingFunctions":["environments.MiniGrid.Closing"]
+  }

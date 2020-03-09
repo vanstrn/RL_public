@@ -22,7 +22,7 @@
                       "activation":"relu"}},
       { "layerType":"Reshape",
         "layerName":"Reconstruction_Reshape",
-        "Parameters":{"target_shape":[19,19,2]},
+        "Parameters":{"target_shape":[19,19,1]},
         "layerInput":"Reconstruction_Dense"}
     ]
 

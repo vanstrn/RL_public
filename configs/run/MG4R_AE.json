@@ -10,7 +10,7 @@
             "UPDATE_GLOBAL_ITER" : 100,
             "LOG_FREQ" : 100,
             "Gamma":0.9,
-            "SampleEpisodes":10},
+            "SampleEpisodes":100},
 
   "NumberENV":8,
   "EnvConfig":"MG_4R_Asynch.json",
