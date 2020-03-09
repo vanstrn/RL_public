@@ -16,6 +16,7 @@ import json
 from utils.worker import Worker as Worker
 from utils.utils import MovingAverage
 import threading
+import collections.abc
 
 
 #Input arguments to override the default Config Files
@@ -28,6 +29,8 @@ parser.add_argument("-e", "--environment", required=False,
                     help="JSON configuration string to override environment parameters")
 parser.add_argument("-n", "--network", required=False,
                     help="JSON configuration string to override network parameters")
+parser.add_argument("-p", "--processor", required=False, default="/gpu:0",
+                    help="Processor identifier string. Ex. /cpu:0 /gpu:0")
 args = parser.parse_args()
 if args.config is not None: configOverride = json.loads(unquote(args.config))
 else: configOverride = {}
@@ -36,13 +39,21 @@ else: envConfigOverride = {}
 if args.network is not None: netConfigOverride = json.loads(unquote(args.network))
 else: netConfigOverride = {}
 
+def Update(defaultSettings,overrides):
+    for label,override in overrides.items():
+        if isinstance(override, collections.abc.Mapping):
+            Update(defaultSettings[label],override)
+        else:
+            defaultSettings[label] = override
+    return defaultSettings
+
 #Defining parameters and Hyperparameters for the run.
 with open("configs/run/"+args.file) as json_file:
     settings = json.load(json_file)
-    settings.update(configOverride)
+    settings = Update(settings,configOverride)
 with open("configs/environment/"+settings["EnvConfig"]) as json_file:
     envSettings = json.load(json_file)
-    envSettings.update(envConfigOverride)
+    envSettings = Update(envSettings,envConfigOverride)
 
 EXP_NAME = settings["RunName"]
 MODEL_PATH = './models/'+EXP_NAME
@@ -64,10 +75,10 @@ GLOBAL_EP_LEN = MovingAverage(400)
 
 progbar = tf.keras.utils.Progbar(None, unit_name='Training',stateful_metrics=["Reward"])
 #Creating the Networks and Methods of the Run.
-with tf.device('/cpu:0'):
+with tf.device(args.processor):
     global_step = tf.Variable(0, trainable=False, name='global_step')
     global_step_next = tf.assign_add(global_step,1)
-    network = Network("configs/network/"+settings["NetworkConfig"],nActions,netConfigOverride,scope="Global")
+    network = Network(settings["NetworkConfig"],nActions,netConfigOverride,scope="Global")
     Method = GetFunction(settings["Method"])
     GLOBAL_AC = Method(network,sess,stateShape=dFeatures,actionSize=nActions,scope="Global",HPs=settings["NetworkHPs"])
     GLOBAL_AC.Model.summary()
@@ -78,7 +89,7 @@ with tf.device('/cpu:0'):
     workers = []
     for i in range(settings["NumberENV"]):
         i_name = 'W_%i' % i   # worker name
-        network = Network("configs/network/"+settings["NetworkConfig"],nActions,netConfigOverride,scope=i_name)
+        network = Network(settings["NetworkConfig"],nActions,netConfigOverride,scope=i_name)
         Method = GetFunction(settings["Method"])
         localNetwork = Method(network,sess,stateShape=dFeatures,actionSize=nActions,scope=i_name,HPs=settings["NetworkHPs"],globalAC=GLOBAL_AC,nTrajs=nTrajs)
         localNetwork.InitializeVariablesFromFile(saver,MODEL_PATH)

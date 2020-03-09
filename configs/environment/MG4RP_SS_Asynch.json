@@ -3,7 +3,7 @@
   "AgentLocation":null,
   "GoalLocation":null,
   "ParralelFunctions":[],
-  "StartingFunctions":["environments.MiniGrid.StartingSingle"],
+  "StartingFunctions":["environments.MiniGrid.StartingSingleGrayscaleStacked"],
   "BootstrapFunctions":["environments.MiniGrid.Bootstrap_Asynch"],
   "ActionProcessingFunctions":[],
   "StateProcessingFunctions":["environments.MiniGrid.StateProcessing"],

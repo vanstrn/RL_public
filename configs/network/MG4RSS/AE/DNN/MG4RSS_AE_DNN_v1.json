@@ -1,0 +1,40 @@
+{ "NetworkName" : "MG4R_AE_DNN_v1",
+  "NetworkBuilder":"network",
+  "DefaultParams":{"SFSize":20},
+  "NetworkStructure":{
+    "Shared":[
+      { "layerType":"Flatten",
+        "layerName":"Flatten",
+        "layerInput":"input.state",
+        "Parameters":{}},
+      { "layerType":"Dense",
+        "layerName":"Dense1",
+        "layerInput":"Flatten",
+        "Parameters":{"units":"SFSize",
+                      "activation":"relu"}}
+      ],
+
+    "Reconstruction":[
+      { "layerType":"Dense",
+        "layerName":"Reconstruction_Dense",
+        "layerInput":"Dense1",
+        "Parameters":{"units":722,
+                      "activation":"relu"}},
+      { "layerType":"Reshape",
+        "layerName":"Reconstruction_Reshape",
+        "Parameters":{"target_shape":[19,19,1]},
+        "layerInput":"Reconstruction_Dense"}
+    ]
+
+  },
+  "NetworkOutputs":{
+    "prediction":"Reconstruction_Reshape",
+    "phi":"Dense1"
+  },
+
+  "NetworkVariableGroups":{
+    "Reconstruction":["Reconstruction","Shared"]
+  },
+  "TestInput":{"state":[null,7,7,4]}
+
+  }

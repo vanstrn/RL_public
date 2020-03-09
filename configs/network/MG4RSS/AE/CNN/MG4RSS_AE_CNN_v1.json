@@ -1,6 +1,6 @@
 { "NetworkName" : "MG_SF",
   "NetworkBuilder":"network",
-  "DefaultParams":{"SFSize":36},
+  "DefaultParams":{"SFSize":400},
   "NetworkStructure":{
     "Shared":[
       { "layerType":"Conv2D",
@@ -55,7 +55,7 @@
       { "layerType":"Conv2DTranspose",
         "layerName":"Reconstruction_Conv3",
         "layerInput":"Reconstruction_Conv2",
-        "Parameters":{"filters":2,
+        "Parameters":{"filters":1,
                       "kernel_size":2,
                       "strides":1,
                       "activation":"elu"}},

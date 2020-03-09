@@ -1,0 +1,19 @@
+{ "RunName":"MG4RP_AE",
+  "GPUCapacitty":0.95,
+  "NetworkHPs":{"State LR": 1E-4,
+                "loss":"MSE",
+                "MinibatchSize":32,
+                "Optimizer":"Adam"},
+
+  "EnvHPs":{"MAX_EP_STEPS":300,
+            "MAX_EP":15000,
+            "SAVE_FREQ" : 1000,
+            "UPDATE_GLOBAL_ITER" : 301,
+            "LOG_FREQ" : 100},
+
+  "NumberENV":1,
+  "EnvConfig":"MG4RP_SS_Asynch.json",
+  "NetworkConfig":"MG4RP_AE_Lit.json",
+  "Method":"methods.AutoEncoder.AE"
+
+  }

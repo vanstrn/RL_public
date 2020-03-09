@@ -33,7 +33,7 @@ import tensorflow as tf
 import argparse
 from urllib.parse import unquote
 
-from networks.network import Network
+from networks.networkAE import FFNetwork
 from utils.utils import InitializeVariables, CreatePath, interval_flag, GetFunction
 from utils.record import Record,SaveHyperparams
 import json
@@ -89,20 +89,71 @@ GLOBAL_RUNNING_R = MovingAverage(1000)
 
 progbar = tf.keras.utils.Progbar(None, unit_name='Training',stateful_metrics=["Reward"])
 #Creating the Networks and Methods of the Run.
-with tf.device('/cpu:0'):
+with tf.device('/gpu:0'):
     global_step = tf.Variable(0, trainable=False, name='global_step')
     global_step_next = tf.assign_add(global_step,1)
-    network = Network(settings["NetworkConfig"],nActions,netConfigOverride,scope="Global")
-    Method = GetFunction(settings["Method"])
-    net = Method(network,sess,stateShape=dFeatures,actionSize=nActions,scope="Global",HPs=settings["NetworkHPs"])
+    AE = FFNetwork(settings["NetworkConfig"],nActions,netConfigOverride,scope="Global")
+    AE.compile(optimizer="adadelta", loss="mse")
 
-saver = tf.train.Saver(max_to_keep=3, var_list=net.getVars+[global_step])
-net.InitializeVariablesFromFile(saver,MODEL_PATH)
-print(sess.run(tf.report_uninitialized_variables()))
-InitializeVariables(sess)
+# saver = tf.train.Saver(max_to_keep=3, var_list=net.getVars+[global_step])
+def GetAction(state,episode=0,step=0,deterministic=False,debug=False):
+    """
+    Contains the code to run the network based on an input.
+    """
+    p = 1/nActions
+    if len(state.shape)==3:
+        probs =np.full((1,nActions),p)
+    else:
+        probs =np.full((state.shape[0],nActions),p)
+    actions = np.array([np.random.choice(probs.shape[1], p=prob / sum(prob)) for prob in probs])
+    if debug: print(probs)
+    return actions , []  # return a int and extra data that needs to be fed to buffer.
 
-LOG_PATH = './images/AE/'+EXP_NAME
-CreatePath(LOG_PATH)
+s = []
+s_next = []
+for i in range(settings["EnvHPs"]["SampleEpisodes"]):
+    print(i)
+    for functionString in envSettings["BootstrapFunctions"]:
+        BootstrapFunctions = GetFunction(functionString)
+        s0, loggingDict = BootstrapFunctions(env,settings,envSettings,sess)
+
+    for functionString in envSettings["StateProcessingFunctions"]:
+        StateProcessing = GetFunction(functionString)
+        s0 = StateProcessing(s0,env,envSettings,sess)
+
+    for j in range(settings["EnvHPs"]["MAX_EP_STEPS"]+1):
+
+        a, networkData = GetAction(state=s0,episode=0,step=j)
+
+        for functionString in envSettings["ActionProcessingFunctions"]:
+            ActionProcessing = GetFunction(functionString)
+            a = ActionProcessing(a,env,envSettings,sess)
+
+        s1,r,done,_ = env.step(a)
+        # env.render()
+        for functionString in envSettings["StateProcessingFunctions"]:
+            StateProcessing = GetFunction(functionString)
+            s1 = StateProcessing(s1,env,envSettings,sess)
+
+        for functionString in envSettings["RewardProcessingFunctions"]:
+            RewardProcessing = GetFunction(functionString)
+            r,done = RewardProcessing(s1,r,done,env,envSettings,sess)
+        s.append(s0)
+        s_next.append(s1)
+        s0 = s1
+
+        if done.all():
+            break
+
+print(np.stack(s).shape)
+
+AE.fit(
+    np.stack(s),
+    np.stack(s_next),
+    epochs=5000,
+    batch_size=256,
+    shuffle=True)
+    # validation_data=(s_test, s_next_test))
 
 def ConstructSample(env,position):
     grid = env.grid.encode()
@@ -110,26 +161,17 @@ def ConstructSample(env,position):
         return None
     grid[position[0],position[1],0] = 10
     return grid[:,:,:2]
-
-#Add something for randomly sampling figures.
+#
 for i,j in itertools.product(range(dFeatures[0]),range(dFeatures[1])):
     grid = ConstructSample(env,[i,j])
     if grid is None: continue
-    state_new = net.PredictState(state=grid)
-    fig=plt.figure(figsize=(8, 8))
-    fig.add_subplot(2,2,1)
+    state_new = AE.predict(np.expand_dims(grid,0))
+    fig=plt.figure(figsize=(5.5, 8))
+    fig.add_subplot(2,1,1)
     plt.title("State")
     imgplot = plt.imshow(grid[1:-1,1:-1,0])
-    fig.add_subplot(2,2,2)
+    fig.add_subplot(2,1,2)
     plt.title("Predicted Next State")
-    imgplot = plt.imshow(state_new[0][0,1:-1,1:-1,0])
-    fig.add_subplot(2,2,3)
-    plt.title("State")
-    imgplot = plt.imshow(grid[1:-1,1:-1,1])
-    fig.add_subplot(2,2,4)
-    plt.title("Predicted Next State")
-    imgplot = plt.imshow(state_new[0][0,1:-1,1:-1,1])
-    # plt.show()
-    plt.savefig(LOG_PATH+"/state"+str(i)+"_"+str(j)+".png")
-    plt.close()
+    imgplot = plt.imshow(state_new[0,1:-1,1:-1,0])
+    plt.show()
     # input()

@@ -13,6 +13,7 @@ from tensorflow.keras import backend as K
 
 
 import collections.abc
+import os
 
 def update(d, u):
     for k, v in d.items():
@@ -24,6 +25,8 @@ def update(d, u):
                 if isinstance(val, collections.abc.Mapping):
                     tmp_dict = update(val, u)
                     list_new.append(tmp_dict)
+                elif isinstance(val, list):
+                    pass
                 elif val in u.keys():
                     list_new.append(u[val])
                 else:
@@ -33,8 +36,13 @@ def update(d, u):
             if v in u.keys():
                 d[k] = u[v]
     return d
-
-
+def Update(defaultSettings,overrides):
+    for label,override in overrides.items():
+        if isinstance(override, collections.abc.Mapping):
+            Update(defaultSettings[label],override)
+        else:
+            defaultSettings[label] = override
+    return defaultSettings
 class Network(tf.keras.Model):
     def __init__(self, configFile, actionSize, netConfigOverride={}, scope=None,debug=False, training=True):
         """
@@ -61,9 +69,23 @@ class Network(tf.keras.Model):
         self.debug =debug
         self.actionSize = actionSize
 
+        #Checking if JSON file is fully defined path or just a file name without path.
+        #If just a name, then it will search in default directory.
+        if "/" in configFile:
+            if ".json" in configFile:
+                pass
+            else:
+                configFile = configFile + ".json"
+        else:
+            for (dirpath, dirnames, filenames) in os.walk("configs/network"):
+                for filename in filenames:
+                    if configFile in filename:
+                        configFile = os.path.join(dirpath,filename)
+                        break
+            # raise
         with open(configFile) as json_file:
             data = json.load(json_file)
-        data.update(netConfigOverride)
+        data = Update(data,netConfigOverride)
         if scope is None:
             namespace = data["NetworkName"]
         else:
