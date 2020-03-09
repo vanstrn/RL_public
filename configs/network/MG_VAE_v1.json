@@ -26,20 +26,25 @@
         "Parameters":{"units":"SFSize",
                       "activation":"relu"}},
       { "layerType":"Dense",
-        "layerName":"stdv",
+        "layerName":"log_var",
         "layerInput":"Flatten",
         "Parameters":{"units":"SFSize",
                       "activation":"relu"}}
       ],
 
-    "GaussianNoise":[
-      { "layerType":"GaussianNoise",
-        "layerName":"GaussianNoise",
+    "Sampling":[
+      { "layerType":"InputNoise",
+        "layerName":"eps",
         "layerInput":null,
-        "Parameters":{"stddev":0.1}},
+        "Parameters":{"size":"SFSize",
+                      "stddev":1.0}},
+      { "layerType":"Sigma",
+        "layerName":"Sigma",
+        "layerInput":"log_var",
+        "Parameters":{}},
       { "layerType":"Multiply",
         "layerName":"StandardDeviation",
-        "layerInput":["GaussianNoise","stdv"],
+        "layerInput":["eps","Sigma"],
         "Parameters":{}},
       { "layerType":"Add",
         "layerName":"Phi",
@@ -84,7 +89,8 @@
   },
   "NetworkOutputs":{
     "prediction":"Reconstruction_Conv3",
-    "phi":"Dense1"
+    "mu":"Mean",
+    "log_var":"log_var"
   },
 
   "NetworkVariableGroups":{

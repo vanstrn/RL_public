@@ -9,6 +9,8 @@ from .layers.non_local import Non_local_nn
 from .layers.approx_round import *
 from .layers.inception import Inception
 from .layers.reverse_inception import ReverseInception
+from tensorflow.keras import backend as K
+
 
 import collections.abc
 
@@ -34,7 +36,7 @@ def update(d, u):
 
 
 class Network(tf.keras.Model):
-    def __init__(self, configFile, actionSize, netConfigOverride={}, scope=None,debug=True, training=True):
+    def __init__(self, configFile, actionSize, netConfigOverride={}, scope=None,debug=False, training=True):
         """
         Reads a network config file and processes that into a netowrk with appropriate naming structure.
 
@@ -124,12 +126,14 @@ class Network(tf.keras.Model):
                 if self.debug: print("\tLayer Inputs",layerInputs)
                 if self.layerType[layerName] == "Concatenate" or self.layerType[layerName] == "Multiply" or self.layerType[layerName] == "Add":
                     output = layer(layerInputs)
-                if self.layerType[layerName] == "GaussianNoise":
+                elif self.layerType[layerName] == "GaussianNoise":
                     output = layer(layerInputs,training=training)
                 else:
                     output = layer(*layerInputs)
             else: # Single input layers
-                if "input" in self.layerInputs[layerName]:
+                if self.layerType[layerName] == "InputNoise":
+                    output = layer
+                elif "input" in self.layerInputs[layerName]:
                     _, input_name = self.layerInputs[layerName].rsplit('.',1)
                     if self.debug: print("\tLayer Input",inputs[input_name])
                     output = layer(inputs[input_name])
@@ -203,6 +207,11 @@ class Network(tf.keras.Model):
                 layer = KL.UpSampling2D(**dict["Parameters"],name=dict["layerName"])
             elif dict["layerType"] == "GaussianNoise":
                 layer = KL.GaussianNoise(**dict["Parameters"],name=dict["layerName"])
+            elif dict["layerType"] == "InputNoise":
+                layer = K.random_normal(stddev=dict["Parameters"]["stddev"],
+                                   shape=(1, dict["Parameters"]["size"]))
+            elif dict["layerType"] == "Sigma":
+                layer = KL.Lambda(lambda t: K.exp(.5*t))
         self.layerType[dict["layerName"]] = dict["layerType"]
 
         return layer
