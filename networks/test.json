@@ -1,94 +1,79 @@
-{ "NetworkName" : "Example",
+{ "NetworkName" : "MG_SF",
+  "NetworkBuilder":"network",
+  "DefaultParams":{"SFSize":256},
   "NetworkStructure":{
     "Shared":[
-      { "layerType":"SeparableConv",
-        "layerName":"SeparableConv",
-        "layerInput":"input",
-        "filters":16,
-        "kernel_size":5,
-        "strides":3,
-        "padding":"valid",
-        "depth_multiplier":2,
-        "activation":"relu"},
       { "layerType":"Conv2D",
         "layerName":"Conv2D_1",
-        "layerInput":"SeparableConv",
-        "filters":32,
-        "kernel_size":3,
-        "strides":2,
-        "activation":"relu"},
+        "layerInput":"input.state",
+        "Parameters":{"filters":16,
+                      "kernel_size":2,
+                      "strides":1,
+                      "activation":"elu"}},
+      { "layerType":"Conv2D",
+        "layerName":"Conv2D_2",
+        "layerInput":"Conv2D_1",
+        "Parameters":{"filters":32,
+                      "kernel_size":2,
+                      "strides":1,
+                      "activation":"elu"}},
       { "layerType":"Flatten",
         "layerName":"Flatten",
-        "layerInput":"Conv2D_1"},
+        "layerInput":"Conv2D_2",
+        "Parameters":{}},
       { "layerType":"Dense",
         "layerName":"Dense1",
         "layerInput":"Flatten",
-        "outputSize":256,
-        "activation":"relu"}
+        "Parameters":{"units":"SFSize",
+                      "activation":"elu"}}
       ],
 
-    "Actor":[
+    "Reconstruction":[
       { "layerType":"Dense",
-        "layerName":"Actor_FC",
+        "layerName":"Reconstruction_Dense",
         "layerInput":"Dense1",
-        "outputSize":"actionSize",
-        "activation":null},
-      { "layerType":"SoftMax",
-        "layerName":"Logits",
-        "layerInput":"Actor_FC"},
-      { "layerType":"LogSoftMax",
-        "layerName":"LogLogits",
-        "layerInput":"Actor_FC"}
-    ],
-
-    "Phi":[
-      { "layerType":"Dense",
-        "layerName":"Phi_FC1",
-        "layerInput":"Dense1",
-        "outputSize":256,
-        "activation":"relu"},
-      { "layerType":"Dense",
-        "layerName":"Phi_FC2",
-        "layerInput":"Phi_FC1",
-        "outputSize":1024,
-        "activation":"relu"}
-    ],
-
-    "Psi":[
-      { "layerType":"Dense",
-        "layerName":"Psi_FC1",
-        "layerInput":"Dense1",
-        "outputSize":256,
-        "activation":"relu"},
-      { "layerType":"Dense",
-        "layerName":"Psi_FC2",
-        "layerInput":"Psi_FC1",
-        "outputSize":1024,
-        "activation":"relu"}
-    ],
-
-    "Successor Layer":[
-      { "layerType":"Dense",
-        "layerName":"SuccessorLayer_Phi",
-        "layerInput":"Phi_FC2",
-        "outputSize":1,
-        "activation":"relu"},
-      { "layerType":"Dense",
-        "ReuseLayer":"SuccessorLayer_Phi",
-        "layerName":"SuccessorLayer_Psi",
-        "layerInput":"Psi_FC2",
-        "outputSize":1,
-        "activation":"relu"}
+        "Parameters":{"units":144,
+                      "activation":"elu"}},
+      { "layerType":"Reshape",
+        "layerName":"Reconstruction_Reshape",
+        "Parameters":{"target_shape":[3,3,16]},
+        "layerInput":"Reconstruction_Dense"},
+      { "layerType":"Conv2DTranspose",
+        "layerName":"Reconstruction_Conv1",
+        "layerInput":"Reconstruction_Reshape",
+        "Parameters":{"filters":16,
+                      "kernel_size":3,
+                      "strides":3,
+                      "activation":"elu"}},
+      { "layerType":"Conv2DTranspose",
+        "layerName":"Reconstruction_Conv2",
+        "layerInput":"Reconstruction_Conv1",
+        "Parameters":{"filters":8,
+                      "kernel_size":2,
+                      "strides":2,
+                      "activation":"elu"}},
+      { "layerType":"Conv2DTranspose",
+        "layerName":"Reconstruction_Conv3",
+        "layerInput":"Reconstruction_Conv2",
+        "Parameters":{"filters":2,
+                      "kernel_size":2,
+                      "strides":1,
+                      "activation":"elu"}},
+      { "layerType":"Round",
+        "layerName":"Reconstruction_Round",
+        "layerInput":"Reconstruction_Conv3",
+        "Parameters":{"interval":0.25}}
     ]
+
+  },
+  "NetworkOutputs":{
+    "prediction":"Reconstruction_Round",
+    "phi":"Dense1"
   },
 
-  "NetworkOutputs":{
-    "actor":"Logits",
-    "critic":"SuccessorLayer_Phi",
-    "log_logits":"LogLogits",
-    "phi":"Phi_FC2",
-    "sf_reward":"SuccessorLayer_Psi",
-    "psi":"Psi_FC2"
-  }
+  "NetworkVariableGroups":{
+    "Reconstruction":["Reconstruction","Shared"]
+  },
+  "TestInput":{"state":[null,7,7,4]}
 
   }
