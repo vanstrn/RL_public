@@ -1,0 +1,27 @@
+{ "RunName":"MG4R_OPSF",
+  "GPUCapacitty":0.95,
+  "NetworkHPs":{"Actor LR": 1E-4,
+                "Critic LR": 1E-4,
+                "State LR": 1E-4,
+                "Reward LR": 1E-4,
+                "Gamma":0.9,
+                "lambda":0.9,
+                "loss":"M4E",
+                "Optimizer":"Adam",
+                "MinibatchSize":256,
+                "BatchSize":5000,
+                "Epochs":1000},
+
+  "EnvHPs":{"MAX_EP_STEPS":100,
+            "MAX_EP":5000,
+            "SAVE_FREQ" : 1000,
+            "UPDATE_GLOBAL_ITER" : 300,
+            "LOG_FREQ" : 100,
+            "Gamma":0.9},
+
+  "NumberENV":1,
+  "EnvConfig":"MG_4R_Asynch.json",
+  "NetworkConfig":"MG4R_SF_DNN_v3.json",
+  "Method":"methods.OP_SF.OffPolicySF"
+
+  }

@@ -23,9 +23,8 @@ Note:
     Any pipeline or data manipulation is excluded: they are included in dataModule.py file.
 
 Todo:
-    * Finish documenting the module
-    * Move Experience_buffer from utils.py to this file.
-        * Require to change all imports
+    * Experience buffer
+    * Improve Trajectory by preventing samples that are done from adding new samples.
 
 """
 

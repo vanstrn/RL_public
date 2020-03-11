@@ -1,6 +1,5 @@
 """
-Sets up the basic Network Class which lays out all required functions of a Neural Network.
-
+Basic Keras functional models that can be used in ML type applications with the "fit" method to train the model.
 """
 import tensorflow as tf
 import tensorflow.keras.layers as KL
@@ -46,7 +45,7 @@ def FFNetwork2(self, configFile, actionSize, netConfigOverride={}, scope=None,de
     return network
 
 def FFNetwork3(self, configFile, actionSize, netConfigOverride={}, scope=None,debug=True, training=True):
-    input_img = KL.Input(shape=(19,19,2))
+    input_img = KL.Input(shape=(19,19,2),name="state")
     conv1 = KL.Conv2D(filters=16,kernel_size=3,strides=1,activation="elu")(input_img)
     conv2 = KL.Conv2D(filters=32,kernel_size=3,strides=1,activation="elu")(conv1)
     conv3 = KL.Conv2D(filters=64,kernel_size=3,strides=1,activation="elu")(conv2)
@@ -59,7 +58,7 @@ def FFNetwork3(self, configFile, actionSize, netConfigOverride={}, scope=None,de
     convT1 = KL.Conv2DTranspose(filters=16,kernel_size=3,strides=1,activation="elu")(reshape)
     convT2 = KL.Conv2DTranspose(filters=16,kernel_size=3,strides=1,activation="elu")(convT1)
     convT3 = KL.Conv2DTranspose(filters=16,kernel_size=3,strides=1,activation="elu")(convT2)
-    convT4 = KL.Conv2DTranspose(filters=2,kernel_size=3,strides=1,activation=None)(convT3)
+    convT4 = KL.Conv2DTranspose(filters=2,kernel_size=3,strides=1,activation=None, name="output")(convT3)
 
     network = tf.keras.models.Model(input_img,convT4)
     return network

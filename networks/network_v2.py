@@ -1,6 +1,10 @@
 """
-Sets up the basic Network Class which lays out all required functions of a Neural Network.
+Attempt to replicate features of the Functional Model within a sub-classed model.
 
+# TODO:
+-Create a model that has dictionary inputs and outputs.
+-Ability to run fit method with said dictionary outputs.
+-Ability to control which variables are updated with the fit method.
 """
 import tensorflow as tf
 import tensorflow.keras.layers as KL
@@ -174,9 +178,12 @@ class Network(tf.keras.Model):
             except: pass
 
         results = {}
+        results2 =[]
         for outputName,layerOutput in self.networkOutputs.items():
             results[outputName] = self.layerOutputs[layerOutput]
-        return results
+            results2.append(self.layerOutputs[layerOutput])
+        print(results2)
+        return results2
 
     def GetLayer(self, dict):
         """Based on a dictionary input the function returns the appropriate layer for the NN."""
@@ -246,18 +253,19 @@ if __name__ == "__main__":
     config = tf.ConfigProto(gpu_options=gpu_options, log_device_placement=False, allow_soft_placement=True)
     sess = tf.Session(config=config)
     test = Network(configFile="test.json",actionSize=4)
-    test.compile(optimizer="adam", loss={"output_2":"mse","output_1":None, })
-
+    test.compile(optimizer="adam", loss={"output_2":"mse","output_1":"mse", })
     x = np.random.rand(2,19,19,2)
     y = np.random.rand(2,256)
-    out = test({"state":x})
-    print(type(out))
+    # out = test({"state":x})
+    # exit()
+    # print(type(out))
 
-    # test.fit({"state":x},[x,y])
-    test.fit({"state":x},x)
+    test.fit({"state":x},[x,y])
+    # test.fit({"state":None},[None,None])
     # z = test.predict({"state":x})
     # print(type(z))
     print("asda")
     x = np.random.rand(15,19,19,2)
-    test.fit({"state":x},{"output_2":x})
+    y = np.random.rand(15,256)
+    test.fit({"state":x},{"output_1":x,"output_2":y})
     # test.fit({"state":x},{"output_2":x,"output_1":x})

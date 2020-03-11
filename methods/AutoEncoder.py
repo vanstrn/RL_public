@@ -92,6 +92,7 @@ class AE(Method):
             self.labels = ["State"]
 
             self.sess.run(self.pull_ops) #Pulling the variables from the global network to initialize.
+            self.clearBuffer = False
 
 
     def GetAction(self, state,episode=0,step=0,deterministic=False,debug=False):
@@ -118,66 +119,73 @@ class AE(Method):
         The second function is to Pull
         """
         #Process the data from the buffer
-        for traj in range(len(self.buffer)):
-            clip = -1
-            try:
-                for j in range(2):
-                    clip = self.buffer[traj][4].index(True, clip + 1)
-            except:
-                clip=len(self.buffer[traj][4])
+        samples=0
+        for i in range(len(self.buffer)):
+            samples +=len(self.buffer[i])
+        if samples < self.HPs["BatchSize"]:
+            return
+        self.clearBuffer = True
+        for epoch in range(self.HPs["Epochs"]):
+            for traj in range(len(self.buffer)):
+                clip = -1
+                # try:
+                #     for j in range(2):
+                #         clip = self.buffer[traj][4].index(True, clip + 1)
+                # except:
+                #     clip=len(self.buffer[traj][4])
 
 
-            #Create a feedDict from the buffer
-            batches = len(self.buffer[traj][0][:clip])//self.HPs["MinibatchSize"]+1
-            s = np.array_split(self.buffer[traj][0][:clip], batches)
-            if "StackedDim" in self.HPs:
-                # print(-self.HPs["StackedDim"])
-                # print(np.stack(self.buffer[traj][3][:clip])[:,:,:,-self.HPs["StackedDim"]].shape)
-                # print(self.buffer[traj][3][:clip][:,:,-self.HPs["StackedDim"]])
-                if self.HPs["StackedDim"] > 1:
-                    s_next = np.array_split(np.squeeze(self.buffer[traj][3][:clip])[:,:,:,-self.HPs["StackedDim"]:],3,batches)
+                #Create a feedDict from the buffer
+                batches = len(self.buffer[traj][0][:clip])//self.HPs["MinibatchSize"]+1
+                s = np.array_split(self.buffer[traj][0][:clip], batches)
+                if "StackedDim" in self.HPs:
+                    # print(-self.HPs["StackedDim"])
+                    # print(np.stack(self.buffer[traj][3][:clip])[:,:,:,-self.HPs["StackedDim"]].shape)
+                    # print(self.buffer[traj][3][:clip][:,:,-self.HPs["StackedDim"]])
+                    if self.HPs["StackedDim"] > 1:
+                        s_next = np.array_split(np.squeeze(self.buffer[traj][3][:clip])[:,:,:,-self.HPs["StackedDim"]:],3,batches)
+                    else:
+                        s_next = np.array_split(np.expand_dims(np.stack(self.buffer[traj][3][:clip])[:,:,:,-self.HPs["StackedDim"]],3),batches)
                 else:
-                    s_next = np.array_split(np.expand_dims(np.stack(self.buffer[traj][3][:clip])[:,:,:,-self.HPs["StackedDim"]],3),batches)
-            else:
-                s_next = np.array_split(self.buffer[traj][3][:clip],batches)
-            a = np.array_split(np.asarray(self.buffer[traj][1][:clip]).reshape(-1),batches)
+                    s_next = np.array_split(self.buffer[traj][3][:clip],batches)
+                a = np.array_split(np.asarray(self.buffer[traj][1][:clip]).reshape(-1),batches)
 
-            for i in range(batches):
-                feedDict = {
-                    self.s: s[i],
-                    self.s_next: s_next[i],
-                    self.a: a[i],
-                    }
+                for i in range(batches):
+                    feedDict = {
+                        self.s: s[i],
+                        self.s_next: s_next[i],
+                        self.a: a[i],
+                        }
 
-                if not statistics:
-                    self.sess.run(self.update_ops, feedDict)   # local grads applied to global net.
-                else:
-                    #Perform update operations
-                    try:
-                        out = self.sess.run(self.update_ops+self.losses+self.grads, feedDict)   # local grads applied to global net.
-                        out = np.array_split(out,3)
-                        losses = out[1]
-                        grads = out[2]
+                    if not statistics:
+                        self.sess.run(self.update_ops, feedDict)   # local grads applied to global net.
+                    else:
+                        #Perform update operations
+                        try:
+                            out = self.sess.run(self.update_ops+self.losses+self.grads, feedDict)   # local grads applied to global net.
+                            out = np.array_split(out,3)
+                            losses = out[1]
+                            grads = out[2]
 
-                        for i,loss in enumerate(losses):
-                            self.loss_MA[i].append(loss)
+                            for i,loss in enumerate(losses):
+                                self.loss_MA[i].append(loss)
 
-                        for i,grads_i in enumerate(grads):
-                            total_counter = 0
-                            vanish_counter = 0
-                            for grad in grads_i:
-                                total_counter += np.prod(grad.shape)
-                                vanish_counter += (np.absolute(grad)<1e-6).sum()
-                            self.grad_MA[i].append(vanish_counter/total_counter)
-                    except:
-                        out = self.sess.run(self.update_ops+self.losses, feedDict)   # local grads applied to global net.
-                        out = np.array_split(out,2)
-                        losses = out[1]
+                            for i,grads_i in enumerate(grads):
+                                total_counter = 0
+                                vanish_counter = 0
+                                for grad in grads_i:
+                                    total_counter += np.prod(grad.shape)
+                                    vanish_counter += (np.absolute(grad)<1e-6).sum()
+                                self.grad_MA[i].append(vanish_counter/total_counter)
+                        except:
+                            out = self.sess.run(self.update_ops+self.losses, feedDict)   # local grads applied to global net.
+                            out = np.array_split(out,2)
+                            losses = out[1]
 
-                        for i,loss in enumerate(losses):
-                            self.loss_MA[i].append(loss)
+                            for i,loss in enumerate(losses):
+                                self.loss_MA[i].append(loss)
 
-        self.sess.run(self.pull_ops)   # global variables synched to the local net.
+            self.sess.run(self.pull_ops)   # global variables synched to the local net.
 
 
     def GetStatistics(self):
@@ -186,6 +194,12 @@ class AE(Method):
             dict["Training Results/Vanishing Gradient " + label] = self.grad_MA[i]()
             dict["Training Results/Loss " + label] = self.loss_MA[i]()
         return dict
+
+    def ClearTrajectory(self):
+        if self.clearBuffer:
+            for traj in self.buffer:
+                traj.clear()
+            self.clearBuffer=False
 
     @property
     def getVars(self):

@@ -111,7 +111,8 @@ def GetAction(state,episode=0,step=0,deterministic=False,debug=False):
 
 s = []
 s_next = []
-for i in range(settings["EnvHPs"]["SampleEpisodes"]):
+for i in range(2):
+# for i in range(settings["EnvHPs"]["SampleEpisodes"]):
     for functionString in envSettings["BootstrapFunctions"]:
         BootstrapFunctions = GetFunction(functionString)
         s0, loggingDict = BootstrapFunctions(env,settings,envSettings,sess)
@@ -160,7 +161,8 @@ class ImageGenerator(tf.keras.callbacks.Callback):
     def on_epoch_end(self,epoch, logs=None):
         if epoch%500 == 0:
             for i in range(15):
-                state = s[i*300]
+                state = s[i]
+                # state = s[i*300]
                 state_new = AE.predict(np.expand_dims(state,0))
                 fig=plt.figure(figsize=(5.5, 8))
                 fig.add_subplot(2,1,1)
@@ -173,8 +175,8 @@ class ImageGenerator(tf.keras.callbacks.Callback):
                 plt.close()
 
 AE.fit(
-    np.stack(s),
-    np.stack(s_next),
+    {"state":np.stack(s)},
+    {"output":np.stack(s_next)},
     epochs=5000,
     batch_size=512,
     shuffle=True,
