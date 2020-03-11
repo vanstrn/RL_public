@@ -13,22 +13,26 @@ import numpy as np
 from utils.utils import MovingAverage
 from utils.record import Record
 
-class SF(Method):
+class OffPolicySF(Method):
 
     def __init__(self,sharedModel,sess,stateShape,actionSize,scope,HPs,globalAC=None,nTrajs=1):
         """
+        Off policy Successor Representation using neural networks
+        Does not create an action for the
+
         Initializes I/O placeholders used for Tensorflow session runs.
         Initializes and Actor and Critic Network to be used for the purpose of RL.
         """
         #Placeholders
-
+        self.actionSize =actionSize
+        self.HPs = HPs
         self.sess=sess
         self.scope=scope
         self.Model = sharedModel
         self.s = tf.placeholder(tf.float32, [None] + stateShape, 'S')
         self.s_next = tf.placeholder(tf.float32, [None] + stateShape, 'S_next')
         self.reward = tf.placeholder(tf.float32, [None, ], 'R')
-        self.td_target = tf.placeholder(tf.float32, [None,data["DefaultParams"]["SFSize"]], 'TDtarget')
+        self.td_target = tf.placeholder(tf.float32, [None,self.Model.data["DefaultParams"]["SFSize"]], 'TDtarget')
 
         input = {"state":self.s}
         out = self.Model(input)
@@ -56,15 +60,37 @@ class SF(Method):
                     self.c_loss = tf.reduce_mean(sf_error,name="sf_loss")
 
                 with tf.name_scope('s_loss'):
-                    self.s_loss = tf.losses.mean_squared_error(self.state_pred,self.s_next)
+                    if HPs["loss"] == "MSE":
+                        self.s_loss = tf.losses.mean_squared_error(self.state_pred,self.s_next)
+                    elif HPs["loss"] == "KL":
+                        self.s_loss = tf.losses.KLD(self.state_pred,self.s_next)
+                    elif HPs["loss"] == "M4E":
+                        self.s_loss = tf.reduce_mean((self.state_pred-self.s_next)**4)
 
                 with tf.name_scope('r_loss'):
                     self.r_loss = tf.losses.mean_squared_error(self.reward,tf.squeeze(self.reward_pred))
 
+                if HPs["Optimizer"] == "Adam":
+                    self.optimizer = tf.keras.optimizers.Adam(HPs["State LR"])
+                elif HPs["Optimizer"] == "RMS":
+                    self.optimizer = tf.keras.optimizers.RMSProp(HPs["State LR"])
+                elif HPs["Optimizer"] == "Adagrad":
+                    self.optimizer = tf.keras.optimizers.Adagrad(HPs["State LR"])
+                elif HPs["Optimizer"] == "Adadelta":
+                    self.optimizer = tf.keras.optimizers.Adadelta(HPs["State LR"])
+                elif HPs["Optimizer"] == "Adamax":
+                    self.optimizer = tf.keras.optimizers.Adamax(HPs["State LR"])
+                elif HPs["Optimizer"] == "Nadam":
+                    self.optimizer = tf.keras.optimizers.Nadam(HPs["State LR"])
+                elif HPs["Optimizer"] == "SGD":
+                    self.optimizer = tf.keras.optimizers.SGD(HPs["State LR"])
+                elif HPs["Optimizer"] == "Amsgrad":
+                    self.optimizer = tf.keras.optimizers.Nadam(HPs["State LR"],amsgrad=True)
+
                 with tf.name_scope('local_grad'):
-                    self.c_grads = tf.gradients(self.c_loss, self.c_params)
-                    self.s_grads = tf.gradients(self.s_loss, self.s_params)
-                    self.r_grads = tf.gradients(self.r_loss, self.r_params)
+                    self.c_grads = self.optimizer.get_gradients(self.c_loss, self.c_params)
+                    self.s_grads = self.optimizer.get_gradients(self.s_loss, self.s_params)
+                    self.r_grads = self.optimizer.get_gradients(self.r_loss, self.r_params)
 
             with tf.name_scope('sync'):
                 with tf.name_scope('pull'):
@@ -73,18 +99,21 @@ class SF(Method):
                     self.pull_r_params_op = [l_p.assign(g_p) for l_p, g_p in zip(self.r_params, globalAC.r_params)]
 
                 with tf.name_scope('push'):
-                    self.update_c_op = tf.train.AdamOptimizer(HPs["Critic LR"]).apply_gradients(zip(self.c_grads, globalAC.c_params))
-                    self.update_s_op = tf.train.AdamOptimizer(HPs["State LR"]).apply_gradients(zip(self.s_grads, globalAC.s_params))
-                    self.update_r_op = tf.train.AdamOptimizer(HPs["Reward LR"]).apply_gradients(zip(self.r_grads, globalAC.r_params))
+                    self.update_c_op = self.optimizer.apply_gradients(zip(self.c_grads, globalAC.c_params))
+                    self.update_s_op = self.optimizer.apply_gradients(zip(self.s_grads, globalAC.s_params))
+                    self.update_r_op = self.optimizer.apply_gradients(zip(self.r_grads, globalAC.r_params))
 
-            self.update_ops = [,self.update_c_op,self.update_s_op,self.update_r_op]
-            self.pull_ops = [,self.pull_c_params_op,self.pull_s_params_op,self.pull_r_params_op]
-            self.grads = [,self.c_grads,self.s_grads,self.r_grads]
-            self.losses = [,self.c_loss,self.s_loss,self.r_loss]
+            self.update_ops = [self.update_c_op,self.update_s_op,self.update_r_op]
+            self.pull_ops = [self.pull_c_params_op,self.pull_s_params_op,self.pull_r_params_op]
+            self.grads = [self.c_grads,self.s_grads,self.r_grads]
+            self.losses = [self.c_loss,self.s_loss,self.r_loss]
 
             self.grad_MA = [MovingAverage(400) for i in range(len(self.grads))]
             self.loss_MA = [MovingAverage(400) for i in range(len(self.grads))]
             self.labels = ["Critic","State","Reward"]
+
+            self.sess.run(self.pull_ops) #Pulling the variables from the global network to initialize.
+            self.clearBuffer = False
 
     def GetAction(self, state,episode=0,step=0,deterministic=False,debug=False):
         """
@@ -94,7 +123,10 @@ class SF(Method):
         phi,psi = self.sess.run([self.phi, self.psi], {self.s: s})   # get probabilities for all actions
 
         p = 1/self.actionSize
-        probs =np.full((state[0],self.actionSize),p)
+        if len(state.shape)==3:
+            probs =np.full((1,self.actionSize),p)
+        else:
+            probs =np.full((state.shape[0],self.actionSize),p)
         actions = np.array([np.random.choice(probs.shape[1], p=prob / sum(prob)) for prob in probs])
 
         if debug: print(probs)
@@ -106,53 +138,68 @@ class SF(Method):
         The second function is to Pull
         """
         #Process the data from the buffer
+        samples=0
+        for i in range(len(self.buffer)):
+            samples +=len(self.buffer[i])
+        if samples < self.HPs["BatchSize"]:
+            return
+        self.clearBuffer = True
         for traj in range(len(self.buffer)):
+
             clip = -1
-            try:
-                for j in range(2):
-                    clip = self.buffer[traj][4].index(True, clip + 1)
-            except:
-                clip=len(self.buffer[traj][4])
+            td_diff = self.ProcessBuffer(HPs,traj,clip)
 
-            td_target = self.ProcessBuffer(HPs,traj,clip)
-
-            #Create a feedDict from the buffer
-            feedDict = {
-                self.s: self.buffer[traj][0][:clip],
-                self.reward: self.buffer[traj][2][:clip],
-                self.s_next: self.buffer[traj][3][:clip],
-                self.td_target: np.squeeze(td_target,1),
-            }
-
-            if not statistics:
-                self.sess.run(self.update_ops, feedDict)   # local grads applied to global net.
+            batches = len(self.buffer[traj][0][:clip])//self.HPs["MinibatchSize"]+1
+            if "StackedDim" in self.HPs:
+                if self.HPs["StackedDim"] > 1:
+                    s_next = np.array_split(np.squeeze(self.buffer[traj][3][:clip])[:,:,:,-self.HPs["StackedDim"]:],3,batches)
+                else:
+                    s_next = np.array_split(np.expand_dims(np.stack(self.buffer[traj][3][:clip])[:,:,:,-self.HPs["StackedDim"]],3),batches)
             else:
-                #Perform update operations
-                try:
-                    out = self.sess.run(self.update_ops+self.losses+self.grads, feedDict)   # local grads applied to global net.
-                    out = np.array_split(out,3)
-                    losses = out[1]
-                    grads = out[2]
+                s_next = np.array_split(self.buffer[traj][3][:clip],batches)
+            s = np.array_split(self.buffer[traj][0][:clip], batches)
+            reward = np.array_split(np.asarray(self.buffer[traj][2][:clip]).reshape(-1),batches)
+            psi_target = np.array_split(np.squeeze(td_diff),batches)
 
-                    for i,loss in enumerate(losses):
-                        self.loss_MA[i].append(loss)
+            for epoch in range(self.HPs["Epochs"]):
+                #Create a feedDict from the buffer
+                for i in range(batches):
+                    feedDict = {
+                        self.s: s[i],
+                        self.reward: reward[i],
+                        self.s_next: s_next[i],
+                        self.td_target: psi_target[i],
+                    }
 
-                    for i,grads_i in enumerate(grads):
-                        total_counter = 0
-                        vanish_counter = 0
-                        for grad in grads_i:
-                            total_counter += np.prod(grad.shape)
-                            vanish_counter += (np.absolute(grad)<1e-8).sum()
-                        self.grad_MA[i].append(vanish_counter/total_counter)
-                except:
-                    out = self.sess.run(self.update_ops+self.losses, feedDict)   # local grads applied to global net.
-                    out = np.array_split(out,2)
-                    losses = out[1]
+                    if not statistics:
+                        self.sess.run(self.update_ops, feedDict)   # local grads applied to global net.
+                    else:
+                        #Perform update operations
+                        try:
+                            out = self.sess.run(self.update_ops+self.losses+self.grads, feedDict)   # local grads applied to global net.
+                            out = np.array_split(out,3)
+                            losses = out[1]
+                            grads = out[2]
 
-                    for i,loss in enumerate(losses):
-                        self.loss_MA[i].append(loss)
+                            for i,loss in enumerate(losses):
+                                self.loss_MA[i].append(loss)
 
-        self.sess.run(self.pull_ops)   # global variables synched to the local net.
+                            for i,grads_i in enumerate(grads):
+                                total_counter = 0
+                                vanish_counter = 0
+                                for grad in grads_i:
+                                    total_counter += np.prod(grad.shape)
+                                    vanish_counter += (np.absolute(grad)<1e-8).sum()
+                                self.grad_MA[i].append(vanish_counter/total_counter)
+                        except:
+                            out = self.sess.run(self.update_ops+self.losses, feedDict)   # local grads applied to global net.
+                            out = np.array_split(out,2)
+                            losses = out[1]
+
+                            for i,loss in enumerate(losses):
+                                self.loss_MA[i].append(loss)
+
+            self.sess.run(self.pull_ops)   # global variables synched to the local net.
 
 
     def GetStatistics(self):
@@ -186,10 +233,15 @@ class SF(Method):
         # print("Starting Processing Buffer\n")
         # tracker.print_diff()
 
-
-        td_target, _ = gae(self.buffer[traj][5][:clip], self.buffer[traj][6][:clip], np.zeros_like(self.buffer[traj][5][0][:clip]),HPs["Gamma"],HPs["lambda"])
+        td_target, _ = gae(self.buffer[traj][5][:clip], self.buffer[traj][6][:clip], np.zeros_like(self.buffer[traj][5][0]),HPs["Gamma"],HPs["lambda"])
         # tracker.print_diff()
         return td_target
+
+    def ClearTrajectory(self):
+        if self.clearBuffer:
+            for traj in self.buffer:
+                traj.clear()
+            self.clearBuffer=False
 
 
     @property

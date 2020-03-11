@@ -58,16 +58,12 @@
         "Parameters":{"filters":2,
                       "kernel_size":2,
                       "strides":1,
-                      "activation":"elu"}},
-      { "layerType":"Round",
-        "layerName":"Reconstruction_Round",
-        "layerInput":"Reconstruction_Conv3",
-        "Parameters":{"interval":0.25}}
+                      "activation":"elu"}}
     ]
 
   },
   "NetworkOutputs":{
-    "prediction":"Reconstruction_Round",
+    "prediction":"Reconstruction_Conv3",
     "phi":"Dense1"
   },
 

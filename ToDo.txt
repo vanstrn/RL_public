@@ -1,15 +1,15 @@
 Environment Integration
-  Test A2C, A3C, and PPO with Gridworld environment.
   Test A2C, A3C, and PPO with CTF environment.
 
-A2C
-  Clean Formating
-
-A3C
+A2C & A3C
   Clean Formating
 
 PPO
-  N/A
+  Clean Formating and test
+
+SF
+  Test.
+  Fix value function estimation
 
 Q Learning
   Implement
@@ -35,3 +35,7 @@ Move to TF2
   Keras implementation should be similar. Check background functions.
 
 Switch to environment wrappers as they are cut down on run script.
+
+Buffers
+  Experience buffer
+  Improve Trajectory by preventing samples that are done from adding new samples.
