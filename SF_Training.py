@@ -91,8 +91,8 @@ def M4E(y_true,y_pred):
     return K.mean(K.pow(y_pred-y_true,4))
 
 with tf.device('/gpu:0'):
-    AE = FFNetwork3(settings["NetworkConfig"],nActions,netConfigOverride,scope="Global")
-    AE.compile(optimizer="adadelta", loss=M4E)
+    AE = SFNetwork(settings["NetworkConfig"],nActions,netConfigOverride,scope="Global")
+    AE.compile(optimizer="adam", loss=[M4E,"mse"], loss_weights = [1.0,1.0])
     try:AE.load_weights(MODEL_PATH+"/model.h5")
     except: print("Did not load weights")
 
@@ -111,6 +111,7 @@ def GetAction(state,episode=0,step=0,deterministic=False,debug=False):
 
 s = []
 s_next = []
+r_store = []
 for i in range(settings["EnvHPs"]["SampleEpisodes"]):
     for functionString in envSettings["BootstrapFunctions"]:
         BootstrapFunctions = GetFunction(functionString)
@@ -138,6 +139,7 @@ for i in range(settings["EnvHPs"]["SampleEpisodes"]):
             r,done = RewardProcessing(s1,r,done,env,envSettings,sess)
         s.append(s0)
         s_next.append(s1)
+        r_store.append(r)
         s0 = s1
 
         if done.all():
@@ -152,7 +154,6 @@ class SaveModel(tf.keras.callbacks.Callback):
             model_json = AE.to_json()
             with open(MODEL_PATH+"model.json", "w") as json_file:
                 json_file.write(model_json)
-            # serialize weights to HDF5
             AE.save_weights(MODEL_PATH+"model.h5")
             print("Saved model to disk")
 
@@ -161,20 +162,20 @@ class ImageGenerator(tf.keras.callbacks.Callback):
         if epoch%500 == 0:
             for i in range(15):
                 state = s[i*300]
-                state_new = AE.predict(np.expand_dims(state,0))
+                [state_new,reward] = AE.predict(np.expand_dims(state,0))
                 fig=plt.figure(figsize=(5.5, 8))
                 fig.add_subplot(2,1,1)
                 plt.title("State")
                 imgplot = plt.imshow(state[:,:,0], vmin=0, vmax=10)
                 fig.add_subplot(2,1,2)
-                plt.title("Predicted Next State")
+                plt.title("Predicted Next State - Reward: " + str(reward))
                 imgplot = plt.imshow(state_new[0,:,:,0],vmin=0, vmax=10)
                 plt.savefig(LOG_PATH+"/test"+str(i)+".png")
                 plt.close()
 
 AE.fit(
     np.stack(s),
-    np.stack(s_next),
+    [np.stack(s_next),np.stack(r_store)],
     epochs=5000,
     batch_size=512,
     shuffle=True,
