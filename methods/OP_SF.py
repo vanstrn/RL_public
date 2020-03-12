@@ -71,7 +71,9 @@ class OffPolicySF(Method):
                     self.r_loss = tf.losses.mean_squared_error(self.reward,tf.squeeze(self.reward_pred))
 
                 if HPs["Optimizer"] == "Adam":
-                    self.optimizer = tf.keras.optimizers.Adam(HPs["State LR"])
+                    self.Coptimizer = tf.keras.optimizers.Adam(HPs["Critic LR"])
+                    self.Soptimizer = tf.keras.optimizers.Adam(HPs["State LR"])
+                    self.Roptimizer = tf.keras.optimizers.Adam(HPs["Reward LR"])
                 elif HPs["Optimizer"] == "RMS":
                     self.optimizer = tf.keras.optimizers.RMSProp(HPs["State LR"])
                 elif HPs["Optimizer"] == "Adagrad":
@@ -88,9 +90,9 @@ class OffPolicySF(Method):
                     self.optimizer = tf.keras.optimizers.Nadam(HPs["State LR"],amsgrad=True)
 
                 with tf.name_scope('local_grad'):
-                    self.c_grads = self.optimizer.get_gradients(self.c_loss, self.c_params)
-                    self.s_grads = self.optimizer.get_gradients(self.s_loss, self.s_params)
-                    self.r_grads = self.optimizer.get_gradients(self.r_loss, self.r_params)
+                    self.c_grads = self.Coptimizer.get_gradients(self.c_loss, self.c_params)
+                    self.s_grads = self.Soptimizer.get_gradients(self.s_loss, self.s_params)
+                    self.r_grads = self.Roptimizer.get_gradients(self.r_loss, self.r_params)
 
             with tf.name_scope('sync'):
                 with tf.name_scope('pull'):
@@ -99,9 +101,9 @@ class OffPolicySF(Method):
                     self.pull_r_params_op = [l_p.assign(g_p) for l_p, g_p in zip(self.r_params, globalAC.r_params)]
 
                 with tf.name_scope('push'):
-                    self.update_c_op = self.optimizer.apply_gradients(zip(self.c_grads, globalAC.c_params))
-                    self.update_s_op = self.optimizer.apply_gradients(zip(self.s_grads, globalAC.s_params))
-                    self.update_r_op = self.optimizer.apply_gradients(zip(self.r_grads, globalAC.r_params))
+                    self.update_c_op = self.Coptimizer.apply_gradients(zip(self.c_grads, globalAC.c_params))
+                    self.update_s_op = self.Soptimizer.apply_gradients(zip(self.s_grads, globalAC.s_params))
+                    self.update_r_op = self.Roptimizer.apply_gradients(zip(self.r_grads, globalAC.r_params))
 
             self.update_ops = [self.update_c_op,self.update_s_op,self.update_r_op]
             self.pull_ops = [self.pull_c_params_op,self.pull_s_params_op,self.pull_r_params_op]
