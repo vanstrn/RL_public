@@ -101,15 +101,15 @@ def SFNetwork(self, configFile, actionSize, netConfigOverride={}, scope=None,deb
     return network
 
 
-def SFNetwork2(self, configFile, actionSize, netConfigOverride={}, scope=None, debug=True, training=True):
+def SFNetwork2(self, configFile, actionSize, netConfigOverride={}, scope=None, debug=True, training=False):
     input_img = KL.Input(shape=(19,19,2))
-    conv1 = KL.Conv2D(filters=16,kernel_size=3,strides=1,activation="elu")(input_img)
-    conv2 = KL.Conv2D(filters=32,kernel_size=3,strides=1,activation="elu")(conv1)
-    conv3 = KL.Conv2D(filters=64,kernel_size=3,strides=1,activation="elu")(conv2)
-    conv4 = KL.Conv2D(filters=64,kernel_size=3,strides=1,activation="elu")(conv3)
+    conv1 = KL.Conv2D(filters=16,kernel_size=3,strides=1,activation="elu", trainable=training)(input_img)
+    conv2 = KL.Conv2D(filters=32,kernel_size=3,strides=1,activation="elu", trainable=training)(conv1)
+    conv3 = KL.Conv2D(filters=64,kernel_size=3,strides=1,activation="elu", trainable=training)(conv2)
+    conv4 = KL.Conv2D(filters=64,kernel_size=3,strides=1,activation="elu", trainable=training)(conv3)
     flat = KL.Flatten()(conv4)
-    l1 = KL.Dense(200,activation="relu")(flat)
-    encoded = KL.Dense(256,activation="relu")(l1)
+    l1 = KL.Dense(200,activation="relu", trainable=training)(flat)
+    encoded = KL.Dense(256,activation="relu", trainable=training)(l1)
     l1_ = KL.Dense(968,activation="relu")(encoded)
     reshape = KL.Reshape((11,11,8))(l1_)
     convT1 = KL.Conv2DTranspose(filters=16,kernel_size=3,strides=1,activation="elu")(reshape)

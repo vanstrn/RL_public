@@ -44,6 +44,7 @@ import itertools
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 import tensorflow.keras.backend as K
+from random import randint
 
 #Input arguments to override the default Config Files
 parser = argparse.ArgumentParser()
@@ -113,7 +114,6 @@ s_next = []
 r_store = []
 for i in range(settings["EnvHPs"]["SampleEpisodes"]):
     for functionString in envSettings["BootstrapFunctions"]:
-        env.seed(1337)
         BootstrapFunctions = GetFunction(functionString)
         s0, loggingDict = BootstrapFunctions(env,settings,envSettings,sess)
 
@@ -160,7 +160,7 @@ class ImageGenerator(tf.keras.callbacks.Callback):
     def on_epoch_end(self,epoch, logs=None):
         if epoch%250 == 0:
             for i in range(15):
-                state = s[i*300]
+                state = s[i*300+randint(0,200)]
                 [state_new,reward] = SF.predict(np.expand_dims(state,0))
                 fig=plt.figure(figsize=(5.5, 8))
                 fig.add_subplot(2,1,1)
@@ -229,7 +229,7 @@ SF.compile(optimizer="adam", loss=[M4E,"mse"], loss_weights = [1.0,1.0])
 # SF.fit(
 #     np.stack(s),
 #     [np.stack(s_next),np.stack(r_store)],
-#     epochs=1500,
+#     epochs=2000,
 #     batch_size=512,
 #     shuffle=True,
 #     callbacks=[ImageGenerator(),SaveModel(),RewardTest()])
@@ -237,7 +237,7 @@ SF.compile(optimizer="adam", loss=[M4E,"mse"], loss_weights = [1.0,1.0])
 
 SF2.compile(optimizer="adam", loss="mse")
 phi = SF3.predict(np.stack(s))
-gamma=0.9
+gamma=0.99
 for i in range(50):
 
     psi_next = SF2.predict(np.stack(s_next))
