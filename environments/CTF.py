@@ -131,7 +131,7 @@ def Logging(loggingDict,s1,r,done,env,envSettings,sess):
         if not done[i]: loggingDict["tracking_r"][i].append(envR)
     return loggingDict
 
-def Closing(loggingDict,env,settings,envSetting,sess,progbar,GLOBAL_RUNNING_R=None):
+def Closing(loggingDict,env,settings,envSetting,sess,progbar,GLOBAL_RUNNING_R=None,GLOBAL_EP_LEN=None):
     if GLOBAL_RUNNING_R is not None:
         for i in range(len(loggingDict["tracking_r"])):
             try:

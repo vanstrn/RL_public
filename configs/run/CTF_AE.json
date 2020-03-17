@@ -1,0 +1,23 @@
+{ "RunName":"CTF_AE_M4E",
+  "GPUCapacitty":0.95,
+  "NetworkHPs":{"State LR": 1E-4,
+                "loss":"M4E",
+                "Optimizer":"Adam",
+                "MinibatchSize":512,
+                "BatchSize":10000,
+                "Epochs":1000},
+
+  "EnvHPs":{"MAX_EP_STEPS":150,
+            "MAX_EP":5000,
+            "SAVE_FREQ" : 50,
+            "UPDATE_GLOBAL_ITER" : 101,
+            "LOG_FREQ" : 100,
+            "Gamma":0.9,
+            "SampleEpisodes":100},
+
+  "NumberENV":1,
+  "EnvConfig":"CTF.json",
+  "NetworkConfig":"CTF_AE_CNN_v1.json",
+  "Method":"methods.AutoEncoder.AE"
+
+  }

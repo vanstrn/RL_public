@@ -89,7 +89,7 @@
 
   "NetworkVariableGroups":{
     "Critic":["Critic"],
-    "Reward":["SucessorRepresentation","Shared"],
+    "Reward":["SucessorRepresentation"],
     "Reconstruction":["Reconstruction","Shared"]
   },
   "TestInput":{"state":[null,7,7,4]}
