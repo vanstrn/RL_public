@@ -1,6 +1,6 @@
-{ "NetworkName" : "MG_SF",
+{ "NetworkName" : "CTF_AE",
   "NetworkBuilder":"network",
-  "DefaultParams":{"SFSize":400},
+  "DefaultParams":{"SFSize":512},
   "NetworkStructure":{
     "Shared":[
       { "layerType":"Conv2D",
@@ -34,7 +34,7 @@
       { "layerType":"Conv2D",
         "layerName":"Conv2D_5",
         "layerInput":"Conv2D_4",
-        "Parameters":{"filters":128,
+        "Parameters":{"filters":256,
                       "kernel_size":3,
                       "strides":1,
                       "activation":"elu"}},
@@ -45,6 +45,11 @@
       { "layerType":"Dense",
         "layerName":"Dense1",
         "layerInput":"Flatten",
+        "Parameters":{"units":1028,
+                      "activation":"elu"}},
+      { "layerType":"Dense",
+        "layerName":"Dense2",
+        "layerInput":"Dense1",
         "Parameters":{"units":"SFSize",
                       "activation":"elu"}}
       ],
@@ -52,7 +57,7 @@
     "Reconstruction":[
       { "layerType":"Dense",
         "layerName":"Reconstruction_Dense",
-        "layerInput":"Dense1",
+        "layerInput":"Dense2",
         "Parameters":{"units":968,
                       "activation":"elu"}},
       { "layerType":"Reshape",
@@ -97,7 +102,7 @@
       { "layerType":"Conv2DTranspose",
         "layerName":"Reconstruction_Conv6",
         "layerInput":"Reconstruction_Conv5",
-        "Parameters":{"filters":7,
+        "Parameters":{"filters":6,
                       "kernel_size":3,
                       "strides":1,
                       "activation":"elu"}}
@@ -106,7 +111,7 @@
   },
   "NetworkOutputs":{
     "prediction":"Reconstruction_Conv6",
-    "phi":"Dense1"
+    "phi":"Dense2"
   },
 
   "NetworkVariableGroups":{

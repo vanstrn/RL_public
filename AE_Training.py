@@ -91,7 +91,7 @@ def M4E(y_true,y_pred):
     return K.mean(K.pow(y_pred-y_true,4))
 
 with tf.device('/gpu:0'):
-    AE = FFNetwork3(settings["NetworkConfig"],nActions,netConfigOverride,scope="Global")
+    AE = CTF_FFNetwork3(settings["NetworkConfig"],nActions,netConfigOverride,scope="Global")
     AE.compile(optimizer="adadelta", loss=M4E)
     try:AE.load_weights(MODEL_PATH+"/model.h5")
     except: print("Did not load weights")
@@ -111,8 +111,8 @@ def GetAction(state,episode=0,step=0,deterministic=False,debug=False):
 
 s = []
 s_next = []
-for i in range(2):
-# for i in range(settings["EnvHPs"]["SampleEpisodes"]):
+# for i in range(15):
+for i in range(settings["EnvHPs"]["SampleEpisodes"]):
     for functionString in envSettings["BootstrapFunctions"]:
         BootstrapFunctions = GetFunction(functionString)
         s0, loggingDict = BootstrapFunctions(env,settings,envSettings,sess)
@@ -146,7 +146,6 @@ for i in range(2):
 
 LOG_PATH = './images/AE/'+EXP_NAME
 CreatePath(LOG_PATH)
-
 class SaveModel(tf.keras.callbacks.Callback):
     def on_epoch_end(self,epoch, logs=None):
         if epoch%500 == 0:
@@ -174,9 +173,18 @@ class ImageGenerator(tf.keras.callbacks.Callback):
                 plt.savefig(LOG_PATH+"/test"+str(i)+".png")
                 plt.close()
 
+if len(s[0].shape) == 4:
+    state = np.vstack(s)
+    state_ = np.vstack(s_next)
+    print(state.shape)
+    print(state_.shape)
+else:
+    state = np.stack(s)
+    state_ = np.stack(s_next)
+
 AE.fit(
-    {"state":np.stack(s)},
-    {"output":np.stack(s_next)},
+    {"state":state},
+    {"output":state_},
     epochs=5000,
     batch_size=512,
     shuffle=True,

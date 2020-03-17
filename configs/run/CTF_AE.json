@@ -1,5 +1,5 @@
 { "RunName":"CTF_AE_M4E",
-  "GPUCapacitty":0.95,
+  "GPUCapacitty":0.5,
   "NetworkHPs":{"State LR": 1E-4,
                 "loss":"M4E",
                 "Optimizer":"Adam",

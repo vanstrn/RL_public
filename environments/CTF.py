@@ -5,11 +5,22 @@ import numpy as np
 import policy
 import time
 
-def use_this_policy():
-    heur_policy_list = [policy.Patrol, policy.Roomba, policy.Defense, policy.Random, policy.AStar]
-    heur_weight = [1,1,1,1,1]
-    heur_weight = np.array(heur_weight) / sum(heur_weight)
-    return np.random.choice(heur_policy_list, p=heur_weight)
+def use_this_policy(policyName=None):
+    if policyName is None:
+        heur_policy_list = [policy.Patrol, policy.Roomba, policy.Defense, policy.Random, policy.AStar]
+        heur_weight = [1,1,1,1,1]
+        heur_weight = np.array(heur_weight) / sum(heur_weight)
+        return np.random.choice(heur_policy_list, p=heur_weight)
+    elif policyName == "Roomba":
+        return policy.Roomba
+    elif policyName == "Patrol":
+        return policy.Patrol
+    elif policyName == "Defense":
+        return policy.Defense
+    elif policyName == "AStar":
+        return policy.AStar
+    elif policyName == "Random":
+        return policy.Random
 
 def Starting(settings,envSettings,sess):
     def make_env():
@@ -44,7 +55,7 @@ def StartingSingle(settings,envSettings,sess):
 
 def Bootstrap(env,settings,envSettings,sess):
     s0 = env.reset( config_path=envSettings["EnvName"],
-                    policy_red=use_this_policy())
+                    policy_red=use_this_policy(envSettings["Policy"]))
     loggingDict = {"tracking_r":[[] for _ in range(len(env.get_team_blue().flatten()))],
                     "time_start":time.time()}
     return s0, loggingDict
