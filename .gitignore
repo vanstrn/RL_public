@@ -10,6 +10,7 @@ images/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
+*/__pychache__/
 *.py[cod]
 *$py.class
 
