@@ -1,6 +1,7 @@
 { "NetworkName" : "MG_SF",
   "NetworkBuilder":"network",
   "DefaultParams":{"SFSize":256},
+  "Inputs":{"state":[19,19,2]},
   "NetworkStructure":{
     "Shared":[
       { "layerType":"Conv2D",
@@ -22,7 +23,7 @@
         "layerInput":"Conv2D_2",
         "Parameters":{}},
       { "layerType":"Dense",
-        "layerName":"Dense1",
+        "layerName":"Phi",
         "layerInput":"Flatten",
         "Parameters":{"units":"SFSize",
                       "activation":"elu"}}
@@ -31,7 +32,7 @@
     "Reconstruction":[
       { "layerType":"Dense",
         "layerName":"Reconstruction_Dense",
-        "layerInput":"Dense1",
+        "layerInput":"Phi",
         "Parameters":{"units":144,
                       "activation":"elu"}},
       { "layerType":"Reshape",
@@ -53,7 +54,7 @@
                       "strides":2,
                       "activation":"elu"}},
       { "layerType":"Conv2DTranspose",
-        "layerName":"Reconstruction_Conv3",
+        "layerName":"StatePrediction",
         "layerInput":"Reconstruction_Conv2",
         "Parameters":{"filters":2,
                       "kernel_size":2,
@@ -63,8 +64,8 @@
 
   },
   "NetworkOutputs":{
-    "prediction":"Reconstruction_Conv3",
-    "phi":"Dense1"
+    "prediction":"StatePrediction",
+    "phi":"Phi"
   },
 
   "NetworkVariableGroups":{

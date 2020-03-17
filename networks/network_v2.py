@@ -9,10 +9,10 @@ Attempt to replicate features of the Functional Model within a sub-classed model
 import tensorflow as tf
 import tensorflow.keras.layers as KL
 import json
-from layers.non_local import Non_local_nn
-from layers.approx_round import *
-from layers.inception import Inception
-from layers.reverse_inception import ReverseInception
+from .layers.non_local import Non_local_nn
+from .layers.approx_round import *
+from .layers.inception import Inception
+from .layers.reverse_inception import ReverseInception
 
 import collections.abc
 import os
@@ -45,227 +45,174 @@ def Update(defaultSettings,overrides):
         else:
             defaultSettings[label] = override
     return defaultSettings
-class Network(tf.keras.Model):
-    def __init__(self, configFile, actionSize, netConfigOverride={}, scope=None,debug=True, training=True):
-        """
-        Reads a network config file and processes that into a netowrk with appropriate naming structure.
 
-        This class only works on feed forward neural networks. Can only handle one input.
+def buildNetwork(configFile, actionSize, netConfigOverride={},debug=True, training=True, scope=None):
+    """
+    Reads a network config file and processes that into a netowrk with appropriate naming structure.
 
-        Parameters
-        ----------
-        configFile : str
-            Config file which points to the network description to be loaded.
-        actionSize : int
-            Output sizes of different network components. Assumes the environment is discrete action space.
-        netConfigOverride : dict
-            Dictionary of values which will override the default contents loaded from the config file.
-        scope : str [opt]
-            Defines a tensorflow scope for the network.
+    This class only works on feed forward neural networks. Can only handle one input.
 
-        Returns
-        -------
-        N/A
-        """
+    Parameters
+    ----------
+    configFile : str
+        Config file which points to the network description to be loaded.
+    actionSize : int
+        Output sizes of different network components. Assumes the environment is discrete action space.
+    netConfigOverride : dict
+        Dictionary of values which will override the default contents loaded from the config file.
+    scope : str [opt]
+        Defines a tensorflow scope for the network.
 
-        self.debug =debug
-        self.actionSize = actionSize
+    Returns
+    -------
+    N/A
+    """
 
-        #Checking if JSON file is fully defined path or just a file name without path.
-        #If just a name, then it will search in default directory.
-        if "/" in configFile:
-            if ".json" in configFile:
-                pass
+    #Checking if JSON file is fully defined path or just a file name without path.
+    #If just a name, then it will search in default directory.
+    if "/" in configFile:
+        if ".json" in configFile:
+            pass
+        else:
+            configFile = configFile + ".json"
+    else:
+        for (dirpath, dirnames, filenames) in os.walk("configs/network"):
+            for filename in filenames:
+                if configFile in filename:
+                    configFile = os.path.join(dirpath,filename)
+                    break
+        # raise
+    with open(configFile) as json_file:
+        data = json.load(json_file)
+    data = Update(data,netConfigOverride)
+
+    # if data["NetworkBuilder"] != "network_v2":
+    #     return
+
+    layers = {}
+    layerOutputs = {}
+
+    #Creating Recursion sweep to go through dictionaries and lists in the networkConfig to insert user defined values.
+    if "DefaultParams" in data.keys():
+        data["NetworkStructure"] = update(data["NetworkStructure"],data["DefaultParams"])
+
+    #Creating Inputs for the network
+    Inputs = {}
+    for inputName,inputShape in data["Inputs"].items():
+        Inputs[inputName] = KL.Input(shape=inputShape,name=inputName)
+
+    #Creating layers of the network
+    for sectionName,layerList in data["NetworkStructure"].items():
+        for layerDict in layerList:
+            if "units" in layerDict["Parameters"]:
+                if layerDict["Parameters"]["units"] == "actionSize":
+                    layerDict["Parameters"]["units"] = actionSize
+
+            if "ReuseLayer" in layerDict:
+                layer = layers["ReuseLayer"]
             else:
-                configFile = configFile + ".json"
-        else:
-            for (dirpath, dirnames, filenames) in os.walk("configs/network"):
-                for filename in filenames:
-                    if configFile in filename:
-                        configFile = os.path.join(dirpath,filename)
-                        break
-            # raise
-        with open(configFile) as json_file:
-            data = json.load(json_file)
-        data = Update(data,netConfigOverride)
-        if scope is None:
-            namespace = data["NetworkName"]
-        else:
-            namespace = scope
-        super(Network,self).__init__(name=namespace)
-        # Reading in the configFile
-        if data["NetworkBuilder"] != "network":
-            self.built = False
-            return
+                layer =  GetLayer(layerDict)
+            layers[layerDict["layerName"]] = layer
 
-        self.networkOutputs = data["NetworkOutputs"]
 
-        self.scope=namespace
-
-        self.layerList = {}
-        self.layerInputs = {}
-        self.layerType = {}
-        self.multiOutput = {}
-        self.layerGroupList = {}
-        self.varGroupings = {}
-
-        #Creating Recursion sweep to go through dictionaries and lists in the networkConfig to insert user defined values.
-        if "DefaultParams" in data.keys():
-            data["NetworkStructure"] = update(data["NetworkStructure"],data["DefaultParams"])
-
-            #Creating all of the layers
-        for sectionName,layerList in data["NetworkStructure"].items():
-            self.varGroupings[sectionName] = []
-            for layerDict in layerList:
-                self.layerList[layerDict["layerName"]] = self.GetLayer(layerDict)
-                self.layerInputs[layerDict["layerName"]] = layerDict["layerInput"]
-                if "multiOutput" in layerDict:
-                    self.multiOutput[layerDict["layerName"]] = layerDict["multiOutput"]
-                else:
-                    self.multiOutput[layerDict["layerName"]] = None
-                self.layerGroupList[layerDict["layerName"]] = sectionName
-        self.networkVariables=data["NetworkVariableGroups"]
-        self.data=data
-
-        self.testInputs = data["TestInput"]
-        self.built = True
-
-    @tf.function
-    def call(self,inputs):
-        """Defines how the layers are called with a forward pass of the network.
-        The methodology employed assumes sections and layers of the network are stictly forward pass.
-        """
-        if not self.built:
-            return {}
-        self.layerOutputs = {}
-        for layerName,layer in self.layerList.items():
-            if self.debug: print("Creating Layer:",layerName)
-            if isinstance(self.layerInputs[layerName], list): #Multi-input Layers
-                layerInputs = []
-                for layerInput in self.layerInputs[layerName]:
+            if debug: print("Creating Layer:",layerDict["layerName"])
+            if isinstance(layerDict["layerInput"], list): #Multi-input Layers
+                layerIn = []
+                for layerInput in layerDict["layerInput"]:
                     if "input" in layerInput:
                         _, input_name = layerInput.rsplit('.',1)
-                        layerInputs.append(inputs[input_name])
+                        layerIn.append(Inputs[input_name])
                     else:
-                        layerInputs.append(self.layerOutputs[layerInput])
-                if self.debug: print("\tLayer Inputs",layerInputs)
-                if self.layerType[layerName] == "Concatenate" or self.layerType[layerName] == "Multiply" or self.layerType[layerName] == "Add":
-                    output = layer(layerInputs)
-                if self.layerType[layerName] == "GaussianNoise":
-                    output = layer(layerInputs,training=training)
+                        layerIn.append(layerOutputs[layerInput])
+                if debug: print("\tLayer Inputs",layerIn)
+                if layerType[layerName] == "Concatenate" or layerType[layerName] == "Multiply" or layerType[layerName] == "Add":
+                    output = layer(layerIn)
+                if layerType[layerName] == "GaussianNoise":
+                    output = layer(layerIn,training=training)
                 else:
-                    output = layer(*layerInputs)
+                    output = layer(*layerIn)
+
             else: # Single input layers
-                if "input" in self.layerInputs[layerName]:
-                    _, input_name = self.layerInputs[layerName].rsplit('.',1)
-                    if self.debug: print("\tLayer Input",inputs[input_name])
-                    output = layer(inputs[input_name])
+                if "input" in layerDict["layerInput"]:
+                    _, input_name = layerDict["layerInput"].rsplit('.',1)
+                    if debug: print("\tLayer Input",Inputs[input_name])
+                    output = layer(Inputs[input_name])
                 else:
-                    if self.debug: print("\tLayer Input",self.layerOutputs[self.layerInputs[layerName]])
-                    output = layer(self.layerOutputs[self.layerInputs[layerName]])
+                    if debug: print("\tLayer Input",layerOutputs[layerDict["layerInput"]])
+                    output = layer(layerOutputs[layerDict["layerInput"]])
 
             #If a layer has multiple outputs assign the outputs unique names. Otherwise just have output be the layername.
-            if isinstance(self.multiOutput[layerName],list):
+            if "multiOutput" in layerDict:
                 for i,output_i in enumerate(output):
-                    self.layerOutputs[self.multiOutput[layerName][i]]=output_i
+                    layerOutputs[multiOutput[layerDict["layerName"]][i]]=output_i
             else:
-                self.layerOutputs[layerName] = output
-            if self.debug: print("\tLayer Output",self.layerOutputs[layerName])
+                layerOutputs[layerDict["layerName"]] = output
+            if debug: print("\tLayer Output",layerOutputs[layerDict["layerName"]])
 
-            #Collecting Trainable Variable Weights
-            # if self.debug: print("\tLayer Details:",layer.trainable_weights)
-            try: self.varGroupings[self.layerGroupList[layerName]] += layer.variables
-            except: pass
 
-        results = {}
-        results2 =[]
-        for outputName,layerOutput in self.networkOutputs.items():
-            results[outputName] = self.layerOutputs[layerOutput]
-            results2.append(self.layerOutputs[layerOutput])
-        print(results2)
-        return results2
+    #Creating the outputs for the model.
+    outputs=[]
+    for output,layerName in data["NetworkOutputs"].items():
+        outputs.append(layerOutputs[layerName])
+    if debug: print("Network Outputs:",outputs)
+    network = tf.keras.models.Model(Inputs,outputs)
 
-    def GetLayer(self, dict):
-        """Based on a dictionary input the function returns the appropriate layer for the NN."""
-        if "ReuseLayer" in dict:
-            layer = self.layerList[dict["ReuseLayer"]]
-        else:
-            if dict["layerType"] == "Dense":
-                if dict["Parameters"]["units"] == "actionSize":
-                    dict["Parameters"]["units"] = self.actionSize
-                layer = KL.Dense( **dict["Parameters"],name=dict["layerName"])
-            elif dict["layerType"] == "Conv2D":
-                layer = KL.Conv2D( **dict["Parameters"],name=dict["layerName"])
-            elif dict["layerType"] == "Conv2DTranspose":
-                layer = KL.Conv2DTranspose( **dict["Parameters"],name=dict["layerName"])
-            elif dict["layerType"] == "SeparableConv":
-                layer = KL.SeparableConv2D( **dict["Parameters"],name=dict["layerName"])
-            elif dict["layerType"] == "Round":
-                layer= RoundingSine(name=dict["layerName"])
-            elif dict["layerType"] == "Flatten":
-                layer= KL.Flatten()
-            elif dict["layerType"] == "NonLocalNN":
-                layer= Non_local_nn( **dict["Parameters"],name=dict["layerName"])
-            elif dict["layerType"] == "LogSoftMax":
-                layer = tf.nn.log_softmax
-            elif dict["layerType"] == "SoftMax":
-                layer = KL.Activation('softmax')
-            elif dict["layerType"] == "Concatenate":
-                layer = KL.Concatenate( **dict["Parameters"],name=dict["layerName"])
-            elif dict["layerType"] == "Multiply":
-                layer = KL.Multiply( **dict["Parameters"],name=dict["layerName"])
-            elif dict["layerType"] == "Add":
-                layer = KL.Add( **dict["Parameters"],name=dict["layerName"])
-            elif dict["layerType"] == "Reshape":
-                layer = KL.Reshape( **dict["Parameters"],name=dict["layerName"])
-            elif dict["layerType"] == "LSTM":
-                layer = KL.LSTM(**dict["Parameters"],name=dict["layerName"])
-            elif dict["layerType"] == "SimpleRNN":
-                layer = KL.SimpleRNN(**dict["Parameters"],name=dict["layerName"])
-            elif dict["layerType"] == "Sum":
-                layer = tf.keras.backend.sum
-            elif dict["layerType"] == "Inception":
-                layer = Inception(**dict["Parameters"],name=dict["layerName"])
-            elif dict["layerType"] == "ReverseInception":
-                layer = ReverseInception(**dict["Parameters"],name=dict["layerName"])
-            elif dict["layerType"] == "UpSampling2D":
-                layer = KL.UpSampling2D(**dict["Parameters"],name=dict["layerName"])
-            elif dict["layerType"] == "GaussianNoise":
-                layer = KL.GaussianNoise(**dict["Parameters"],name=dict["layerName"])
-        self.layerType[dict["layerName"]] = dict["layerType"]
+    return network
 
-        return layer
 
-    def getVars(self,scope=None):
-        vars = []
-        for name,var in self.varGroupings.items():
-            vars += var
-        return list(set(vars))
+def GetLayer( dict):
+    """Based on a dictionary input the function returns the appropriate layer for the NN."""
 
-    def GetVariables(self,groupName):
-        vars =[]
-        for sectionName in self.networkVariables[groupName]:
-            vars += self.varGroupings[sectionName]
-        return vars
+    if dict["layerType"] == "Dense":
+        layer = KL.Dense( **dict["Parameters"],name=dict["layerName"])
+    elif dict["layerType"] == "Conv2D":
+        layer = KL.Conv2D( **dict["Parameters"],name=dict["layerName"])
+    elif dict["layerType"] == "Conv2DTranspose":
+        layer = KL.Conv2DTranspose( **dict["Parameters"],name=dict["layerName"])
+    elif dict["layerType"] == "SeparableConv":
+        layer = KL.SeparableConv2D( **dict["Parameters"],name=dict["layerName"])
+    elif dict["layerType"] == "Round":
+        layer= RoundingSine(name=dict["layerName"])
+    elif dict["layerType"] == "Flatten":
+        layer= KL.Flatten()
+    elif dict["layerType"] == "NonLocalNN":
+        layer= Non_local_nn( **dict["Parameters"],name=dict["layerName"])
+    elif dict["layerType"] == "LogSoftMax":
+        layer = tf.nn.log_softmax
+    elif dict["layerType"] == "SoftMax":
+        layer = KL.Activation('softmax')
+    elif dict["layerType"] == "Concatenate":
+        layer = KL.Concatenate( **dict["Parameters"],name=dict["layerName"])
+    elif dict["layerType"] == "Multiply":
+        layer = KL.Multiply( **dict["Parameters"],name=dict["layerName"])
+    elif dict["layerType"] == "Add":
+        layer = KL.Add( **dict["Parameters"],name=dict["layerName"])
+    elif dict["layerType"] == "Reshape":
+        layer = KL.Reshape( **dict["Parameters"],name=dict["layerName"])
+    elif dict["layerType"] == "LSTM":
+        layer = KL.LSTM(**dict["Parameters"],name=dict["layerName"])
+    elif dict["layerType"] == "SimpleRNN":
+        layer = KL.SimpleRNN(**dict["Parameters"],name=dict["layerName"])
+    elif dict["layerType"] == "Sum":
+        layer = tf.keras.backend.sum
+    elif dict["layerType"] == "Inception":
+        layer = Inception(**dict["Parameters"],name=dict["layerName"])
+    elif dict["layerType"] == "ReverseInception":
+        layer = ReverseInception(**dict["Parameters"],name=dict["layerName"])
+    elif dict["layerType"] == "UpSampling2D":
+        layer = KL.UpSampling2D(**dict["Parameters"],name=dict["layerName"])
+    elif dict["layerType"] == "GaussianNoise":
+        layer = KL.GaussianNoise(**dict["Parameters"],name=dict["layerName"])
+
+    return layer
+
 
 if __name__ == "__main__":
     gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=.25, allow_growth=True)
     config = tf.ConfigProto(gpu_options=gpu_options, log_device_placement=False, allow_soft_placement=True)
     sess = tf.Session(config=config)
-    test = Network(configFile="test.json",actionSize=4)
-    test.compile(optimizer="adam", loss={"output_2":"mse","output_1":"mse", })
+    test = buildNetwork(configFile="test.json",actionSize=4)
+    test.compile(optimizer="adam", loss={"StatePrediction":"mse","Phi":"mse"})
     x = np.random.rand(2,19,19,2)
     y = np.random.rand(2,256)
-    # out = test({"state":x})
-    # exit()
-    # print(type(out))
-
-    test.fit({"state":x},[x,y])
-    # test.fit({"state":None},[None,None])
-    # z = test.predict({"state":x})
-    # print(type(z))
-    print("asda")
-    x = np.random.rand(15,19,19,2)
-    y = np.random.rand(15,256)
-    test.fit({"state":x},{"output_1":x,"output_2":y})
-    # test.fit({"state":x},{"output_2":x,"output_1":x})
+    test.fit({"state":x},{"StatePrediction":x,"Phi":y})

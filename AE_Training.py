@@ -34,6 +34,7 @@ import argparse
 from urllib.parse import unquote
 
 from networks.networkAE import *
+from networks.network_v2 import buildNetwork
 from utils.utils import InitializeVariables, CreatePath, interval_flag, GetFunction
 from utils.record import Record,SaveHyperparams
 import json
@@ -78,9 +79,10 @@ CreatePath(LOG_PATH)
 CreatePath(MODEL_PATH)
 
 #Creating the Environment
-gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=settings["GPUCapacitty"], allow_growth=True)
-config = tf.ConfigProto(gpu_options=gpu_options, log_device_placement=False, allow_soft_placement=True)
-sess = tf.Session(config=config)
+# gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=settings["GPUCapacitty"], allow_growth=True)
+# config = tf.ConfigProto(gpu_options=gpu_options, log_device_placement=False, allow_soft_placement=True)
+# sess = tf.Session(config=config)
+sess = tf.Session()
 
 for functionString in envSettings["StartingFunctions"]:
     StartingFunction = GetFunction(functionString)
@@ -90,8 +92,9 @@ for functionString in envSettings["StartingFunctions"]:
 def M4E(y_true,y_pred):
     return K.mean(K.pow(y_pred-y_true,4))
 
-with tf.device('/gpu:0'):
-    AE = CTF_FFNetwork3(settings["NetworkConfig"],nActions,netConfigOverride,scope="Global")
+with tf.device('/cpu:0'):
+    AE = buildNetwork(settings["NetworkConfig"],nActions,netConfigOverride,scope="Global")
+    AE.summary()
     AE.compile(optimizer="adadelta", loss=M4E)
     try:AE.load_weights(MODEL_PATH+"/model.h5")
     except: print("Did not load weights")
@@ -176,15 +179,13 @@ class ImageGenerator(tf.keras.callbacks.Callback):
 if len(s[0].shape) == 4:
     state = np.vstack(s)
     state_ = np.vstack(s_next)
-    print(state.shape)
-    print(state_.shape)
 else:
     state = np.stack(s)
     state_ = np.stack(s_next)
 
 AE.fit(
     {"state":state},
-    {"output":state_},
+    {"StatePrediction":state_},
     epochs=5000,
     batch_size=512,
     shuffle=True,
