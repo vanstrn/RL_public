@@ -1,6 +1,6 @@
 { "NetworkName" : "CTF_AE",
   "NetworkBuilder":"network",
-  "DefaultParams":{"SFSize":10},
+  "DefaultParams":{"SFSize":256},
   "Inputs":{"state":[39,39,6]},
   "NetworkStructure":{
     "Shared":[
@@ -33,7 +33,7 @@
       { "layerType":"Dense",
         "layerName":"Dense1",
         "layerInput":"Flatten",
-        "Parameters":{"units":10,
+        "Parameters":{"units":256,
                       "activation":"elu"}},
       { "layerType":"Dense",
         "layerName":"Dense2",

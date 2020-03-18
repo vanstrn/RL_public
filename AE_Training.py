@@ -45,7 +45,7 @@ import itertools
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 import tensorflow.keras.backend as K
-
+from random import randint
 #Input arguments to override the default Config Files
 parser = argparse.ArgumentParser()
 parser.add_argument("-f", "--file", required=True,
@@ -92,7 +92,7 @@ for functionString in envSettings["StartingFunctions"]:
 def M4E(y_true,y_pred):
     return K.mean(K.pow(y_pred-y_true,4))
 
-with tf.device('/cpu:0'):
+with tf.device('/gpu:0'):
     AE = buildNetwork(settings["NetworkConfig"],nActions,netConfigOverride,scope="Global")
     AE.summary()
     AE.compile(optimizer="adadelta", loss=M4E)
