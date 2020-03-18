@@ -3,7 +3,7 @@
   "MapSize":20,
   "Centering":true,
   "Policy":"Roomba",
-  "ConfigPath":"environments/1v0.ini",
+  "ConfigPath":"environments/4v4.ini",
   "ParralelFunctions":[],
   "StartingFunctions":["environments.CTF.Starting"],
   "BootstrapFunctions":["environments.CTF.Bootstrap"],

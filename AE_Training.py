@@ -79,10 +79,10 @@ CreatePath(LOG_PATH)
 CreatePath(MODEL_PATH)
 
 #Creating the Environment
-# gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=settings["GPUCapacitty"], allow_growth=True)
-# config = tf.ConfigProto(gpu_options=gpu_options, log_device_placement=False, allow_soft_placement=True)
-# sess = tf.Session(config=config)
-sess = tf.Session()
+gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=settings["GPUCapacitty"], allow_growth=True)
+config = tf.ConfigProto(gpu_options=gpu_options, log_device_placement=False, allow_soft_placement=True)
+sess = tf.Session(config=config)
+# sess = tf.Session()
 
 for functionString in envSettings["StartingFunctions"]:
     StartingFunction = GetFunction(functionString)
@@ -146,7 +146,7 @@ for i in range(settings["EnvHPs"]["SampleEpisodes"]):
 
         if done.all():
             break
-
+print("Here")
 LOG_PATH = './images/AE/'+EXP_NAME
 CreatePath(LOG_PATH)
 class SaveModel(tf.keras.callbacks.Callback):
@@ -167,6 +167,7 @@ class ImageGenerator(tf.keras.callbacks.Callback):
                     state = s[i*300+randint(0,200)][0,:,:,:]
                 else:
                     state = s[i*300+randint(0,200)]
+                print(state.shape)
                 state_new = AE.predict(np.expand_dims(state,0))
                 fig=plt.figure(figsize=(5.5, 8))
                 fig.add_subplot(2,1,1)
@@ -177,14 +178,13 @@ class ImageGenerator(tf.keras.callbacks.Callback):
                 imgplot = plt.imshow(state_new[0,:,:,0],vmin=0, vmax=10)
                 plt.savefig(LOG_PATH+"/test"+str(i)+".png")
                 plt.close()
-
 if len(s[0].shape) == 4:
     state = np.vstack(s)
     state_ = np.vstack(s_next)
 else:
     state = np.stack(s)
     state_ = np.stack(s_next)
-
+del env
 AE.fit(
     {"state":state},
     {"StatePrediction":state_},
