@@ -62,10 +62,10 @@ def Bootstrap(env,settings,envSettings,sess):
     return s0, loggingDict
 
 def StateProcessing(s0,env,envSettings,sess):
+    padder=[0,0,0,1,0,0]
+    #Get list of controlled agents
+    agents = env.get_team_blue()
     if envSettings["Centering"]:
-        padder=[0,0,0,1,0,0,0]
-        #Get list of controlled agents
-        agents = env.get_team_blue()
 
         envs, olx, oly, ch = s0.shape
         H = olx*2-1
