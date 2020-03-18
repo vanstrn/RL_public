@@ -123,6 +123,7 @@ for i in range(settings["EnvHPs"]["SampleEpisodes"]):
     for functionString in envSettings["StateProcessingFunctions"]:
         StateProcessing = GetFunction(functionString)
         s0 = StateProcessing(s0,env,envSettings,sess)
+        print(s0.shape)
 
     for j in range(settings["EnvHPs"]["MAX_EP_STEPS"]+1):
 
@@ -146,7 +147,6 @@ for i in range(settings["EnvHPs"]["SampleEpisodes"]):
 
         if done.all():
             break
-print("Here")
 LOG_PATH = './images/AE/'+EXP_NAME
 CreatePath(LOG_PATH)
 class SaveModel(tf.keras.callbacks.Callback):
@@ -167,7 +167,6 @@ class ImageGenerator(tf.keras.callbacks.Callback):
                     state = s[i*300+randint(0,200)][0,:,:,:]
                 else:
                     state = s[i*300+randint(0,200)]
-                print(state.shape)
                 state_new = AE.predict(np.expand_dims(state,0))
                 fig=plt.figure(figsize=(5.5, 8))
                 fig.add_subplot(2,1,1)
@@ -178,12 +177,49 @@ class ImageGenerator(tf.keras.callbacks.Callback):
                 imgplot = plt.imshow(state_new[0,:,:,0],vmin=0, vmax=10)
                 plt.savefig(LOG_PATH+"/test"+str(i)+".png")
                 plt.close()
+class ImageGenerator2(tf.keras.callbacks.Callback):
+    def on_epoch_end(self,epoch, logs=None):
+        if epoch%250 == 0:
+            for i in range(20):
+                if len(s[0].shape) == 4:
+                    state = s[i*300+randint(0,200)][0,:,:,:]
+                else:
+                    state = s[i*300+randint(0,200)]
+                state_new = AE.predict(np.expand_dims(state,0))
+                fig=plt.figure(figsize=(16, 8))
+                fig.add_subplot(2,4,1)
+                plt.title("State (Background)")
+                imgplot = plt.imshow(state[:,:,1], vmin=0, vmax=10)
+                fig.add_subplot(2,4,5)
+                plt.title("Predicted Next State (Background)")
+                imgplot = plt.imshow(state_new[0,:,:,1],vmin=0, vmax=10)
+                fig.add_subplot(2,4,2)
+                plt.title("State (Flag)")
+                imgplot = plt.imshow(state[:,:,2], vmin=0, vmax=10)
+                fig.add_subplot(2,4,6)
+                plt.title("Predicted Next State (Flag)")
+                imgplot = plt.imshow(state_new[0,:,:,2],vmin=0, vmax=10)
+                fig.add_subplot(2,4,3)
+                plt.title("State (Obstacles)")
+                imgplot = plt.imshow(state[:,:,3], vmin=0, vmax=10)
+                fig.add_subplot(2,4,7)
+                plt.title("Predicted Next State (Obstacles)")
+                imgplot = plt.imshow(state_new[0,:,:,3],vmin=0, vmax=10)
+                fig.add_subplot(2,4,4)
+                plt.title("State (Ground Robots)")
+                imgplot = plt.imshow(state[:,:,4], vmin=0, vmax=10)
+                fig.add_subplot(2,4,8)
+                plt.title("Predicted Next State (Ground Robots)")
+                imgplot = plt.imshow(state_new[0,:,:,4],vmin=0, vmax=10)
+                plt.savefig(LOG_PATH+"/test"+str(i)+".png")
+                plt.close()
 if len(s[0].shape) == 4:
     state = np.vstack(s)
     state_ = np.vstack(s_next)
 else:
     state = np.stack(s)
     state_ = np.stack(s_next)
+
 del env
 AE.fit(
     {"state":state},
@@ -191,4 +227,4 @@ AE.fit(
     epochs=5000,
     batch_size=512,
     shuffle=True,
-    callbacks=[ImageGenerator(),SaveModel()])
+    callbacks=[ImageGenerator2(),SaveModel()])
