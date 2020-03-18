@@ -124,7 +124,7 @@ def SFNetwork(self, configFile, actionSize, netConfigOverride={}, scope=None,deb
     return network
 
 
-def SFNetwork2(self, configFile, actionSize, netConfigOverride={}, scope=None, debug=True, training=False):
+def SFNetwork2(self, configFile, actionSize, netConfigOverride={}, scope=None, debug=True, training=True):
     input_img = KL.Input(shape=(19,19,2))
     conv1 = KL.Conv2D(filters=16,kernel_size=3,strides=1,activation="elu", trainable=training)(input_img)
     conv2 = KL.Conv2D(filters=32,kernel_size=3,strides=1,activation="elu", trainable=training)(conv1)

@@ -151,7 +151,7 @@ LOG_PATH = './images/AE/'+EXP_NAME
 CreatePath(LOG_PATH)
 class SaveModel(tf.keras.callbacks.Callback):
     def on_epoch_end(self,epoch, logs=None):
-        if epoch%500 == 0:
+        if epoch%250 == 0:
             model_json = AE.to_json()
             with open(MODEL_PATH+"model.json", "w") as json_file:
                 json_file.write(model_json)
@@ -161,10 +161,12 @@ class SaveModel(tf.keras.callbacks.Callback):
 
 class ImageGenerator(tf.keras.callbacks.Callback):
     def on_epoch_end(self,epoch, logs=None):
-        if epoch%500 == 0:
+        if epoch%250 == 0:
             for i in range(15):
-                state = s[i]
-                # state = s[i*300]
+                if len(s[0].shape) == 4:
+                    state = s[i*300+randint(0,200)][0,:,:,:]
+                else:
+                    state = s[i*300+randint(0,200)]
                 state_new = AE.predict(np.expand_dims(state,0))
                 fig=plt.figure(figsize=(5.5, 8))
                 fig.add_subplot(2,1,1)

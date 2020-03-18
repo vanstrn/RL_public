@@ -155,6 +155,13 @@ class SaveModel(tf.keras.callbacks.Callback):
             with open(MODEL_PATH+"model.json", "w") as json_file:
                 json_file.write(model_json)
             SF.save_weights(MODEL_PATH+"model.h5")
+class SaveModel2(tf.keras.callbacks.Callback):
+    def on_epoch_end(self,epoch, logs=None):
+        if epoch%250 == 0:
+            model_json = SF.to_json()
+            with open(MODEL_PATH+"model_SF.json", "w") as json_file:
+                json_file.write(model_json)
+            SF.save_weights(MODEL_PATH+"model_SF.h5")
 
 class ImageGenerator(tf.keras.callbacks.Callback):
     def on_epoch_end(self,epoch, logs=None):
@@ -226,13 +233,13 @@ class ValueTest(tf.keras.callbacks.Callback):
 
 
 SF.compile(optimizer="adam", loss=[M4E,"mse"], loss_weights = [1.0,1.0])
-# SF.fit(
-#     np.stack(s),
-#     [np.stack(s_next),np.stack(r_store)],
-#     epochs=2000,
-#     batch_size=512,
-#     shuffle=True,
-#     callbacks=[ImageGenerator(),SaveModel(),RewardTest()])
+SF.fit(
+    np.stack(s),
+    [np.stack(s_next),np.stack(r_store)],
+    epochs=2000,
+    batch_size=512,
+    shuffle=True,
+    callbacks=[ImageGenerator(),SaveModel(),RewardTest()])
 
 
 SF2.compile(optimizer="adam", loss="mse")
@@ -249,4 +256,4 @@ for i in range(50):
         epochs=30,
         batch_size=512,
         shuffle=True,
-        callbacks=[ValueTest()])
+        callbacks=[ValueTest(),SaveModel2()])
