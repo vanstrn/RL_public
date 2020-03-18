@@ -63,7 +63,7 @@ def StateProcessing(s0,env,envSettings,sess):
         states[:,:,:] = np.array(padder)
         for idx, agent in enumerate(agents):
             x, y = agent.get_loc()
-            states[idx,max(cx-x,0):min(cx-x+olx,W),max(cy-y,0):min(cy-y+oly,H),:] = s0[idx]
+            states[idx,max(cx-x,0):min(cx-x+olx,W),max(cy-y,0):min(cy-y+oly,H),:] = s0
     else:
         olx, oly, ch = s0.shape
         H = olx

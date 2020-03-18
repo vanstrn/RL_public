@@ -123,7 +123,6 @@ for i in range(settings["EnvHPs"]["SampleEpisodes"]):
     for functionString in envSettings["StateProcessingFunctions"]:
         StateProcessing = GetFunction(functionString)
         s0 = StateProcessing(s0,env,envSettings,sess)
-        print(s0.shape)
 
     for j in range(settings["EnvHPs"]["MAX_EP_STEPS"]+1):
 
