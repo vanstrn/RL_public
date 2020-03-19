@@ -104,12 +104,13 @@ def buildNetwork(configFile, actionSize, netConfigOverride={},debug=True, traini
     #Creating layers of the network
     for sectionName,layerList in data["NetworkStructure"].items():
         for layerDict in layerList:
-            if "units" in layerDict["Parameters"]:
-                if layerDict["Parameters"]["units"] == "actionSize":
-                    layerDict["Parameters"]["units"] = actionSize
+            if "Parameters" in layerDict:
+                if "units" in layerDict["Parameters"]:
+                    if layerDict["Parameters"]["units"] == "actionSize":
+                        layerDict["Parameters"]["units"] = actionSize
 
             if "ReuseLayer" in layerDict:
-                layer = layers["ReuseLayer"]
+                layer = layers[layerDict["ReuseLayer"]]
             else:
                 layer =  GetLayer(layerDict)
             layers[layerDict["layerName"]] = layer

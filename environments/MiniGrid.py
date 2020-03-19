@@ -237,6 +237,8 @@ def Bootstrap(env,settings,envSettings,sess):
     return s0, loggingDict
 
 def Bootstrap_Asynch(env,settings,envSettings,sess):
+    if envSettings["Seed"] is not None:
+        env.seed(envSettings["Seed"])
     s0 = env.reset()
     loggingDict = {"tracking_r":[[] for _ in range(1)]}
     return s0, loggingDict

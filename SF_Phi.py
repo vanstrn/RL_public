@@ -34,6 +34,7 @@ import argparse
 from urllib.parse import unquote
 
 from networks.networkAE import *
+from networks.network_v3 import buildNetwork
 from utils.utils import InitializeVariables, CreatePath, interval_flag, GetFunction
 from utils.record import Record,SaveHyperparams
 import json
@@ -92,7 +93,7 @@ def M4E(y_true,y_pred):
     return K.mean(K.pow(y_pred-y_true,4))
 
 with tf.device('/gpu:0'):
-    SF,SF2,SF3,SF4 = SFNetwork2(settings["NetworkConfig"],nActions,netConfigOverride,scope="Global")
+    SF,_,_,_ = buildNetwork(settings["NetworkConfig"],nActions,netConfigOverride,scope="Global")
     try:SF.load_weights(MODEL_PATH+"/model.h5")
     except: print("Did not load weights")
 
@@ -114,6 +115,7 @@ s_next = []
 r_store = []
 for i in range(settings["EnvHPs"]["SampleEpisodes"]):
     for functionString in envSettings["BootstrapFunctions"]:
+        env.seed(1337)
         BootstrapFunctions = GetFunction(functionString)
         s0, loggingDict = BootstrapFunctions(env,settings,envSettings,sess)
 
@@ -149,25 +151,18 @@ LOG_PATH = './images/SF/'+EXP_NAME
 CreatePath(LOG_PATH)
 
 class SaveModel(tf.keras.callbacks.Callback):
-    def on_epoch_end(self,epoch, logs=None):
-        if epoch%250 == 0:
+    def on_epoch_end(self, epoch, logs=None):
+        if epoch%50 == 0:
             model_json = SF.to_json()
-            with open(MODEL_PATH+"model.json", "w") as json_file:
+            with open(MODEL_PATH+"model_phi.json", "w") as json_file:
                 json_file.write(model_json)
-            SF.save_weights(MODEL_PATH+"model.h5")
-class SaveModel2(tf.keras.callbacks.Callback):
-    def on_epoch_end(self,epoch, logs=None):
-        if epoch%250 == 0:
-            model_json = SF.to_json()
-            with open(MODEL_PATH+"model_SF.json", "w") as json_file:
-                json_file.write(model_json)
-            SF.save_weights(MODEL_PATH+"model_SF.h5")
+            SF.save_weights(MODEL_PATH+"model_phi_"+str(epoch)+".h5")
 
 class ImageGenerator(tf.keras.callbacks.Callback):
     def on_epoch_end(self,epoch, logs=None):
-        if epoch%250 == 0:
-            for i in range(15):
-                state = s[i*300+randint(0,200)]
+        if epoch%50 == 0:
+            for i in range(5):
+                state = s[i*100+randint(0,200)]
                 [state_new,reward] = SF.predict(np.expand_dims(state,0))
                 fig=plt.figure(figsize=(5.5, 8))
                 fig.add_subplot(2,1,1)
@@ -176,17 +171,22 @@ class ImageGenerator(tf.keras.callbacks.Callback):
                 fig.add_subplot(2,1,2)
                 plt.title("Predicted Next State - Reward: " + str(reward))
                 imgplot = plt.imshow(state_new[0,:,:,0],vmin=0, vmax=10)
-                plt.savefig(LOG_PATH+"/test"+str(i)+".png")
+                if i == 0:
+                    plt.savefig(LOG_PATH+"/StatePredEpoch"+str(epoch)+".png")
+                else:
+                    plt.savefig(LOG_PATH+"/StatePred"+str(i)+".png")
                 plt.close()
+
 def ConstructSample(env,position):
     grid = env.grid.encode()
     if grid[position[0],position[1],1] == 5:
         return None
     grid[position[0],position[1],0] = 10
     return grid[:,:,:2]
+
 class RewardTest(tf.keras.callbacks.Callback):
     def on_epoch_end(self,epoch, logs=None):
-        if epoch%250 == 0:
+        if epoch%50 == 0:
             for num in range(1):
                 env.seed(1337)
                 env.reset()
@@ -201,59 +201,18 @@ class RewardTest(tf.keras.callbacks.Callback):
                 plt.title("State")
                 imgplot = plt.imshow(env.grid.encode()[:,:,0], vmin=0, vmax=10)
                 fig.add_subplot(2,1,2)
-                plt.title("RewardPrediction Epoch "+str(epoch))
+                plt.title("Reward Prediction Epoch "+str(epoch))
                 imgplot = plt.imshow(rewardMap)
                 fig.colorbar(imgplot)
                 plt.savefig(LOG_PATH+"/RewardPred"+str(epoch)+".png")
                 plt.close()
-counter = 0
-class ValueTest(tf.keras.callbacks.Callback):
-    def on_epoch_end(self,epoch, logs=None):
-        if epoch != 0 and epoch%29 == 0:
-            global counter
-            env.seed(1337)
-            env.reset()
-            rewardMap = np.zeros((dFeatures[0],dFeatures[1]))
-            for i,j in itertools.product(range(dFeatures[0]),range(dFeatures[1])):
-                grid = ConstructSample(env,[i,j])
-                if grid is None: continue
-                [value] = SF4.predict(np.expand_dims(grid,0))
-                rewardMap[i,j] = value
-            fig=plt.figure(figsize=(5.5, 8))
-            fig.add_subplot(2,1,1)
-            plt.title("State")
-            imgplot = plt.imshow(env.grid.encode()[:,:,0], vmin=0, vmax=10)
-            fig.add_subplot(2,1,2)
-            plt.title("Value Prediction")
-            imgplot = plt.imshow(rewardMap)
-            fig.colorbar(imgplot)
-            plt.savefig(LOG_PATH+"/ValuePred"+str(counter)+".png")
-            plt.close()
-            counter +=1
 
 
 SF.compile(optimizer="adam", loss=[M4E,"mse"], loss_weights = [1.0,1.0])
 SF.fit(
     np.stack(s),
     [np.stack(s_next),np.stack(r_store)],
-    epochs=2000,
+    epochs=501,
     batch_size=512,
     shuffle=True,
     callbacks=[ImageGenerator(),SaveModel(),RewardTest()])
-
-
-SF2.compile(optimizer="adam", loss="mse")
-phi = SF3.predict(np.stack(s))
-gamma=0.99
-for i in range(50):
-
-    psi_next = SF2.predict(np.stack(s_next))
-
-    labels = phi+gamma*psi_next
-    SF2.fit(
-        np.stack(s),
-        [np.stack(labels)],
-        epochs=30,
-        batch_size=512,
-        shuffle=True,
-        callbacks=[ValueTest(),SaveModel2()])
