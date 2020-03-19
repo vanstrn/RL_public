@@ -13,6 +13,7 @@ __pycache__/
 */__pychache__/
 *.py[cod]
 *$py.class
+*.pyc
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
