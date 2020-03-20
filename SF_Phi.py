@@ -5,23 +5,6 @@ import gym, gym_minigrid, gym_cap
 from utils.RL_Wrapper import TrainedNetwork
 from utils.utils import InitializeVariables
 
-# net = TrainedNetwork("models/MG_A3C_SF_Testing/",
-#     input_tensor="S:0",
-#     output_tensor="Global/activation/Softmax:0",
-#     device='/cpu:0'
-#     )
-#
-# # session = tf.keras.backend.get_session()
-# # init = tf.global_variables_initializer()
-# # session.run(init)
-#
-# InitializeVariables(net.sess)
-# x=np.random.random([1,7,7,3])
-#
-# out = net.get_action(x)
-# print(out)
-
-
 """
 Framework for setting up an experiment.
 """
@@ -115,7 +98,6 @@ s_next = []
 r_store = []
 for i in range(settings["EnvHPs"]["SampleEpisodes"]):
     for functionString in envSettings["BootstrapFunctions"]:
-        env.seed(1337)
         BootstrapFunctions = GetFunction(functionString)
         s0, loggingDict = BootstrapFunctions(env,settings,envSettings,sess)
 
@@ -188,7 +170,6 @@ class RewardTest(tf.keras.callbacks.Callback):
     def on_epoch_end(self,epoch, logs=None):
         if epoch%50 == 0:
             for num in range(1):
-                env.seed(1337)
                 env.reset()
                 rewardMap = np.zeros((dFeatures[0],dFeatures[1]))
                 for i,j in itertools.product(range(dFeatures[0]),range(dFeatures[1])):
@@ -212,7 +193,7 @@ SF.compile(optimizer="adam", loss=[M4E,"mse"], loss_weights = [1.0,1.0])
 SF.fit(
     np.stack(s),
     [np.stack(s_next),np.stack(r_store)],
-    epochs=501,
-    batch_size=512,
+    epochs=1001,
+    batch_size=2048,
     shuffle=True,
     callbacks=[ImageGenerator(),SaveModel(),RewardTest()])

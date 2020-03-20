@@ -5,23 +5,6 @@ import gym, gym_minigrid, gym_cap
 from utils.RL_Wrapper import TrainedNetwork
 from utils.utils import InitializeVariables
 
-# net = TrainedNetwork("models/MG_A3C_SF_Testing/",
-#     input_tensor="S:0",
-#     output_tensor="Global/activation/Softmax:0",
-#     device='/cpu:0'
-#     )
-#
-# # session = tf.keras.backend.get_session()
-# # init = tf.global_variables_initializer()
-# # session.run(init)
-#
-# InitializeVariables(net.sess)
-# x=np.random.random([1,7,7,3])
-#
-# out = net.get_action(x)
-# print(out)
-
-
 """
 Framework for setting up an experiment.
 """

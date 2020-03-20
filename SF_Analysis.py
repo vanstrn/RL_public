@@ -5,23 +5,6 @@ import gym, gym_minigrid, gym_cap
 from utils.RL_Wrapper import TrainedNetwork
 from utils.utils import InitializeVariables
 
-# net = TrainedNetwork("models/MG_A3C_SF_Testing/",
-#     input_tensor="S:0",
-#     output_tensor="Global/activation/Softmax:0",
-#     device='/cpu:0'
-#     )
-#
-# # session = tf.keras.backend.get_session()
-# # init = tf.global_variables_initializer()
-# # session.run(init)
-#
-# InitializeVariables(net.sess)
-# x=np.random.random([1,7,7,3])
-#
-# out = net.get_action(x)
-# print(out)
-
-
 """
 Framework for setting up an experiment.
 """
@@ -33,7 +16,8 @@ import tensorflow as tf
 import argparse
 from urllib.parse import unquote
 
-from networks.network import Network
+from networks.networkAE import *
+from networks.network_v3 import buildNetwork
 from utils.utils import InitializeVariables, CreatePath, interval_flag, GetFunction
 from utils.record import Record,SaveHyperparams
 import json
@@ -43,6 +27,8 @@ import threading
 import itertools
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
+import tensorflow.keras.backend as K
+from random import randint
 
 #Input arguments to override the default Config Files
 parser = argparse.ArgumentParser()
@@ -71,7 +57,7 @@ with open("configs/environment/"+settings["EnvConfig"]) as json_file:
     envSettings.update(envConfigOverride)
 
 EXP_NAME = settings["RunName"]
-MODEL_PATH = './models/'+EXP_NAME
+MODEL_PATH = './models/'+EXP_NAME+ '/'
 LOG_PATH = './logs/'+EXP_NAME
 CreatePath(LOG_PATH)
 CreatePath(MODEL_PATH)
@@ -85,30 +71,35 @@ for functionString in envSettings["StartingFunctions"]:
     StartingFunction = GetFunction(functionString)
     env,dFeatures,nActions,nTrajs = StartingFunction(settings,envSettings,sess)
 
-GLOBAL_RUNNING_R = MovingAverage(1000)
-
-progbar = tf.keras.utils.Progbar(None, unit_name='Training',stateful_metrics=["Reward"])
 #Creating the Networks and Methods of the Run.
-with tf.device('/cpu:0'):
-    global_step = tf.Variable(0, trainable=False, name='global_step')
-    global_step_next = tf.assign_add(global_step,1)
-    network = Network("configs/network/"+settings["NetworkConfig"],nActions,netConfigOverride,scope="Global")
-    Method = GetFunction(settings["Method"])
-    net = Method(network,sess,stateShape=dFeatures,actionSize=nActions,scope="Global",HPs=settings["NetworkHPs"])
 
-saver = tf.train.Saver(max_to_keep=3, var_list=net.getVars+[global_step])
-net.InitializeVariablesFromFile(saver,MODEL_PATH)
-x = sess.run(tf.report_uninitialized_variables() )
-print(x)
-InitializeVariables(sess)
+with tf.device('/gpu:0'):
+    netConfigOverride["DefaultParams"]["Trainable"] = False
+    SF1,SF2,SF3,SF4 = buildNetwork(settings["NetworkConfig"],nActions,netConfigOverride,scope="Global")
+    try:SF1.load_weights(MODEL_PATH+"/model_phi.h5")
+    except: print("Did not load weights")
+    try:SF2.load_weights(MODEL_PATH+"/model_psi.h5")
+    except: print("Did not load weights")
 
-psiSamples = []
-phiSamples = []
-vSamples = []
+def GetAction(state,episode=0,step=0,deterministic=False,debug=False):
+    """
+    Contains the code to run the network based on an input.
+    """
+    p = 1/nActions
+    if len(state.shape)==3:
+        probs =np.full((1,nActions),p)
+    else:
+        probs =np.full((state.shape[0],nActions),p)
+    actions = np.array([np.random.choice(probs.shape[1], p=prob / sum(prob)) for prob in probs])
+    if debug: print(probs)
+    return actions , []  # return a int and extra data that needs to be fed to buffer.
 
+s = []
+s_next = []
+r_store = []
 for i in range(settings["EnvHPs"]["SampleEpisodes"]):
-
     for functionString in envSettings["BootstrapFunctions"]:
+        env.seed(34)
         BootstrapFunctions = GetFunction(functionString)
         s0, loggingDict = BootstrapFunctions(env,settings,envSettings,sess)
 
@@ -118,17 +109,13 @@ for i in range(settings["EnvHPs"]["SampleEpisodes"]):
 
     for j in range(settings["EnvHPs"]["MAX_EP_STEPS"]+1):
 
-        a, networkData = net.GetAction(state=s0,episode=sess.run(global_step),step=j)
-        vSamples.append(networkData[0])
-        phiSamples.append(networkData[1])
-        psiSamples.append(networkData[2])
+        a, networkData = GetAction(state=s0,episode=0,step=j)
 
         for functionString in envSettings["ActionProcessingFunctions"]:
             ActionProcessing = GetFunction(functionString)
             a = ActionProcessing(a,env,envSettings,sess)
 
         s1,r,done,_ = env.step(a)
-        # env.render()
         for functionString in envSettings["StateProcessingFunctions"]:
             StateProcessing = GetFunction(functionString)
             s1 = StateProcessing(s1,env,envSettings,sess)
@@ -136,90 +123,46 @@ for i in range(settings["EnvHPs"]["SampleEpisodes"]):
         for functionString in envSettings["RewardProcessingFunctions"]:
             RewardProcessing = GetFunction(functionString)
             r,done = RewardProcessing(s1,r,done,env,envSettings,sess)
-
+        s.append(s0)
+        s_next.append(s1)
+        r_store.append(r)
         s0 = s1
 
         if done.all():
             break
 
+LOG_PATH = './images/SF/'+EXP_NAME
+CreatePath(LOG_PATH)
+
 def ConstructSample(env,position):
     grid = env.grid.encode()
-    if grid[position[0],position[1],1] == 5:
+    if grid[position[0],position[1],1] == 5: #Wall
         return None
     grid[position[0],position[1],0] = 10
     return grid[:,:,:2]
-def Check0(array):
-    counter = 0
-    for i,j in itertools.product(range(array.shape[0]),range(array.shape[1])):
-        if array[i,j] <= 0.0001: counter += 1
-        if counter >= 4: return True
-    return False
 
-w_ = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, "Global/SuccessorWeights/k")
-w = sess.run(w_[0])
-psiSamples = np.vstack(psiSamples)
-# psiSamples = np.vstack(psiSamples)
-N = psiSamples.shape[1]
+#####Evaluating using random sampling ########
+#Processing state samples into Psi.
+psiSamples = SF2.predict(np.stack(s)) # [X,SF Dim]
 
-w_g,v_g = np.linalg.eig(psiSamples[:N,:])
-# for i in range(N):
-#     print(v_g[:,i])
-# print(w)
+##-Repeat M times to evaluate the effect of sampling.
+M = 3
+count = 0
+dim = psiSamples.shape[1]
+for replicate in range(M)
+    #Taking Eigenvalues and Eigenvectors of the environment,
+    w_g,v_g = np.linalg.eig(psiSamples[count:count+dim,:])
+    count += dim
 
-v=np.zeros((dFeatures[0],dFeatures[1]))
-v_option=np.zeros((dFeatures[0],dFeatures[1],N))
-for i,j in itertools.product(range(dFeatures[0]),range(dFeatures[1])):
-    grid = ConstructSample(env,[i,j])
-    if grid is None: continue
-    a, networkData = net.GetAction(state=grid,episode=sess.run(global_step),step=j)
-    v[i,j]=networkData[0]
-    v_option[i,j,:]=np.multiply(np.matrix(networkData[1])* np.matrix(np.real(v_g)),np.real(w_g))
-
-LOG_PATH = './images/'+EXP_NAME
-if True:
-    CreatePath(LOG_PATH+"/on_policy/")
-    imgplot = plt.imshow(v[1:-1,1:-1])
-    plt.title("Value Estimate")
-    # plt.show()
-    plt.savefig(LOG_PATH+"/on_policy/value.png")
-    for i in range(N):
-        if Check0(v_option[1:-1,1:-1,i]):
-            continue
-        imgplot = plt.imshow(v_option[1:-1,1:-1,i])
+    #Creating Eigenpurposes of the N highest Eigenvectors and saving images
+    N = 5
+    for sample in range(N)
+        v_option=np.zeros((dFeatures[0],dFeatures[1]))
+        for i,j in itertools.product(range(dFeatures[0]),range(dFeatures[1])):
+            grid = ConstructSample(env,[i,j])
+            if grid is None: continue
+            phi= SF1.predict(np.expand_dims(grid,0))
+            v_option[i,j]= phi*v_g(:,sample)
+        imgplot = plt.imshow(v_option)
         plt.title("Option Value Estimate")
-        plt.savefig(LOG_PATH+"/on_policy/option"+str(i)+".png")
-        # plt.show()
-
-##----Uniform Sampling of the environment.------------------------------------##
-psiSamples = []
-for i,j in itertools.product(range(dFeatures[0]),range(dFeatures[1])):
-    grid = ConstructSample(env,[i,j])
-    if grid is None: continue
-    a, networkData = net.GetAction(state=grid,episode=sess.run(global_step),step=j)
-    print(networkData[1])
-    psiSamples.append(networkData[2])
-psiSamples = np.vstack(psiSamples+psiSamples+psiSamples+psiSamples)
-w_g,v_g = np.linalg.eig(psiSamples[:N,:])
-
-v=np.zeros((dFeatures[0],dFeatures[1]))
-v_option=np.zeros((dFeatures[0],dFeatures[1],N))
-for i,j in itertools.product(range(dFeatures[0]),range(dFeatures[1])):
-    grid = ConstructSample(env,[i,j])
-    if grid is None: continue
-    a, networkData = net.GetAction(state=grid,episode=sess.run(global_step),step=j)
-    v[i,j]=networkData[0]
-    v_option[i,j,:]=np.multiply(np.matrix(networkData[1])* np.matrix(np.real(v_g)),np.real(w_g))
-
-if True:
-    CreatePath(LOG_PATH+"/uniform/")
-    imgplot = plt.imshow(v[1:-1,1:-1])
-    plt.title("Value Estimate")
-    # plt.show()
-    plt.savefig(LOG_PATH+"/uniform/value.png")
-    for i in range(N):
-        if Check0(v_option[1:-1,1:-1,i]):
-            continue
-        imgplot = plt.imshow(v_option[1:-1,1:-1,i])
-        plt.title("Option Value Estimate")
-        plt.savefig(LOG_PATH+"/uniform/option"+str(i)+".png")
-        # plt.show()
+        plt.savefig(LOG_PATH+"/option"+str(sample)+"replicate"+str(replicate)+".png")
