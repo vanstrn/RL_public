@@ -29,6 +29,8 @@ import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 import tensorflow.keras.backend as K
 from random import randint
+from environments.Common import CreateEnvironment
+
 
 #Input arguments to override the default Config Files
 parser = argparse.ArgumentParser()
@@ -58,27 +60,21 @@ with open("configs/environment/"+settings["EnvConfig"]) as json_file:
 
 EXP_NAME = settings["RunName"]
 MODEL_PATH = './models/'+EXP_NAME+ '/'
-LOG_PATH = './logs/'+EXP_NAME
+LOG_PATH = './images/SF/'+EXP_NAME
 CreatePath(LOG_PATH)
 CreatePath(MODEL_PATH)
 
 #Creating the Environment
+env,dFeatures,nActions,nTrajs = CreateEnvironment(envSettings)
+
+#Creating the Networks and Methods of the Run.
 gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=settings["GPUCapacitty"], allow_growth=True)
 config = tf.ConfigProto(gpu_options=gpu_options, log_device_placement=False, allow_soft_placement=True)
 sess = tf.Session(config=config)
-
-for functionString in envSettings["StartingFunctions"]:
-    StartingFunction = GetFunction(functionString)
-    env,dFeatures,nActions,nTrajs = StartingFunction(settings,envSettings,sess)
-
-#Creating the Networks and Methods of the Run.
-
 with tf.device('/gpu:0'):
     netConfigOverride["DefaultParams"]["Trainable"] = False
-    SF1,SF2,SF3,SF4 = buildNetwork(settings["NetworkConfig"],nActions,netConfigOverride,scope="Global")
-    try:SF1.load_weights(MODEL_PATH+"/model_phi.h5")
-    except: print("Did not load weights")
-    try:SF2.load_weights(MODEL_PATH+"/model_psi.h5")
+    SF,SF2,SF3,SF4 = buildNetwork(settings["NetworkConfig"],nActions,netConfigOverride,scope="Global")
+    try:SF.load_weights(MODEL_PATH+"/model_phi.h5")
     except: print("Did not load weights")
 
 def GetAction(state,episode=0,step=0,deterministic=False,debug=False):
@@ -97,72 +93,79 @@ def GetAction(state,episode=0,step=0,deterministic=False,debug=False):
 s = []
 s_next = []
 r_store = []
-for i in range(settings["EnvHPs"]["SampleEpisodes"]):
-    for functionString in envSettings["BootstrapFunctions"]:
-        env.seed(34)
-        BootstrapFunctions = GetFunction(functionString)
-        s0, loggingDict = BootstrapFunctions(env,settings,envSettings,sess)
+for i in range(settings["SampleEpisodes"]):
+    s0 = env.reset()
 
-    for functionString in envSettings["StateProcessingFunctions"]:
-        StateProcessing = GetFunction(functionString)
-        s0 = StateProcessing(s0,env,envSettings,sess)
-
-    for j in range(settings["EnvHPs"]["MAX_EP_STEPS"]+1):
+    for j in range(settings["MAX_EP_STEPS"]+1):
 
         a, networkData = GetAction(state=s0,episode=0,step=j)
 
-        for functionString in envSettings["ActionProcessingFunctions"]:
-            ActionProcessing = GetFunction(functionString)
-            a = ActionProcessing(a,env,envSettings,sess)
-
         s1,r,done,_ = env.step(a)
-        for functionString in envSettings["StateProcessingFunctions"]:
-            StateProcessing = GetFunction(functionString)
-            s1 = StateProcessing(s1,env,envSettings,sess)
 
-        for functionString in envSettings["RewardProcessingFunctions"]:
-            RewardProcessing = GetFunction(functionString)
-            r,done = RewardProcessing(s1,r,done,env,envSettings,sess)
         s.append(s0)
         s_next.append(s1)
         r_store.append(r)
-        s0 = s1
 
-        if done.all():
+        s0 = s1
+        if done:
             break
 
-LOG_PATH = './images/SF/'+EXP_NAME
-CreatePath(LOG_PATH)
+
+
+class SaveModel(tf.keras.callbacks.Callback):
+    def on_epoch_end(self,epoch, logs=None):
+        if epoch%250 == 0:
+            model_json = SF2.to_json()
+            with open(MODEL_PATH+"model_psi.json", "w") as json_file:
+                json_file.write(model_json)
+            SF2.save_weights(MODEL_PATH+"model_psi.h5")
 
 def ConstructSample(env,position):
     grid = env.grid.encode()
-    if grid[position[0],position[1],1] == 5: #Wall
+    if grid[position[0],position[1],1] == 5:
         return None
     grid[position[0],position[1],0] = 10
     return grid[:,:,:2]
 
-#####Evaluating using random sampling ########
-#Processing state samples into Psi.
-psiSamples = SF2.predict(np.stack(s)) # [X,SF Dim]
+counter = 0
+class ValueTest(tf.keras.callbacks.Callback):
+    def on_epoch_end(self,epoch, logs=None):
+        if epoch != 0 and epoch%29 == 0:
+            global counter
+            env.seed(1337)
+            env.reset()
+            rewardMap = np.zeros((dFeatures[0],dFeatures[1]))
+            for i,j in itertools.product(range(dFeatures[0]),range(dFeatures[1])):
+                grid = ConstructSample(env,[i,j])
+                if grid is None: continue
+                [value] = SF4.predict(np.expand_dims(grid,0))
+                rewardMap[i,j] = value
+            fig=plt.figure(figsize=(5.5, 8))
+            fig.add_subplot(2,1,1)
+            plt.title("State")
+            imgplot = plt.imshow(env.grid.encode()[:,:,0], vmin=0, vmax=10)
+            fig.add_subplot(2,1,2)
+            plt.title("Value Prediction")
+            imgplot = plt.imshow(rewardMap)
+            fig.colorbar(imgplot)
+            plt.savefig(LOG_PATH+"/ValuePred"+str(counter)+".png")
+            plt.close()
+            counter +=1
 
-##-Repeat M times to evaluate the effect of sampling.
-M = 3
-count = 0
-dim = psiSamples.shape[1]
-for replicate in range(M)
-    #Taking Eigenvalues and Eigenvectors of the environment,
-    w_g,v_g = np.linalg.eig(psiSamples[count:count+dim,:])
-    count += dim
 
-    #Creating Eigenpurposes of the N highest Eigenvectors and saving images
-    N = 5
-    for sample in range(N)
-        v_option=np.zeros((dFeatures[0],dFeatures[1]))
-        for i,j in itertools.product(range(dFeatures[0]),range(dFeatures[1])):
-            grid = ConstructSample(env,[i,j])
-            if grid is None: continue
-            phi= SF1.predict(np.expand_dims(grid,0))
-            v_option[i,j]= phi*v_g(:,sample)
-        imgplot = plt.imshow(v_option)
-        plt.title("Option Value Estimate")
-        plt.savefig(LOG_PATH+"/option"+str(sample)+"replicate"+str(replicate)+".png")
+
+SF2.compile(optimizer="adam", loss="mse")
+phi = SF3.predict(np.stack(s))
+gamma=0.99
+for i in range(50):
+
+    psi_next = SF2.predict(np.stack(s_next))
+
+    labels = phi+gamma*psi_next
+    SF2.fit(
+        np.stack(s),
+        [np.stack(labels)],
+        epochs=30,
+        batch_size=512,
+        shuffle=True,
+        callbacks=[ValueTest(),SaveModel()])

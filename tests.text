@@ -11,7 +11,7 @@ python SF_Phi.py -f MG4R_SF.json -c '{"RunName":"MG4R_64_256_256"}' -n '{"Defaul
 
 #Fixed Flag with random Walls/Agents
 python SF_Phi.py -f MG4R_SF.json -c '{"RunName":"MG4R_64_256_256"}' -n '{"DefaultParams":{"Filters":64,"SFSize":256,"FCUnits":256}}' -e '{"AgentLocation":null,"GoalLocation":[14,14],"Seed":null}'
-python SF_Phi.py -f MG4R_SF.json -c '{"RunName":"MG4R_64_256_256"}' -n '{"DefaultParams":{"Filters":64,"SFSize":256,"FCUnits":256}}' -e '{"AgentLocation":null,"GoalLocation":[5,14],"Seed":null}'
+python SF_Phi.py -f MG4R_SF.json -c '{"RunName":"MG4R_64_256_256"}' -n '{"DefaultParams":{"Filters":16,"SFSize":128,"FCUnits":128}}' -e '{"AgentLocation":null,"GoalLocation":[5,14],"Seed":null}'
 
 #Random everything
-python SF_Phi.py -f MG4R_SF.json -c '{"RunName":"MG4R_64_256_256"}' -n '{"DefaultParams":{"Filters":64,"SFSize":256,"FCUnits":256}}' -e '{"AgentLocation":null,"GoalLocation":null,"Seed":null}'
+python SF_Phi.py -f MG4R_SF.json -c '{"RunName":"MG4R_16_128_128"}' -n '{"DefaultParams":{"Filters":16,"SFSize":128,"FCUnits":128}}' -e '{"AgentLocation":null,"GoalLocation":null,"Seed":null}'

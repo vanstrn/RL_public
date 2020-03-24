@@ -1,6 +1,10 @@
 import gym
 import tensorflow as tf
 from utils.multiprocessing import SubprocVecEnv
+from utils.utils import GetFunction
+import numpy as np
+from environments.MiniGridCustom import *
+from utils.utils import MovingAverage
 """Common processing functions that can be implemented on a variety of different environments
 Add Noise
 Dropout
@@ -8,44 +12,86 @@ Normalize Reward
 Flat addition to Reward to encourage game length or shorten game length if '-'
 Logging Dictionary Starting and Ending.
 """
-def RewardShape(s1,r,done,env,envSettings,sess):
-    for idx in range(len(done)):
-        if done[idx]: r[idx] = -20
-    return r
 
-def Bootstrap(env,settings,envSettings,sess):
-    s0 = env.reset()
-    loggingDict = {"tracking_r":[[] for _ in range(settings["NumberENV"])]}
-    return s0, loggingDict
+def CreateEnvironment(envSettings,multiprocessing=1):
+    env = gym.make(envSettings["EnvName"], **envSettings["EnvParams"])
+    if "Seed" in envSettings:
+        env.seed(envSettings["Seed"])
+    env = TrajectoryWrapper(env,multiprocessing=multiprocessing)
+    env = ApplyWrappers(env,envSettings["Wrappers"])
+    numberFeatures = env.observation_space.shape
+    numberActions = env.action_space.n
+    nTrajs = env.nTrajs
 
-def Starting(settings,envSettings,sess):
-    def make_env():
-        return lambda: gym.make(envSettings["EnvName"],)
-    envs = [make_env() for i in range(settings["NumberENV"])]
-    envs = SubprocVecEnv(envs)
-    envs.remotes[0].send(('_get_spaces', None))
-    N_F, N_A = envs.remotes[0].recv()
-    nTrajs = settings["NumberENV"]
+    return env,list(numberFeatures), numberActions, nTrajs
 
-    return envs, N_F[0], N_A,nTrajs
+def ApplyWrappers(env,wrapperList):
+    for wrapperDict in wrapperList:
+        wrapper = GetFunction(wrapperDict["WrapperName"])
+        env = wrapper(env,**wrapperDict["WrapperParameters"])
+    return env
 
-def Logging(loggingDict,s1,r,done,env,envSettings,sess):
-    for i,envR in enumerate(r):
-        if not done[i]: loggingDict["tracking_r"][i].append(envR)
-    return loggingDict
+class TrajectoryWrapper(gym.core.Wrapper):
+    """
+    Used to give environments a variable for the number of trajectories
+    coming from the environment. Default in most environments is 1.
+    """
+    def __init__(self,env, multiprocessing,**kwargs):
+        super().__init__(env)
+        self.nTrajs = 1
+        self.multiprocessing = multiprocessing
 
-def Closing(loggingDict,env,settings,envSetting,sess):
-    for i in range(settings["NumberENV"]):
-        # print(loggingDict["tracking_r"][i])
-        ep_rs_sum = sum(loggingDict["tracking_r"][i])
+class FinalReward(gym.core.Wrapper):
+    def __init__(self,env, finalReward=-20, **kwargs):
+        super().__init__(env)
+        self.finalReward = finalReward
 
-        if 'running_reward' not in globals():
-            global running_reward
-            running_reward = ep_rs_sum
+    def step(self, action):
+        observation, reward, done, info = self.env.step(action=action)
+        return observation, self.reward(reward,done), done, info
+
+    def reward(self, reward, done):
+        if done: return reward + self.finalReward
+        else: return reward
+
+class RandomMovement(gym.core.Wrapper):
+
+    def step(self, action):
+        action = randint(0,self.action_space.n)
+        return self.env.step(action=action)
+
+class NPConverter(gym.core.Wrapper):
+    def step(self, action):
+        if isinstance(action,np.ndarray) or isinstance(action,list):
+            if len(action) == 1:
+                action = int(action)
+        return self.env.step(action=action)
+
+class RewardLogging(gym.core.Wrapper):
+    def __init__(self,env, **kwargs):
+        super().__init__(env)
+        if self.multiprocessing == 1:
+            self.GLOBAL_RUNNING_R = MovingAverage(400)
         else:
-            running_reward = running_reward * 0.95 + ep_rs_sum * 0.05
-    global_step = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, "global_step")
-    print("episode:", sess.run(global_step), "  running reward:", int(running_reward),"  reward:",int(ep_rs_sum))
+            if 'GLOBAL_RUNNING_R' not in globals():
+                global GLOBAL_RUNNING_R
+                GLOBAL_RUNNING_R = MovingAverage(400)
+            self.GLOBAL_RUNNING_R = GLOBAL_RUNNING_R
 
-    finalDict = {"Training Results/Reward":ep_rs_sum}
-    return finalDict
+    def reset(self, **kwargs):
+        self.tracking_r = []
+        return self.env.reset(**kwargs)
+
+    def step(self, action):
+        observation, reward, done, info = self.env.step(action=action)
+        self.tracking_r.append(reward)
+        return observation, reward, done, info
+
+    def getLogging(self):
+        """
+        Processes the tracked data of the environment.
+        In this case it sums the reward over the entire episode.
+        """
+        self.GLOBAL_RUNNING_R.append(sum(self.tracking_r))
+        finalDict = {"TotalReward":self.GLOBAL_RUNNING_R()}
+        return finalDict

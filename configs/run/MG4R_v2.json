@@ -1,0 +1,22 @@
+{ "RunName":"MG4R_A3C",
+  "GPUCapacitty":0.95,
+  "NetworkHPs":{"Actor LR": 1E-2,
+                "Critic LR": 3E-2,
+                "State LR": 1E-2,
+                "Reward LR": 1E-2,
+                "Gamma":0.9,
+                "lambda":0.9,
+                "EntropyBeta":0.3,
+                "CriticBeta":0.001,
+                "eps":0.2},
+  "NumberENV":2,
+  "MAX_EP":100,
+  "MAX_EP_STEPS":100,
+  "LOG_FREQ":10,
+  "SAVE_FREQ":10,
+  "UPDATE_GLOBAL_ITER":100,
+  "EnvConfig":"MG4R_v2.json",
+  "NetworkConfig":"MG4R_Base.json",
+  "Method":"methods.A3C.A3C"
+
+  }

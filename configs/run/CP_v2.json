@@ -1,0 +1,20 @@
+{ "RunName":"PPOTest",
+  "GPUCapacitty":0.95,
+  "NetworkHPs":{"Critic LR": 1E-4,
+                "Actor LR": 1E-5,
+                "Gamma":0.98,
+                "lambda":0.98,
+                "EntropyBeta":0.001,
+                "CriticBeta":0.001,
+                "eps":0.2},
+
+  "MAX_EP":100,
+  "MAX_EP_STEPS":100,
+  "LOG_FREQ":10,
+  "SAVE_FREQ":10,
+  "UPDATE_GLOBAL_ITER":100,
+  "EnvConfig":"CartPole_v2.json",
+  "NetworkConfig":"ppo.json",
+  "Method":"methods.PPO.PPO"
+
+  }

@@ -29,6 +29,8 @@ import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 import tensorflow.keras.backend as K
 from random import randint
+from environments.Common import CreateEnvironment
+
 
 #Input arguments to override the default Config Files
 parser = argparse.ArgumentParser()
@@ -58,23 +60,20 @@ with open("configs/environment/"+settings["EnvConfig"]) as json_file:
 
 EXP_NAME = settings["RunName"]
 MODEL_PATH = './models/'+EXP_NAME+ '/'
-LOG_PATH = './logs/'+EXP_NAME
+LOG_PATH = './images/SF/'+EXP_NAME
 CreatePath(LOG_PATH)
 CreatePath(MODEL_PATH)
 
 #Creating the Environment
-gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=settings["GPUCapacitty"], allow_growth=True)
-config = tf.ConfigProto(gpu_options=gpu_options, log_device_placement=False, allow_soft_placement=True)
-sess = tf.Session(config=config)
+env,dFeatures,nActions,nTrajs = CreateEnvironment(envSettings)
 
-for functionString in envSettings["StartingFunctions"]:
-    StartingFunction = GetFunction(functionString)
-    env,dFeatures,nActions,nTrajs = StartingFunction(settings,envSettings,sess)
-
-#Creating the Networks and Methods of the Run.
 def M4E(y_true,y_pred):
     return K.mean(K.pow(y_pred-y_true,4))
 
+#Creating the Networks and Methods of the Run.
+gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=settings["GPUCapacitty"], allow_growth=True)
+config = tf.ConfigProto(gpu_options=gpu_options, log_device_placement=False, allow_soft_placement=True)
+sess = tf.Session(config=config)
 with tf.device('/gpu:0'):
     SF,_,_,_ = buildNetwork(settings["NetworkConfig"],nActions,netConfigOverride,scope="Global")
     try:SF.load_weights(MODEL_PATH+"/model.h5")
@@ -91,46 +90,29 @@ def GetAction(state,episode=0,step=0,deterministic=False,debug=False):
         probs =np.full((state.shape[0],nActions),p)
     actions = np.array([np.random.choice(probs.shape[1], p=prob / sum(prob)) for prob in probs])
     if debug: print(probs)
-    return actions , []  # return a int and extra data that needs to be fed to buffer.
+    return actions
 
+#Collecting samples
 s = []
 s_next = []
 r_store = []
-for i in range(settings["EnvHPs"]["SampleEpisodes"]):
-    for functionString in envSettings["BootstrapFunctions"]:
-        BootstrapFunctions = GetFunction(functionString)
-        s0, loggingDict = BootstrapFunctions(env,settings,envSettings,sess)
+for i in range(settings["SampleEpisodes"]):
+    s0 = env.reset()
 
-    for functionString in envSettings["StateProcessingFunctions"]:
-        StateProcessing = GetFunction(functionString)
-        s0 = StateProcessing(s0,env,envSettings,sess)
+    for j in range(settings["MAX_EP_STEPS"]+1):
 
-    for j in range(settings["EnvHPs"]["MAX_EP_STEPS"]+1):
-
-        a, networkData = GetAction(state=s0,episode=0,step=j)
-
-        for functionString in envSettings["ActionProcessingFunctions"]:
-            ActionProcessing = GetFunction(functionString)
-            a = ActionProcessing(a,env,envSettings,sess)
+        a = GetAction(state=s0,episode=0,step=j)
 
         s1,r,done,_ = env.step(a)
-        for functionString in envSettings["StateProcessingFunctions"]:
-            StateProcessing = GetFunction(functionString)
-            s1 = StateProcessing(s1,env,envSettings,sess)
 
-        for functionString in envSettings["RewardProcessingFunctions"]:
-            RewardProcessing = GetFunction(functionString)
-            r,done = RewardProcessing(s1,r,done,env,envSettings,sess)
         s.append(s0)
         s_next.append(s1)
         r_store.append(r)
-        s0 = s1
 
-        if done.all():
+        s0 = s1
+        if done:
             break
 
-LOG_PATH = './images/SF/'+EXP_NAME
-CreatePath(LOG_PATH)
 
 class SaveModel(tf.keras.callbacks.Callback):
     def on_epoch_end(self, epoch, logs=None):
