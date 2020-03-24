@@ -10,17 +10,14 @@
                 "CriticBeta":0.001,
                 "eps":0.2},
 
-  "EnvHPs":{"MAX_EP_STEPS":200,
-            "MAX_EP":500000,
-            "SAVE_FREQ" : 1000,
-            "UPDATE_GLOBAL_ITER" : 300,
-            "LOG_FREQ" : 100,
-            "Gamma":0.99,
-            "SampleEpisodes":250},
 
-  "BatchSize":1024,
-  "NumberENV":8,
-  "EnvConfig":"MG4R_Asynch.json",
+  "SampleEpisodes":250,
+  "MAX_EP":100,
+  "MAX_EP_STEPS":100,
+  "LOG_FREQ":10,
+  "SAVE_FREQ":10,
+  "UPDATE_GLOBAL_ITER":100,
+  "EnvConfig":"MG4R_v2.json",
   "NetworkConfig":"MG4R_SF_v1.json",
   "Method":"methods.A3C_SF.A3C"
 

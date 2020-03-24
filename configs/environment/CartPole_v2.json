@@ -1,0 +1,11 @@
+{ "EnvName":"CartPole-v0",
+  "Seed":1,
+  "Wrappers":[
+    { "WrapperName":"environments.Common.FinalReward",
+      "WrapperParameters":{"finalReward":-20}},
+    { "WrapperName":"environments.Common.NPConverter",
+      "WrapperParameters":{}},
+    { "WrapperName":"environments.Common.RewardLogging",
+      "WrapperParameters":{}}
+    ]
+  }

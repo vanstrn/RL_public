@@ -5,23 +5,6 @@ import gym, gym_minigrid, gym_cap
 from utils.RL_Wrapper import TrainedNetwork
 from utils.utils import InitializeVariables
 
-# net = TrainedNetwork("models/MG_A3C_SF_Testing/",
-#     input_tensor="S:0",
-#     output_tensor="Global/activation/Softmax:0",
-#     device='/cpu:0'
-#     )
-#
-# # session = tf.keras.backend.get_session()
-# # init = tf.global_variables_initializer()
-# # session.run(init)
-#
-# InitializeVariables(net.sess)
-# x=np.random.random([1,7,7,3])
-#
-# out = net.get_action(x)
-# print(out)
-
-
 """
 Framework for setting up an experiment.
 """
@@ -46,6 +29,8 @@ import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 import tensorflow.keras.backend as K
 from random import randint
+from environments.Common import CreateEnvironment
+
 
 #Input arguments to override the default Config Files
 parser = argparse.ArgumentParser()
@@ -75,23 +60,20 @@ with open("configs/environment/"+settings["EnvConfig"]) as json_file:
 
 EXP_NAME = settings["RunName"]
 MODEL_PATH = './models/'+EXP_NAME+ '/'
-LOG_PATH = './logs/'+EXP_NAME
+LOG_PATH = './images/SF/'+EXP_NAME
 CreatePath(LOG_PATH)
 CreatePath(MODEL_PATH)
 
 #Creating the Environment
-gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=settings["GPUCapacitty"], allow_growth=True)
-config = tf.ConfigProto(gpu_options=gpu_options, log_device_placement=False, allow_soft_placement=True)
-sess = tf.Session(config=config)
+env,dFeatures,nActions,nTrajs = CreateEnvironment(envSettings)
 
-for functionString in envSettings["StartingFunctions"]:
-    StartingFunction = GetFunction(functionString)
-    env,dFeatures,nActions,nTrajs = StartingFunction(settings,envSettings,sess)
-
-#Creating the Networks and Methods of the Run.
 def M4E(y_true,y_pred):
     return K.mean(K.pow(y_pred-y_true,4))
 
+#Creating the Networks and Methods of the Run.
+gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=settings["GPUCapacitty"], allow_growth=True)
+config = tf.ConfigProto(gpu_options=gpu_options, log_device_placement=False, allow_soft_placement=True)
+sess = tf.Session(config=config)
 with tf.device('/gpu:0'):
     SF,_,_,_ = buildNetwork(settings["NetworkConfig"],nActions,netConfigOverride,scope="Global")
     try:SF.load_weights(MODEL_PATH+"/model.h5")
@@ -108,47 +90,29 @@ def GetAction(state,episode=0,step=0,deterministic=False,debug=False):
         probs =np.full((state.shape[0],nActions),p)
     actions = np.array([np.random.choice(probs.shape[1], p=prob / sum(prob)) for prob in probs])
     if debug: print(probs)
-    return actions , []  # return a int and extra data that needs to be fed to buffer.
+    return actions
 
+#Collecting samples
 s = []
 s_next = []
 r_store = []
-for i in range(settings["EnvHPs"]["SampleEpisodes"]):
-    for functionString in envSettings["BootstrapFunctions"]:
-        env.seed(1337)
-        BootstrapFunctions = GetFunction(functionString)
-        s0, loggingDict = BootstrapFunctions(env,settings,envSettings,sess)
+for i in range(settings["SampleEpisodes"]):
+    s0 = env.reset()
 
-    for functionString in envSettings["StateProcessingFunctions"]:
-        StateProcessing = GetFunction(functionString)
-        s0 = StateProcessing(s0,env,envSettings,sess)
+    for j in range(settings["MAX_EP_STEPS"]+1):
 
-    for j in range(settings["EnvHPs"]["MAX_EP_STEPS"]+1):
-
-        a, networkData = GetAction(state=s0,episode=0,step=j)
-
-        for functionString in envSettings["ActionProcessingFunctions"]:
-            ActionProcessing = GetFunction(functionString)
-            a = ActionProcessing(a,env,envSettings,sess)
+        a = GetAction(state=s0,episode=0,step=j)
 
         s1,r,done,_ = env.step(a)
-        for functionString in envSettings["StateProcessingFunctions"]:
-            StateProcessing = GetFunction(functionString)
-            s1 = StateProcessing(s1,env,envSettings,sess)
 
-        for functionString in envSettings["RewardProcessingFunctions"]:
-            RewardProcessing = GetFunction(functionString)
-            r,done = RewardProcessing(s1,r,done,env,envSettings,sess)
         s.append(s0)
         s_next.append(s1)
         r_store.append(r)
-        s0 = s1
 
-        if done.all():
+        s0 = s1
+        if done:
             break
 
-LOG_PATH = './images/SF/'+EXP_NAME
-CreatePath(LOG_PATH)
 
 class SaveModel(tf.keras.callbacks.Callback):
     def on_epoch_end(self, epoch, logs=None):
@@ -188,7 +152,6 @@ class RewardTest(tf.keras.callbacks.Callback):
     def on_epoch_end(self,epoch, logs=None):
         if epoch%50 == 0:
             for num in range(1):
-                env.seed(1337)
                 env.reset()
                 rewardMap = np.zeros((dFeatures[0],dFeatures[1]))
                 for i,j in itertools.product(range(dFeatures[0]),range(dFeatures[1])):
@@ -213,6 +176,10 @@ SF.fit(
     np.stack(s),
     [np.stack(s_next),np.stack(r_store)],
     epochs=1001,
+<<<<<<< HEAD:SF_Phi.py
     batch_size=settings["BatchSize"],
+=======
+    batch_size=2048,
+>>>>>>> f12bfbeb21c2dd457b102412a5cdafd44fac2695:SF_Phi_v2.py
     shuffle=True,
     callbacks=[ImageGenerator(),SaveModel(),RewardTest()])
