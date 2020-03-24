@@ -1,4 +1,4 @@
-
+256_2"
 
 
 
@@ -15,3 +15,39 @@ python SF_Phi.py -f MG4R_SF.json -c '{"RunName":"MG4R_64_256_256"}' -n '{"Defaul
 
 #Random everything
 python SF_Phi.py -f MG4R_SF.json -c '{"RunName":"MG4R_64_256_256"}' -n '{"DefaultParams":{"Filters":64,"SFSize":256,"FCUnits":256}}' -e '{"AgentLocation":null,"GoalLocation":null,"Seed":null}'
+
+
+python SF_Phi.py -f MG4R_SF.json -c '{"RunName":"MG4R_64_32_256"}' -n '{"DefaultParams":{"Filters":64,"SFSize":32,"FCUnits":256}}'
+python SF_Phi.py -f MG4R_SF.json -c '{"RunName":"MG4R_64_16_256"}' -n '{"DefaultParams":{"Filters":64,"SFSize":16,"FCUnits":256}}'
+python SF_Phi.py -f MG4R_SF.json -c '{"RunName":"MG4R_64_8_256"}' -n '{"DefaultParams":{"Filters":64,"SFSize":8,"FCUnits":256}}'
+python SF_Phi.py -f MG4R_SF.json -c '{"RunName":"MG4R_64_4_256"}' -n '{"DefaultParams":{"Filters":64,"SFSize":4,"FCUnits":256}}'
+python SF_Phi.py -f MG4R_SF.json -c '{"RunName":"MG4R_64_512_256"}' -n '{"DefaultParams":{"Filters":64,"SFSize":512,"FCUnits":256}}'
+python SF_Phi.py -f MG4R_SF.json -c '{"RunName":"MG4R_64_1024_256"}' -n '{"DefaultParams":{"Filters":64,"SFSize":1024,"FCUnits":256}}'
+
+
+python SF_Phi.py -f MG4R_SF.json -c '{"RunName":"MG4R_96_4_512"}' -n '{"DefaultParams":{"Filters":96,"SFSize":4,"FCUnits":512}}'
+python SF_Phi.py -f MG4R_SF.json -c '{"RunName":"MG4R_96_8_512"}' -n '{"DefaultParams":{"Filters":96,"SFSize":8,"FCUnits":512}}'
+python SF_Phi.py -f MG4R_SF.json -c '{"RunName":"MG4R_96_16_512"}' -n '{"DefaultParams":{"Filters":96,"SFSize":16,"FCUnits":512}}'
+python SF_Phi.py -f MG4R_SF.json -c '{"RunName":"MG4R_96_32_512"}' -n '{"DefaultParams":{"Filters":96,"SFSize":32,"FCUnits":512}}'
+python SF_Phi.py -f MG4R_SF.json -c '{"RunName":"MG4R_96_64_512"}' -n '{"DefaultParams":{"Filters":96,"SFSize":64,"FCUnits":512}}'
+python SF_Phi.py -f MG4R_SF.json -c '{"RunName":"MG4R_96_128_512"}' -n '{"DefaultParams":{"Filters":96,"SFSize":128,"FCUnits":512}}'
+python SF_Phi.py -f MG4R_SF.json -c '{"RunName":"MG4R_96_256_512"}' -n '{"DefaultParams":{"Filters":96,"SFSize":256,"FCUnits":512}}'
+python SF_Phi.py -f MG4R_SF.json -c '{"RunName":"MG4R_96_512_512"}' -n '{"DefaultParams":{"Filters":96,"SFSize":512,"FCUnits":512}}'
+python SF_Phi.py -f MG4R_SF.json -c '{"RunName":"MG4R_96_1024_512"}' -n '{"DefaultParams":{"Filters":96,"SFSize":1024,"FCUnits":512}}'
+
+python SF_Psi.py -f MG4R_SF.json -c '{"BatchSize":4096,"RunName":"MG4R_64_4_256_2_"}' -n '{"DefaultParams":{"Filters":64,"SFSize":4,"FCUnits":256}}'
+python SF_Psi.py -f MG4R_SF.json -c '{"BatchSize":4096,"RunName":"MG4R_64_8_256_2_"}' -n '{"DefaultParams":{"Filters":64,"SFSize":8,"FCUnits":256}}'
+python SF_Psi.py -f MG4R_SF.json -c '{"BatchSize":4096,"RunName":"MG4R_64_16_256_2_"}' -n '{"DefaultParams":{"Filters":64,"SFSize":16,"FCUnits":256}}'
+python SF_Psi.py -f MG4R_SF.json -c '{"BatchSize":4096,"RunName":"MG4R_64_32_256_2_"}' -n '{"DefaultParams":{"Filters":64,"SFSize":32,"FCUnits":256}}'
+python SF_Psi.py -f MG4R_SF.json -c '{"BatchSize":4096,"RunName":"MG4R_64_64_256_2_"}' -n '{"DefaultParams":{"Filters":64,"SFSize":64,"FCUnits":256}}'
+python SF_Psi.py -f MG4R_SF.json -c '{"BatchSize":4096,"RunName":"MG4R_64_128_256_2_"}' -n '{"DefaultParams":{"Filters":64,"SFSize":128,"FCUnits":256}}'
+python SF_Psi.py -f MG4R_SF.json -c '{"BatchSize":4096,"RunName":"MG4R_64_256_256_2_"}' -n '{"DefaultParams":{"Filters":64,"SFSize":256,"FCUnits":256}}'
+python SF_Psi.py -f MG4R_SF.json -c '{"BatchSize":4096,"RunName":"MG4R_64_512_256_2_"}' -n '{"DefaultParams":{"Filters":64,"SFSize":512,"FCUnits":256}}'
+python SF_Psi.py -f MG4R_SF.json -c '{"BatchSize":4096,"RunName":"MG4R_64_1024_256_2_"}' -n '{"DefaultParams":{"Filters":64,"SFSize":1024,"FCUnits":256}}'
+
+
+python SF_Phi.py -f MG4R_SF.json -c '{"RunName":"MG4R_64_256_256_BS512","BatchSize":512}' -n '{"DefaultParams":{"Filters":64,"SFSize":256,"FCUnits":256}}'
+python SF_Phi.py -f MG4R_SF.json -c '{"RunName":"MG4R_64_256_256_BS1024","BatchSize":1024}' -n '{"DefaultParams":{"Filters":64,"SFSize":256,"FCUnits":256}}'
+python SF_Phi.py -f MG4R_SF.json -c '{"RunName":"MG4R_64_256_256_BS2048","BatchSize":2048}' -n '{"DefaultParams":{"Filters":64,"SFSize":256,"FCUnits":256}}'
+python SF_Phi.py -f MG4R_SF.json -c '{"RunName":"MG4R_64_256_256_BS3072","BatchSize":3072}' -n '{"DefaultParams":{"Filters":64,"SFSize":256,"FCUnits":256}}'
+python SF_Phi.py -f MG4R_SF.json -c '{"RunName":"MG4R_64_256_256_BS4096","BatchSize":4096}' -n '{"DefaultParams":{"Filters":64,"SFSize":256,"FCUnits":256}}'

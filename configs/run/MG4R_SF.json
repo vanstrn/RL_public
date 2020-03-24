@@ -18,6 +18,7 @@
             "Gamma":0.99,
             "SampleEpisodes":100},
 
+  "BatchSize":1024,
   "NumberENV":8,
   "EnvConfig":"MG4R_Asynch.json",
   "NetworkConfig":"MG4R_SF_v1.json",
