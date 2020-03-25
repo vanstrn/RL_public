@@ -76,7 +76,7 @@ config = tf.ConfigProto(gpu_options=gpu_options, log_device_placement=False, all
 sess = tf.Session(config=config)
 with tf.device('/gpu:0'):
     SF,_,_,_,SF5 = buildNetwork(settings["NetworkConfig"],nActions,netConfigOverride,scope="Global")
-    try:SF5.load_weights(MODEL_PATH+"/model.h5")
+    try:SF.load_weights(MODEL_PATH+"/model.h5")
     except: print("Did not load weights")
 
 def GetAction(state):
@@ -91,27 +91,10 @@ def GetAction(state):
     actions = np.array([np.random.choice(probs.shape[1], p=prob / sum(prob)) for prob in probs])
     return actions
 
-#Collecting samples
-s = []
-s_next = []
-r_store = []
-for i in range(settings["SampleEpisodes"]):
-    s0 = env.reset()
-
-    for j in range(settings["MAX_EP_STEPS"]+1):
-
-        a = GetAction(state=s0)
-
-        s1,r,done,_ = env.step(a)
-
-        s.append(s0)
-        s_next.append(s1)
-        r_store.append(r)
-
-        s0 = s1
-        if done:
-            break
-
+loadedData = np.load('./data/SF_TRIAL1.npz')
+s = loadedData["s"]
+s_next = loadedData["s_next"]
+r_store = loadedData["r_store"]
 
 class SaveModel(tf.keras.callbacks.Callback):
     def on_epoch_end(self, epoch, logs=None):
@@ -169,8 +152,8 @@ class RewardTest(tf.keras.callbacks.Callback):
                 plt.savefig(LOG_PATH+"/RewardPred"+str(epoch)+".png")
                 plt.close()
 
-opt = tf.keras.optimizers.Adam(learning_rate=0.0003)
-SF.compile(optimizer=opt, loss=[M4E,"mse"], loss_weights = [1.0,1.0])
+
+SF.compile(optimizer="adam", loss=[M4E,"mse"], loss_weights = [1.0,1.0])
 SF.fit(
     np.stack(s),
     [np.stack(s_next),np.stack(r_store)],

@@ -72,12 +72,16 @@ gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=settings["GPUCapacit
 config = tf.ConfigProto(gpu_options=gpu_options, log_device_placement=False, allow_soft_placement=True)
 sess = tf.Session(config=config)
 with tf.device('/gpu:0'):
-    netConfigOverride["DefaultParams"]["Trainable"] = False
-    SF,SF2,SF3,SF4 = buildNetwork(settings["NetworkConfig"],nActions,netConfigOverride,scope="Global")
-    try:SF.load_weights(MODEL_PATH+"/model_phi.h5")
+    try:
+        netConfigOverride["DefaultParams"]["Trainable"] = False
+    except:
+        netConfigOverride["DefaultParams"] = {}
+        netConfigOverride["DefaultParams"]["Trainable"] = False
+    SF1,SF2,SF3,SF4,SF5 = buildNetwork(settings["NetworkConfig"],nActions,netConfigOverride,scope="Global")
+    try:SF5.load_weights(MODEL_PATH+"/model.h5")
     except: print("Did not load weights")
 
-def GetAction(state,episode=0,step=0,deterministic=False,debug=False):
+def GetAction(state):
     """
     Contains the code to run the network based on an input.
     """
@@ -87,8 +91,7 @@ def GetAction(state,episode=0,step=0,deterministic=False,debug=False):
     else:
         probs =np.full((state.shape[0],nActions),p)
     actions = np.array([np.random.choice(probs.shape[1], p=prob / sum(prob)) for prob in probs])
-    if debug: print(probs)
-    return actions , []  # return a int and extra data that needs to be fed to buffer.
+    return actions
 
 s = []
 s_next = []
@@ -98,7 +101,7 @@ for i in range(settings["SampleEpisodes"]):
 
     for j in range(settings["MAX_EP_STEPS"]+1):
 
-        a, networkData = GetAction(state=s0,episode=0,step=j)
+        a = GetAction(state=s0)
 
         s1,r,done,_ = env.step(a)
 
@@ -119,6 +122,7 @@ class SaveModel(tf.keras.callbacks.Callback):
             with open(MODEL_PATH+"model_psi.json", "w") as json_file:
                 json_file.write(model_json)
             SF2.save_weights(MODEL_PATH+"model_psi.h5")
+            SF5.save_weights(MODEL_PATH+"model.h5")
 
 def ConstructSample(env,position):
     grid = env.grid.encode()
@@ -132,7 +136,6 @@ class ValueTest(tf.keras.callbacks.Callback):
     def on_epoch_end(self,epoch, logs=None):
         if epoch != 0 and epoch%29 == 0:
             global counter
-            env.seed(1337)
             env.reset()
             rewardMap = np.zeros((dFeatures[0],dFeatures[1]))
             for i,j in itertools.product(range(dFeatures[0]),range(dFeatures[1])):
@@ -156,8 +159,8 @@ class ValueTest(tf.keras.callbacks.Callback):
 
 SF2.compile(optimizer="adam", loss="mse")
 phi = SF3.predict(np.stack(s))
-gamma=0.99
-for i in range(50):
+gamma=settings["Gamma"]
+for i in range(settings["Epochs"]):
 
     psi_next = SF2.predict(np.stack(s_next))
 
@@ -165,7 +168,7 @@ for i in range(50):
     SF2.fit(
         np.stack(s),
         [np.stack(labels)],
-        epochs=30,
-        batch_size=512,
+        epochs=settings["FitIterations"],
+        batch_size=settings["BatchSize"],
         shuffle=True,
         callbacks=[ValueTest(),SaveModel()])

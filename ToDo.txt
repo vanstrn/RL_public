@@ -34,8 +34,6 @@ Replay Buffers
 Move to TF2
   Keras implementation should be similar. Check background functions.
 
-Switch to environment wrappers as they are cut down on run script.
-
 Buffers
   Experience buffer
   Improve Trajectory by preventing samples that are done from adding new samples.

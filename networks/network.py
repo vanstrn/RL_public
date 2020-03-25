@@ -197,8 +197,7 @@ class Network(tf.keras.Model):
             elif dict["layerType"] == "SeparableConv":
                 layer = KL.SeparableConv2D( **dict["Parameters"],name=dict["layerName"])
             elif dict["layerType"] == "Round":
-                layer= RoundingSine(name=dict["layerName"])
-                # layer= RoundingSine(**dict["Parameters"],name=dict["layerName"])
+                layer= RoundingSine(**dict["Parameters"],name=dict["layerName"])
             elif dict["layerType"] == "Flatten":
                 layer= KL.Flatten()
             elif dict["layerType"] == "NonLocalNN":

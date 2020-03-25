@@ -31,7 +31,7 @@ class A3C(Method):
         self.reward = tf.placeholder(tf.float32, [None, ], 'R')
         self.v_target = tf.placeholder(tf.float32, [None], 'Vtarget')
         self.advantage = tf.placeholder(tf.float32, [None], 'Advantage')
-        self.td_target = tf.placeholder(tf.float32, [None,data["DefaultParams"]["SFSize"]], 'TDtarget')
+        self.td_target = tf.placeholder(tf.float32, [None, 64], 'TDtarget')
 
         input = {"state":self.s}
         out = self.Model(input)
@@ -104,6 +104,8 @@ class A3C(Method):
             self.loss_MA = [MovingAverage(400) for i in range(len(self.grads))]
             self.labels = ["Actor","Critic","State","Reward"]
 
+            self.HPs = HPs
+
     def GetAction(self, state,episode=0,step=0,deterministic=False,debug=False):
         """
         Contains the code to run the network based on an input.
@@ -122,56 +124,80 @@ class A3C(Method):
         The main update function for A3C. The function pushes gradients to the global AC Network.
         The second function is to Pull
         """
-        #Process the data from the buffer
+        samples=0
+        for i in range(len(self.buffer)):
+            samples +=len(self.buffer[i])
+        if samples < self.HPs["BatchSize"]:
+            return
+
         for traj in range(len(self.buffer)):
             clip = -1
-            try:
-                for j in range(2):
-                    clip = self.buffer[traj][4].index(True, clip + 1)
-            except:
-                clip=len(self.buffer[traj][4])
+            # try:
+            #     for j in range(2):
+            #         clip = self.buffer[traj][4].index(True, clip + 1)
+            # except:
+            #     clip=len(self.buffer[traj][4])
 
-            v_target,advantage,td_target = self.ProcessBuffer(HPs,traj,clip)
+            v_target,advantages,td_target = self.ProcessBuffer(HPs,traj,clip)
+
+            batches = len(self.buffer[traj][0][:clip])//self.HPs["MinibatchSize"]+1
+            if "StackedDim" in self.HPs:
+                if self.HPs["StackedDim"] > 1:
+                    s_next = np.array_split(np.squeeze(self.buffer[traj][3][:clip])[:,:,:,-self.HPs["StackedDim"]:],3,batches)
+                else:
+                    s_next = np.array_split(np.expand_dims(np.stack(self.buffer[traj][3][:clip])[:,:,:,-self.HPs["StackedDim"]],3),batches)
+            else:
+                s_next = np.array_split(self.buffer[traj][3][:clip],batches)
+            s = np.array_split(self.buffer[traj][0][:clip], batches)
+            reward = np.array_split(np.asarray(self.buffer[traj][2][:clip]).reshape(-1),batches)
+            psi_target = np.array_split(np.squeeze(td_target),batches)
+            advantage = np.array_split(np.squeeze(np.asarray(advantages).reshape(-1)),batches)
+            a_his = np.array_split(np.asarray(self.buffer[traj][1][:clip]).reshape(-1),batches)
 
             #Create a feedDict from the buffer
-            feedDict = {
-                self.s: self.buffer[traj][0][:clip],
-                self.reward: self.buffer[traj][2][:clip],
-                self.s_next: self.buffer[traj][3][:clip],
-                self.a_his: np.asarray(self.buffer[traj][1][:clip]).reshape(-1),
-                self.advantage: np.asarray(advantage).reshape(-1),
-                self.td_target: np.squeeze(td_target,1),
-            }
+            for epoch in range(self.HPs["Epochs"]):
+                #Create a feedDict from the buffer
+                for i in range(batches):
+                    feedDict = {
+                        self.s: s[i],
+                        self.reward: reward[i],
+                        self.s_next: s_next[i],
+                        self.a_his: a_his[i],
+                        self.advantage: advantage[i],
+                        self.td_target: psi_target[i],
+                    }
 
-            if not statistics:
-                self.sess.run(self.update_ops, feedDict)   # local grads applied to global net.
-            else:
-                #Perform update operations
-                try:
-                    out = self.sess.run(self.update_ops+self.losses+self.grads, feedDict)   # local grads applied to global net.
-                    out = np.array_split(out,3)
-                    losses = out[1]
-                    grads = out[2]
+                    if not statistics:
+                        self.sess.run(self.update_ops, feedDict)   # local grads applied to global net.
+                    else:
+                        #Perform update operations
+                        try:
+                            out = self.sess.run(self.update_ops+self.losses+self.grads, feedDict)   # local grads applied to global net.
+                            out = np.array_split(out,3)
+                            losses = out[1]
+                            grads = out[2]
 
-                    for i,loss in enumerate(losses):
-                        self.loss_MA[i].append(loss)
+                            for i,loss in enumerate(losses):
+                                self.loss_MA[i].append(loss)
 
-                    for i,grads_i in enumerate(grads):
-                        total_counter = 0
-                        vanish_counter = 0
-                        for grad in grads_i:
-                            total_counter += np.prod(grad.shape)
-                            vanish_counter += (np.absolute(grad)<1e-8).sum()
-                        self.grad_MA[i].append(vanish_counter/total_counter)
-                except:
-                    out = self.sess.run(self.update_ops+self.losses, feedDict)   # local grads applied to global net.
-                    out = np.array_split(out,2)
-                    losses = out[1]
+                            for i,grads_i in enumerate(grads):
+                                total_counter = 0
+                                vanish_counter = 0
+                                for grad in grads_i:
+                                    total_counter += np.prod(grad.shape)
+                                    vanish_counter += (np.absolute(grad)<1e-8).sum()
+                                self.grad_MA[i].append(vanish_counter/total_counter)
+                        except:
+                            out = self.sess.run(self.update_ops+self.losses, feedDict)   # local grads applied to global net.
+                            out = np.array_split(out,2)
+                            losses = out[1]
 
-                    for i,loss in enumerate(losses):
-                        self.loss_MA[i].append(loss)
+                            for i,loss in enumerate(losses):
+                                self.loss_MA[i].append(loss)
 
         self.sess.run(self.pull_ops)   # global variables synched to the local net.
+
+        self.ClearTrajectory()
 
 
     def GetStatistics(self):
@@ -207,7 +233,7 @@ class A3C(Method):
 
         v_target, advantage = gae(self.buffer[traj][2][:clip],self.buffer[traj][5][:clip],0,HPs["Gamma"],HPs["lambda"])
 
-        td_target, _ = gae(self.buffer[traj][6][:clip], self.buffer[traj][7][:clip], np.zeros_like(self.buffer[traj][6][0][:clip]),HPs["Gamma"],HPs["lambda"])
+        td_target, _ = gae(self.buffer[traj][6][:clip], self.buffer[traj][7][:clip], np.zeros_like(self.buffer[traj][6][0]),HPs["Gamma"],HPs["lambda"])
         # tracker.print_diff()
         return v_target,advantage, td_target
 

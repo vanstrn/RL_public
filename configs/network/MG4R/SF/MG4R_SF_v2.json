@@ -67,9 +67,13 @@
 
 
     "Critic":[
+      { "layerType":"StopGradient",
+        "layerName":"StopGradient",
+        "layerInput":"Phi",
+        "Parameters":{}},
       { "layerType":"Dense",
         "layerName":"Critic_FC1",
-        "layerInput":"Phi",
+        "layerInput":"StopGradient",
         "Parameters":{"units":"FCUnits",
                       "activation":"relu"}},
       { "layerType":"Dense",
@@ -133,19 +137,27 @@
 
   },
   "NetworkOutputs":[
-    {
-      "prediction":"StatePrediction",
-      "reward_pred":"SuccessorWeights"
-    },
-    {
-      "psi":"Psi"
-    },
-    {
-      "phi":"Phi"
-    },
-    {
-      "critic":"Critic"
-    }
+      {
+        "prediction":"StatePrediction",
+        "reward_pred":"SuccessorWeights",
+        "psi":"Psi"
+      },
+      {
+        "psi":"Psi"
+      },
+      {
+        "phi":"Phi"
+      },
+      {
+        "critic":"Critic"
+      },
+      {
+        "phi":"Phi",
+        "prediction":"StatePrediction",
+        "reward_pred":"SuccessorWeights",
+        "psi":"Psi",
+        "critic":"Critic"
+      }
   ],
 
   "NetworkVariableGroups":{

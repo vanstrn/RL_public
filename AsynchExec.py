@@ -63,7 +63,7 @@ CreatePath(MODEL_PATH)
 
 #Creating the Environment
 
-_,dFeatures,nActions,nTrajs = CreateEnvironment(envSettings,multiprocessing=settings["NumberENV"])
+_,dFeatures,nActions,nTrajs = CreateEnvironment(envSettings,multiprocessing=1)
 
 #Creating the Networks and Methods of the Run.
 gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=settings["GPUCapacitty"], allow_growth=True)
@@ -90,7 +90,7 @@ with tf.device(args.processor):
         Method = GetFunction(settings["Method"])
         localNetwork = Method(network,sess,stateShape=dFeatures,actionSize=nActions,scope=i_name,HPs=settings["NetworkHPs"],globalAC=GLOBAL_AC,nTrajs=nTrajs)
         localNetwork.InitializeVariablesFromFile(saver,MODEL_PATH)
-        env,_,_,_ = CreateEnvironment(envSettings,multiprocessing=settings["NumberENV"])
+        env,_,_,_ = CreateEnvironment(envSettings,multiprocessing=1)
         workers.append(Worker(localNetwork,env,sess,global_step,global_step_next,settings,progbar,writer,MODEL_PATH,saver))
 
 InitializeVariables(sess) #Included to catch if there are any uninitalized variables.

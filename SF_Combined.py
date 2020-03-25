@@ -67,15 +67,17 @@ CreatePath(MODEL_PATH)
 #Creating the Environment
 env,dFeatures,nActions,nTrajs = CreateEnvironment(envSettings)
 
-def M4E(y_true,y_pred):
-    return K.mean(K.pow(y_pred-y_true,4))
-
 #Creating the Networks and Methods of the Run.
 gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=settings["GPUCapacitty"], allow_growth=True)
 config = tf.ConfigProto(gpu_options=gpu_options, log_device_placement=False, allow_soft_placement=True)
 sess = tf.Session(config=config)
 with tf.device('/gpu:0'):
-    SF,_,_,_,SF5 = buildNetwork(settings["NetworkConfig"],nActions,netConfigOverride,scope="Global")
+    try:
+        netConfigOverride["DefaultParams"]["Trainable"] = False
+    except:
+        netConfigOverride["DefaultParams"] = {}
+        netConfigOverride["DefaultParams"]["Trainable"] = False
+    SF1,SF2,SF3,SF4,SF5 = buildNetwork(settings["NetworkConfig"],nActions,netConfigOverride,scope="Global")
     try:SF5.load_weights(MODEL_PATH+"/model.h5")
     except: print("Did not load weights")
 
@@ -91,37 +93,49 @@ def GetAction(state):
     actions = np.array([np.random.choice(probs.shape[1], p=prob / sum(prob)) for prob in probs])
     return actions
 
-#Collecting samples
-s = []
-s_next = []
-r_store = []
-for i in range(settings["SampleEpisodes"]):
-    s0 = env.reset()
-
-    for j in range(settings["MAX_EP_STEPS"]+1):
-
-        a = GetAction(state=s0)
-
-        s1,r,done,_ = env.step(a)
-
-        s.append(s0)
-        s_next.append(s1)
-        r_store.append(r)
-
-        s0 = s1
-        if done:
-            break
-
+loadedData = np.load('./data/SF_TRIAL1.npz')
+s = loadedData["s"]
+s_next = loadedData["s_next"]
+r_store = loadedData["r_store"]
 
 class SaveModel(tf.keras.callbacks.Callback):
-    def on_epoch_end(self, epoch, logs=None):
-        if epoch%50 == 0:
-            model_json = SF.to_json()
-            with open(MODEL_PATH+"model_phi.json", "w") as json_file:
+    def on_epoch_end(self,epoch, logs=None):
+        if epoch%250 == 0:
+            model_json = SF2.to_json()
+            with open(MODEL_PATH+"model.json", "w") as json_file:
                 json_file.write(model_json)
-            SF.save_weights(MODEL_PATH+"model_phi.h5")
             SF5.save_weights(MODEL_PATH+"model.h5")
 
+def ConstructSample(env,position):
+    grid = env.grid.encode()
+    if grid[position[0],position[1],1] == 5:
+        return None
+    grid[position[0],position[1],0] = 10
+    return grid[:,:,:2]
+
+counter = 0
+class ValueTest(tf.keras.callbacks.Callback):
+    def on_epoch_end(self,epoch, logs=None):
+        if epoch != 0 and epoch%29 == 0:
+            global counter
+            env.reset()
+            rewardMap = np.zeros((dFeatures[0],dFeatures[1]))
+            for i,j in itertools.product(range(dFeatures[0]),range(dFeatures[1])):
+                grid = ConstructSample(env,[i,j])
+                if grid is None: continue
+                [value] = SF4.predict(np.expand_dims(grid,0))
+                rewardMap[i,j] = value
+            fig=plt.figure(figsize=(5.5, 8))
+            fig.add_subplot(2,1,1)
+            plt.title("State")
+            imgplot = plt.imshow(env.grid.encode()[:,:,0], vmin=0, vmax=10)
+            fig.add_subplot(2,1,2)
+            plt.title("Value Prediction")
+            imgplot = plt.imshow(rewardMap)
+            fig.colorbar(imgplot)
+            plt.savefig(LOG_PATH+"/ValuePred"+str(counter)+".png")
+            plt.close()
+            counter +=1
 class ImageGenerator(tf.keras.callbacks.Callback):
     def on_epoch_end(self,epoch, logs=None):
         if epoch%50 == 0:
@@ -140,14 +154,6 @@ class ImageGenerator(tf.keras.callbacks.Callback):
                 else:
                     plt.savefig(LOG_PATH+"/StatePred"+str(i)+".png")
                 plt.close()
-
-def ConstructSample(env,position):
-    grid = env.grid.encode()
-    if grid[position[0],position[1],1] == 5:
-        return None
-    grid[position[0],position[1],0] = 10
-    return grid[:,:,:2]
-
 class RewardTest(tf.keras.callbacks.Callback):
     def on_epoch_end(self,epoch, logs=None):
         if epoch%50 == 0:
@@ -169,12 +175,21 @@ class RewardTest(tf.keras.callbacks.Callback):
                 plt.savefig(LOG_PATH+"/RewardPred"+str(epoch)+".png")
                 plt.close()
 
-opt = tf.keras.optimizers.Adam(learning_rate=0.0003)
-SF.compile(optimizer=opt, loss=[M4E,"mse"], loss_weights = [1.0,1.0])
-SF.fit(
-    np.stack(s),
-    [np.stack(s_next),np.stack(r_store)],
-    epochs=settings["Epochs"],
-    batch_size=settings["BatchSize"],
-    shuffle=True,
-    callbacks=[ImageGenerator(),SaveModel(),RewardTest()])
+def M4E(y_true,y_pred):
+    return K.mean(K.pow(y_pred-y_true,4))
+
+SF1.compile(optimizer="adam", loss=[M4E,"mse","mse"])
+phi = SF3.predict(np.stack(s))
+gamma=settings["Gamma"]
+for i in range(settings["Epochs"]):
+
+    psi_next = SF2.predict(np.stack(s_next))
+
+    labels = phi+gamma*psi_next
+    SF1.fit(
+        np.stack(s),
+        [np.stack(s_next),np.stack(r_store),np.stack(labels)],
+        epochs=settings["FitIterations"],
+        batch_size=settings["BatchSize"],
+        shuffle=True,
+        callbacks=[ValueTest(),SaveModel(),ImageGenerator(),RewardTest()])

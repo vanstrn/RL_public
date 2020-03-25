@@ -67,7 +67,7 @@ def SquareVisualization():
     fig.colorbar(images[0], ax=axs, orientation='horizontal', fraction=.1)
     plt.show()
 
-def ObstacleVisualization():
+def ObstacleVisualization(plotting=False):
     grid = np.array([   [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
                         [1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1],
                         [1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1],
@@ -149,25 +149,28 @@ def ObstacleVisualization():
         loc = states_[j]
         valueGrid[loc[0],loc[1]] = value[j]
 
-    images = []
-    fig,axs = plt.subplots(1,1)
-    images.append(axs.imshow(valueGrid))
-    axs.set_title("True Value: Gamma=0.99")
-    axs.label_outer()
+    if plotting:
+        images = []
+        fig,axs = plt.subplots(1,1)
+        images.append(axs.imshow(valueGrid))
+        axs.set_title("True Value: Gamma=0.99")
+        axs.label_outer()
 
-    # for i,w_ in enumerate(w_i):
-    #     # value_i = np.reshape(np.matmul(psi,w_),(dimension,dimension))
-    #     images.append(axs[(i+1)//2,(i+1)%2].imshow(valueGrid))
-    #     axs[(i+1)//2,(i+1)%2].set_title("Value Estimate from " + str(i))
-    #     axs[(i+1)//2,(i+1)%2].label_outer()
-    #
-    # vmin = min(image.get_array().min() for image in images)
-    # vmax = max(image.get_array().max() for image in images)
-    # norm = colors.Normalize(vmin=vmin, vmax=vmax)
-    # for im in images:
-    #     im.set_norm(norm)
-    fig.colorbar(images[0], ax=axs, orientation='vertical', fraction=.1)
-    plt.show()
+        # for i,w_ in enumerate(w_i):
+        #     # value_i = np.reshape(np.matmul(psi,w_),(dimension,dimension))
+        #     images.append(axs[(i+1)//2,(i+1)%2].imshow(valueGrid))
+        #     axs[(i+1)//2,(i+1)%2].set_title("Value Estimate from " + str(i))
+        #     axs[(i+1)//2,(i+1)%2].label_outer()
+        #
+        # vmin = min(image.get_array().min() for image in images)
+        # vmax = max(image.get_array().max() for image in images)
+        # norm = colors.Normalize(vmin=vmin, vmax=vmax)
+        # for im in images:
+        #     im.set_norm(norm)
+        fig.colorbar(images[0], ax=axs, orientation='vertical', fraction=.1)
+        plt.show()
+    return valueGrid
+
 
 
 if __name__ == "__main__":

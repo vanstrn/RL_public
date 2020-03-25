@@ -88,6 +88,9 @@ class OffPolicySF(Method):
                     self.optimizer = tf.keras.optimizers.SGD(HPs["State LR"])
                 elif HPs["Optimizer"] == "Amsgrad":
                     self.optimizer = tf.keras.optimizers.Nadam(HPs["State LR"],amsgrad=True)
+                else:
+                    print("Not selected a proper Optimizer")
+                    exit()
 
                 with tf.name_scope('local_grad'):
                     self.c_grads = self.Coptimizer.get_gradients(self.c_loss, self.c_params)
@@ -145,7 +148,7 @@ class OffPolicySF(Method):
             samples +=len(self.buffer[i])
         if samples < self.HPs["BatchSize"]:
             return
-        self.clearBuffer = True
+
         for traj in range(len(self.buffer)):
 
             clip = -1
@@ -201,7 +204,9 @@ class OffPolicySF(Method):
                             for i,loss in enumerate(losses):
                                 self.loss_MA[i].append(loss)
 
-            self.sess.run(self.pull_ops)   # global variables synched to the local net.
+        self.sess.run(self.pull_ops)   # global variables synched to the local net.
+
+        self.ClearTrajectory()
 
 
     def GetStatistics(self):
@@ -239,11 +244,11 @@ class OffPolicySF(Method):
         # tracker.print_diff()
         return td_target
 
-    def ClearTrajectory(self):
-        if self.clearBuffer:
-            for traj in self.buffer:
-                traj.clear()
-            self.clearBuffer=False
+    # def ClearTrajectory(self):
+    #     if self.clearBuffer:
+    #         for traj in self.buffer:
+    #             traj.clear()
+    #         self.clearBuffer=False
 
 
     @property

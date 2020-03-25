@@ -59,9 +59,9 @@ sess = tf.Session(config=config)
 with tf.device('/cpu:0'):
     global_step = tf.Variable(0, trainable=False, name='global_step')
     global_step_next = tf.assign_add(global_step,1)
-    network = Network("configs/network/"+settings["NetworkConfig"],nActions,netConfigOverride)
+    network = Network(settings["NetworkConfig"],nActions,netConfigOverride)
     Method = GetFunction(settings["Method"])
-    net = Method(network,sess,stateShape=dFeatures,actionSize=nActions,HPs=settings["NetworkHPs"],nTrajs=nTrajs)
+    net = Method(network,sess,scope="net",stateShape=dFeatures,actionSize=nActions,HPs=settings["NetworkHPs"],nTrajs=nTrajs)
 
 #Creating Auxilary Functions for logging and saving.
 writer = tf.summary.FileWriter(LOG_PATH,graph=sess.graph)
@@ -93,7 +93,6 @@ for i in range(settings["MAX_EP"]):
             net.Update(settings["NetworkHPs"],sess.run(global_step))
         if done or j == settings["MAX_EP_STEPS"]:
             net.Update(settings["NetworkHPs"],sess.run(global_step))
-            net.ClearTrajectory()
             break
 
     loggingDict = env.getLogging()
