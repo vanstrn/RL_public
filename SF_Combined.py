@@ -141,7 +141,7 @@ class ImageGenerator(tf.keras.callbacks.Callback):
         if epoch%50 == 0:
             for i in range(5):
                 state = s[i*100+randint(0,200)]
-                [state_new,reward] = SF.predict(np.expand_dims(state,0))
+                [state_new,reward,psi] = SF1.predict(np.expand_dims(state,0))
                 fig=plt.figure(figsize=(5.5, 8))
                 fig.add_subplot(2,1,1)
                 plt.title("State")
@@ -162,7 +162,7 @@ class RewardTest(tf.keras.callbacks.Callback):
                 for i,j in itertools.product(range(dFeatures[0]),range(dFeatures[1])):
                     grid = ConstructSample(env,[i,j])
                     if grid is None: continue
-                    [state_new,reward] = SF.predict(np.expand_dims(grid,0))
+                    [state_new,reward,psi] = SF1.predict(np.expand_dims(grid,0))
                     rewardMap[i,j] = reward
                 fig=plt.figure(figsize=(5.5, 8))
                 fig.add_subplot(2,1,1)
@@ -178,7 +178,8 @@ class RewardTest(tf.keras.callbacks.Callback):
 def M4E(y_true,y_pred):
     return K.mean(K.pow(y_pred-y_true,4))
 
-SF1.compile(optimizer="adam", loss=[M4E,"mse","mse"])
+opt = tf.keras.optimizers.Adam(learning_rate=settings["LearningRate"])
+SF1.compile(optimizer=opt, loss=[M4E,"mse","mse"])
 phi = SF3.predict(np.stack(s))
 gamma=settings["Gamma"]
 for i in range(settings["Epochs"]):

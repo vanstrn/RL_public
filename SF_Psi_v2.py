@@ -156,8 +156,8 @@ class ValueTest(tf.keras.callbacks.Callback):
             counter +=1
 
 
-
-SF2.compile(optimizer="adam", loss="mse")
+opt = tf.keras.optimizers.Adam(learning_rate=settings["LearningRate"])
+SF2.compile(optimizer=opt, loss="mse")
 phi = SF3.predict(np.stack(s))
 gamma=settings["Gamma"]
 for i in range(settings["Epochs"]):
