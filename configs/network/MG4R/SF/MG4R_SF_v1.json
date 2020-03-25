@@ -145,6 +145,13 @@
     },
     {
       "critic":"Critic"
+    },
+    {
+      "phi":"Phi",
+      "prediction":"StatePrediction",
+      "reward_pred":"SuccessorWeights",
+      "psi":"Psi",
+      "critic":"Critic"
     }
   ],
 

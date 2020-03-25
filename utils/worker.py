@@ -55,7 +55,6 @@ class Worker(object):
                 if updating or done or j == self.settings["MAX_EP_STEPS"]:   # update global and assign to local net
                     self.net.Update(self.settings["NetworkHPs"],self.sess.run(self.global_step))
                 if done or j == self.settings["MAX_EP_STEPS"]:
-                    self.net.ClearTrajectory()
                     break
 
             self.progbar.update(self.sess.run(self.global_step))

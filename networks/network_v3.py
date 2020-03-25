@@ -13,6 +13,7 @@ from .layers.non_local import Non_local_nn
 from .layers.approx_round import *
 from .layers.inception import Inception
 from .layers.reverse_inception import ReverseInception
+import tensorflow.keras.backend as K
 
 import collections.abc
 import os
@@ -206,7 +207,9 @@ def GetLayer( dict):
         layer = KL.UpSampling2D(**dict["Parameters"],name=dict["layerName"])
     elif dict["layerType"] == "GaussianNoise":
         layer = KL.GaussianNoise(**dict["Parameters"],name=dict["layerName"])
-
+    elif dict["layerType"] == "StopGradient":
+        layer = KL.Lambda(lambda x: K.stop_gradient(x))
+        
     return layer
 
 

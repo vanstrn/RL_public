@@ -78,7 +78,7 @@ with tf.device('/gpu:0'):
     try:SF2.load_weights(MODEL_PATH+"/model_psi.h5")
     except: print("Did not load weights")
 
-def GetAction(state,episode=0,step=0,deterministic=False,debug=False):
+def GetAction(state):
     """
     Contains the code to run the network based on an input.
     """
@@ -88,59 +88,88 @@ def GetAction(state,episode=0,step=0,deterministic=False,debug=False):
     else:
         probs =np.full((state.shape[0],nActions),p)
     actions = np.array([np.random.choice(probs.shape[1], p=prob / sum(prob)) for prob in probs])
-    if debug: print(probs)
-    return actions , []  # return a int and extra data that needs to be fed to buffer.
-
-s = []
-s_next = []
-r_store = []
-for i in range(settings["SampleEpisodes"]):
-    s0 = env.reset()
-
-    for j in range(settings["MAX_EP_STEPS"]+1):
-
-        a, networkData = GetAction(state=s0,episode=0,step=j)
-
-        s1,r,done,_ = env.step(a)
-
-        s.append(s0)
-        s_next.append(s1)
-        r_store.append(r)
-
-        s0 = s1
-        if done:
-            break
-
-
+    return actions   # return a int and extra data that needs to be fed to buffer.
 def ConstructSample(env,position):
     grid = env.grid.encode()
     if grid[position[0],position[1],1] == 5: #Wall
-        return None
+    return None
     grid[position[0],position[1],0] = 10
     return grid[:,:,:2]
 
+if True:
+    s = []
+    s_next = []
+    r_store = []
+    for i in range(settings["SampleEpisodes"]):
+        s0 = env.reset()
+
+        for j in range(settings["MAX_EP_STEPS"]+1):
+
+            a = GetAction(state=s0)
+
+            s1,r,done,_ = env.step(a)
+
+            s.append(s0)
+            s_next.append(s1)
+            r_store.append(r)
+
+            s0 = s1
+            if done:
+                break
+
 #####Evaluating using random sampling ########
 #Processing state samples into Psi.
-psiSamples = SF2.predict(np.stack(s)) # [X,SF Dim]
+    psiSamples = SF2.predict(np.stack(s)) # [X,SF Dim]
 
-##-Repeat M times to evaluate the effect of sampling.
-M = 3
-count = 0
-dim = psiSamples.shape[1]
-for replicate in range(M)
-    #Taking Eigenvalues and Eigenvectors of the environment,
-    w_g,v_g = np.linalg.eig(psiSamples[count:count+dim,:])
-    count += dim
+    ##-Repeat M times to evaluate the effect of sampling.
+    M = 3
+    count = 0
+    dim = psiSamples.shape[1]
+    for replicate in range(M)
+        #Taking Eigenvalues and Eigenvectors of the environment,
+        w_g,v_g = np.linalg.eig(psiSamples[count:count+dim,:])
+        count += dim
 
-    #Creating Eigenpurposes of the N highest Eigenvectors and saving images
-    N = 5
-    for sample in range(N)
-        v_option=np.zeros((dFeatures[0],dFeatures[1]))
-        for i,j in itertools.product(range(dFeatures[0]),range(dFeatures[1])):
-            grid = ConstructSample(env,[i,j])
-            if grid is None: continue
-            phi= SF1.predict(np.expand_dims(grid,0))
-            v_option[i,j]= phi*v_g(:,sample)
-        imgplot = plt.imshow(v_option)
-        plt.title("Option Value Estimate")
-        plt.savefig(LOG_PATH+"/option"+str(sample)+"replicate"+str(replicate)+".png")
+        #Creating Eigenpurposes of the N highest Eigenvectors and saving images
+        N = 5
+        for sample in range(N)
+            v_option=np.zeros((dFeatures[0],dFeatures[1]))
+            for i,j in itertools.product(range(dFeatures[0]),range(dFeatures[1])):
+                grid = ConstructSample(env,[i,j])
+                if grid is None: continue
+                phi= SF1.predict(np.expand_dims(grid,0))
+                v_option[i,j]= phi*v_g(:,sample)
+            imgplot = plt.imshow(v_option)
+            plt.title("Option "+str(sample)+" Value Estimate | Eigenvalue:" +str(w_g[sample]))
+            plt.savefig(LOG_PATH+"/option"+str(sample)+"replicate"+str(replicate)+".png")
+
+
+if True: #Calculating the MSE in the state,reward and value prediction.
+
+    #Reward Prediction Error. Performed over the reward map of entire environment.
+    env.reset()
+    rewardMap = np.zeros((dFeatures[0],dFeatures[1]))
+    for i,j in itertools.product(range(dFeatures[0]),range(dFeatures[1])):
+        grid = ConstructSample(env,[i,j])
+        if grid is None: continue
+        [_,reward] = SF1.predict(np.expand_dims(grid,0))
+        rewardMap[i,j] = reward
+    rewardMapReal = np.zeros((dFeatures[0],dFeatures[1]))
+    rewardMapReal[8,14] = 0.25
+    rewardMapReal[10,14] = 0.25
+
+    rewardError = np.sum((rewardMapReal-rewardMap)**2)
+    print(rewardError)
+
+    #Value Prediction Error. Performed over the value map of entire environment.
+    from DecompositionVisual import ObstacleVisualization
+    valueMap = np.zeros((dFeatures[0],dFeatures[1]))
+    for i,j in itertools.product(range(dFeatures[0]),range(dFeatures[1])):
+        grid = ConstructSample(env,[i,j])
+        if grid is None: continue
+        [value] = SF4.predict(np.expand_dims(grid,0))
+        valueMap[i,j] = value
+    valueMapReal = ObstacleVisualization()
+
+    valueError = np.sum((valueMapReal-valueMap)**2)
+    print(valueError)
