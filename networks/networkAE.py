@@ -150,11 +150,12 @@ def SFNetwork2(self, configFile, actionSize, netConfigOverride={}, scope=None, d
     psi3 = KL.Dense(256,activation=None)(psi2)
     value = w(psi3)
 
-    network = tf.keras.models.Model(input_img,[convT4,reward_pred])
+    network1 = tf.keras.models.Model(input_img,[convT4,reward_pred])
     network2 = tf.keras.models.Model(input_img,[psi3])
     network3 = tf.keras.models.Model(input_img,[encoded])
     network4 = tf.keras.models.Model(input_img,[value])
-    return network,network2,network3,network4
+    network5 = tf.keras.models.Model(input_img,[convT4,reward_pred,psi3,value])
+    return network1,network2,network3,network4,network5
 
 
 

@@ -15,34 +15,8 @@ from tensorflow.keras import backend as K
 import collections.abc
 import os
 
-def update(d, u):
-    for k, v in d.items():
-        if isinstance(v, collections.abc.Mapping):
-            d[k] = update(d.get(k, {}), u)
-        elif isinstance(v,list):
-            list_new = []
-            for val in v:
-                if isinstance(val, collections.abc.Mapping):
-                    tmp_dict = update(val, u)
-                    list_new.append(tmp_dict)
-                elif isinstance(val, list):
-                    pass
-                elif val in u.keys():
-                    list_new.append(u[val])
-                else:
-                    list_new.append(val)
-            d[k] = list_new
-        else:
-            if v in u.keys():
-                d[k] = u[v]
-    return d
-def Update(defaultSettings,overrides):
-    for label,override in overrides.items():
-        if isinstance(override, collections.abc.Mapping):
-            Update(defaultSettings[label],override)
-        else:
-            defaultSettings[label] = override
-    return defaultSettings
+from .common import *
+
 class Network(tf.keras.Model):
     def __init__(self, configFile, actionSize, netConfigOverride={}, scope=None,debug=False, training=True):
         """
@@ -85,7 +59,7 @@ class Network(tf.keras.Model):
             # raise
         with open(configFile) as json_file:
             data = json.load(json_file)
-        data = Update(data,netConfigOverride)
+        data = UpdateNestedDictionary(data,netConfigOverride)
         if scope is None:
             namespace = data["NetworkName"]
         else:
@@ -109,7 +83,7 @@ class Network(tf.keras.Model):
 
         #Creating Recursion sweep to go through dictionaries and lists in the networkConfig to insert user defined values.
         if "DefaultParams" in data.keys():
-            data["NetworkStructure"] = update(data["NetworkStructure"],data["DefaultParams"])
+            data["NetworkStructure"] = UpdateStringValues(data["NetworkStructure"],data["DefaultParams"])
 
             #Creating all of the layers
         for sectionName,layerList in data["NetworkStructure"].items():
@@ -251,16 +225,4 @@ class Network(tf.keras.Model):
 
 if __name__ == "__main__":
     # sess = tf.Session()
-    # test = Network(configFile="test.json",actionSize=4)
-    test = {"K1":1,
-            "K2":2,
-            "K3":"V1",
-            "K4":2,
-            "K5":{"test":["V1","V2"]},
-            "K6":"V2",
-            "K7":2,
-            }
-    test2 = {"V1":4,"V2":5}
-    dict=update(test,test2)
-    # ReplaceValues(test,test2)
-    print(dict)
+    pass
