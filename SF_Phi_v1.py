@@ -75,7 +75,7 @@ gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=settings["GPUCapacit
 config = tf.ConfigProto(gpu_options=gpu_options, log_device_placement=False, allow_soft_placement=True)
 sess = tf.Session(config=config)
 with tf.device('/gpu:0'):
-    SF1,_,_,_,SF5 = SFNetwork2(settings["NetworkConfig"],nActions,netConfigOverride,scope="Global")
+    SF1,_,_,_,SF5 = SFNetwork2(settings["NetworkConfig"],nActions,netConfigOverride,scope="Global",SFSize=settings["SFSize"])
     try:SF5.load_weights(MODEL_PATH+"/model.h5")
     except: print("Did not load weights")
 

@@ -124,7 +124,7 @@ def SFNetwork(self, configFile, actionSize, netConfigOverride={}, scope=None,deb
     return network
 
 
-def SFNetwork2(self, configFile, actionSize, netConfigOverride={}, scope=None, debug=True, training=True):
+def SFNetwork2(self, configFile, actionSize, netConfigOverride={}, scope=None, debug=True, training=True,SFSize=256):
     input_img = KL.Input(shape=(19,19,2))
     conv1 = KL.Conv2D(filters=16,kernel_size=3,strides=1,activation="elu", trainable=training)(input_img)
     conv2 = KL.Conv2D(filters=32,kernel_size=3,strides=1,activation="elu", trainable=training)(conv1)
@@ -132,7 +132,7 @@ def SFNetwork2(self, configFile, actionSize, netConfigOverride={}, scope=None, d
     conv4 = KL.Conv2D(filters=64,kernel_size=3,strides=1,activation="elu", trainable=training)(conv3)
     flat = KL.Flatten()(conv4)
     l1 = KL.Dense(200,activation="relu", trainable=training)(flat)
-    encoded = KL.Dense(256,activation="relu", trainable=training)(l1)
+    encoded = KL.Dense(SFSize,activation="relu", trainable=training)(l1)
     l1_ = KL.Dense(968,activation="relu")(encoded)
     reshape = KL.Reshape((11,11,8))(l1_)
     convT1 = KL.Conv2DTranspose(filters=16,kernel_size=3,strides=1,activation="elu")(reshape)
@@ -147,7 +147,7 @@ def SFNetwork2(self, configFile, actionSize, netConfigOverride={}, scope=None, d
     #Psi Prediction
     psi1 = KL.Dense(256,activation="relu")(encoded)
     psi2 = KL.Dense(256,activation="relu")(psi1)
-    psi3 = KL.Dense(256,activation=None)(psi2)
+    psi3 = KL.Dense(SFSize,activation=None)(psi2)
     value = w(psi3)
 
     network1 = tf.keras.models.Model(input_img,[convT4,reward_pred])

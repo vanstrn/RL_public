@@ -4,9 +4,9 @@
 
   "SampleEpisodes":250,
   "MAX_EP_STEPS":150,
-  "Epochs":1000,
+  "Epochs":250,
   "BatchSize":1024,
-  "FitIterations":10,
+  "FitIterations":20,
   "Gamma":0.99,
 
   "EnvConfig":"MG4R_v3.json",

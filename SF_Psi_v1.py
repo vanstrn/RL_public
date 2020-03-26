@@ -77,7 +77,7 @@ with tf.device('/gpu:0'):
     except:
         netConfigOverride["DefaultParams"] = {}
         netConfigOverride["DefaultParams"]["Trainable"] = False
-    SF1,SF2,SF3,SF4,SF5 = SFNetwork2(settings["NetworkConfig"],nActions,netConfigOverride,scope="Global",training=False)
+    SF1,SF2,SF3,SF4,SF5 = SFNetwork2(settings["NetworkConfig"],nActions,netConfigOverride,scope="Global",training=False,SFSize=settings["SFSize"])
     try:SF5.load_weights(MODEL_PATH+"/model.h5")
     except: print("Did not load weights")
 
@@ -113,11 +113,9 @@ for i in range(settings["SampleEpisodes"]):
         if done:
             break
 
-
-
 class SaveModel(tf.keras.callbacks.Callback):
     def on_epoch_end(self,epoch, logs=None):
-        if epoch%250 == 0:
+        if (epoch+1)%settings["FitIterations"] == 0:
             model_json = SF2.to_json()
             with open(MODEL_PATH+"model_psi.json", "w") as json_file:
                 json_file.write(model_json)
@@ -134,7 +132,7 @@ def ConstructSample(env,position):
 counter = 0
 class ValueTest(tf.keras.callbacks.Callback):
     def on_epoch_end(self,epoch, logs=None):
-        if epoch != 0 and epoch%29 == 0:
+        if (epoch+1)%settings["FitIterations"] == 0:
             global counter
             env.reset()
             rewardMap = np.zeros((dFeatures[0],dFeatures[1]))
