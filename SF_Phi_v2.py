@@ -169,8 +169,8 @@ class RewardTest(tf.keras.callbacks.Callback):
                 plt.savefig(LOG_PATH+"/RewardPred"+str(epoch)+".png")
                 plt.close()
 
-
-SF.compile(optimizer="adam", loss=[M4E,"mse"], loss_weights = [1.0,1.0])
+opt = tf.keras.optimizers.Adam(learning_rate=settings["LearningRate"])
+SF.compile(optimizer=opt, loss=[M4E,"mse"], loss_weights = [1.0,1.0])
 SF.fit(
     np.stack(s),
     [np.stack(s_next),np.stack(r_store)],

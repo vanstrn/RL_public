@@ -148,6 +148,7 @@ class ValueTest(tf.keras.callbacks.Callback):
 
 class ImageGenerator(tf.keras.callbacks.Callback):
     def on_epoch_end(self,epoch, logs=None):
+<<<<<<< HEAD
         if (epoch+1)%settings["FitIterations"] == 0:
             global counter
             state = s[randint(0,200)]
@@ -184,11 +185,50 @@ class RewardTest(tf.keras.callbacks.Callback):
             plt.savefig(LOG_PATH+"/RewardPred"+str(counter)+".png")
             plt.close()
             counter +=1
+=======
+        if epoch%50 == 0:
+            for i in range(5):
+                state = s[i*100+randint(0,200)]
+                [state_new,reward,psi] = SF1.predict(np.expand_dims(state,0))
+                fig=plt.figure(figsize=(5.5, 8))
+                fig.add_subplot(2,1,1)
+                plt.title("State")
+                imgplot = plt.imshow(state[:,:,0], vmin=0, vmax=10)
+                fig.add_subplot(2,1,2)
+                plt.title("Predicted Next State")
+                imgplot = plt.imshow(state_new[0,:,:,0],vmin=0, vmax=10)
+                if i == 0:
+                    plt.savefig(LOG_PATH+"/StatePredEpoch"+str(epoch)+".png")
+                else:
+                    plt.savefig(LOG_PATH+"/StatePred"+str(i)+".png")
+                plt.close()
+class RewardTest(tf.keras.callbacks.Callback):
+    def on_epoch_end(self,epoch, logs=None):
+        if epoch%50 == 0:
+                env.reset()
+                rewardMap = np.zeros((dFeatures[0],dFeatures[1]))
+                for i,j in itertools.product(range(dFeatures[0]),range(dFeatures[1])):
+                    grid = ConstructSample(env,[i,j])
+                    if grid is None: continue
+                    [state_new,reward,psi] = SF1.predict(np.expand_dims(grid,0))
+                    rewardMap[i,j] = reward
+                fig=plt.figure(figsize=(5.5, 8))
+                fig.add_subplot(2,1,1)
+                plt.title("State")
+                imgplot = plt.imshow(env.grid.encode()[:,:,0], vmin=0, vmax=10)
+                fig.add_subplot(2,1,2)
+                plt.title("Reward Prediction Epoch "+str(epoch))
+                imgplot = plt.imshow(rewardMap)
+                fig.colorbar(imgplot)
+                plt.savefig(LOG_PATH+"/RewardPred"+str(epoch)+".png")
+                plt.close()
+>>>>>>> 9f921dc0bbdd5ce313b1d09ad689b6fbe908f6ed
 
 def M4E(y_true,y_pred):
     return K.mean(K.pow(y_pred-y_true,4))
 
-SF1.compile(optimizer="adam", loss=[M4E,"mse","mse"])
+opt = tf.keras.optimizers.Adam(learning_rate=settings["LearningRate"])
+SF1.compile(optimizer=opt, loss=[M4E,"mse","mse"])
 phi = SF3.predict(np.stack(s))
 gamma=settings["Gamma"]
 for i in range(settings["Epochs"]):
