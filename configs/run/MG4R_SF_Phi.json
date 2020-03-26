@@ -5,10 +5,9 @@
   "SampleEpisodes":250,
   "MAX_EP_STEPS":150,
   "Epochs":1000,
-  "BatchSize":4096,
+  "BatchSize":1024,
   "Gamma":0.99,
 
   "EnvConfig":"MG4R_v3.json",
   "NetworkConfig":"MG4R_SF_v1.json"
-
   }

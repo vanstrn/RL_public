@@ -134,7 +134,7 @@ def ConstructSample(env,position):
 counter = 0
 class ValueTest(tf.keras.callbacks.Callback):
     def on_epoch_end(self,epoch, logs=None):
-        if epoch != 0 and epoch%29 == 0:
+        if (epoch+1)%settings["FitIterations"] == 0:
             global counter
             env.reset()
             rewardMap = np.zeros((dFeatures[0],dFeatures[1]))

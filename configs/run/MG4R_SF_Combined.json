@@ -5,7 +5,7 @@
   "SampleEpisodes":250,
   "MAX_EP_STEPS":150,
   "Epochs":1000,
-  "BatchSize":4096,
+  "BatchSize":1024,
   "FitIterations":10,
   "Gamma":0.99,
 

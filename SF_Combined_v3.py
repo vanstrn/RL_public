@@ -88,25 +88,10 @@ def GetAction(state):
     actions = np.array([np.random.choice(probs.shape[1], p=prob / sum(prob)) for prob in probs])
     return actions
 
-s = []
-s_next = []
-r_store = []
-for i in range(settings["SampleEpisodes"]):
-    s0 = env.reset()
-
-    for j in range(settings["MAX_EP_STEPS"]+1):
-
-        a = GetAction(state=s0)
-
-        s1,r,done,_ = env.step(a)
-
-        s.append(s0)
-        s_next.append(s1)
-        r_store.append(r)
-
-        s0 = s1
-        if done:
-            break
+loadedData = np.load('./data/SF_TRIAL1.npz')
+s = loadedData["s"]
+s_next = loadedData["s_next"]
+r_store = loadedData["r_store"]
 
 class SaveModel(tf.keras.callbacks.Callback):
     def on_epoch_end(self,epoch, logs=None):
