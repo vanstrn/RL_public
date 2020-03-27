@@ -4,9 +4,9 @@
 
   "SampleEpisodes":250,
   "MAX_EP_STEPS":150,
-  "Epochs":250,
+  "Epochs":2000,
   "BatchSize":1024,
-  "FitIterations":20,
+  "FitIterations":30,
   "Gamma":0.99,
   "LearningRate":0.001,
 

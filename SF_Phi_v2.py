@@ -120,7 +120,7 @@ class SaveModel(tf.keras.callbacks.Callback):
             with open(MODEL_PATH+"model_phi.json", "w") as json_file:
                 json_file.write(model_json)
             SF.save_weights(MODEL_PATH+"model_phi.h5")
-            SF5.save_weights(MODEL_PATH+"model.h5")
+            SF5.save_weights(MODEL_PATH+"model"+str(epoch)+".h5")
 
 class ImageGenerator(tf.keras.callbacks.Callback):
     def on_epoch_end(self,epoch, logs=None):

@@ -171,7 +171,111 @@ def ObstacleVisualization(plotting=False):
         plt.show()
     return valueGrid
 
+def ObstacleVisualization_v2(plotting=True):
+    grid = np.array([   [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                        [1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1],
+                        [1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1],
+                        [1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1],
+                        [1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1],
+                        [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+                        [1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1],
+                        [1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1],
+                        [1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1],
+                        [1,1,1,1,1,1,0,1,1,1,1,1,1,1,0,1,1,1,1],
+                        [1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1],
+                        [1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1],
+                        [1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1],
+                        [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+                        [1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1],
+                        [1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1],
+                        [1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1],
+                        [1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1],
+                        [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                        ])
+    TerminalLocations = [[9,14]]
+    Rewards = [1]
+    gamma = 0.99
 
+    obstacles = np.sum(grid)
+    size = grid.shape[0]*grid.shape[1]
+    states = size-obstacles
+
+    x = np.zeros((states,states))
+    # states = {}
+    # states_ = []
+    states_ = {}
+    count = 0
+    for i in range(grid.shape[0]):
+        for j in range(grid.shape[1]):
+            if grid[i,j] == 0:
+                states_[count] = [i,j]
+                # states_.append([count, [i,j]])
+                count+=1
+    skips = []
+    w_i = []
+    w = np.zeros((states))
+    for i,loc in enumerate(TerminalLocations):
+        for j in range(len(states_)):
+            if states_[j] == loc:
+                skips.append(j)
+                w[j] = Rewards[i]
+
+                tmp = np.zeros((states))
+                tmp[j] = Rewards[i]
+                w_i.append(tmp)
+
+    for i in range(len(states_)):
+        [locx,locy] = states_[i]
+        sum = 0
+        if i in skips:
+            continue
+        for j in range(len(states_)):
+            if states_[j] == [locx+1,locy]:
+                x[i,j] = 0.25
+                sum += 0.25
+            if states_[j] == [locx-1,locy]:
+                x[i,j] = 0.25
+                sum += 0.25
+            if states_[j] == [locx,locy+1]:
+                x[i,j] = 0.25
+                sum += 0.25
+            if states_[j] == [locx,locy-1]:
+                x[i,j] = 0.25
+                sum += 0.25
+        x[i,i]= 1.0-sum
+    I = np.identity(states)
+    psi = np.linalg.inv(I-gamma*x)
+
+    w_g,v_g = np.linalg.eig(psi)
+
+    valueGrid = np.zeros_like(grid,dtype=float)
+
+    for i in range(5):
+        value=np.matmul(x,np.expand_dims(v_g[:,i],1))
+        for j in range(len(states_)):
+            loc = states_[j]
+            valueGrid[loc[0],loc[1]] = value[j]
+
+        if plotting:
+            images = []
+            fig,axs = plt.subplots(1,1)
+            images.append(axs.imshow(valueGrid))
+            axs.set_title("Value Function from EigenVector "+str(i))
+            axs.label_outer()
+
+            # for i,w_ in enumerate(w_i):
+            #     images.append(axs[(i+1)//2,(i+1)%2].imshow(valueGrid))
+            #     axs[(i+1)//2,(i+1)%2].set_title("Value Estimate from " + str(i))
+            #     axs[(i+1)//2,(i+1)%2].label_outer()
+
+            vmin = min(image.get_array().min() for image in images)
+            vmax = max(image.get_array().max() for image in images)
+            norm = colors.Normalize(vmin=vmin, vmax=vmax)
+            for im in images:
+                im.set_norm(norm)
+            fig.colorbar(images[0], ax=axs, orientation='vertical', fraction=.1)
+            plt.show()
+    return valueGrid
 
 if __name__ == "__main__":
-    ObstacleVisualization()
+    ObstacleVisualization_v2()
