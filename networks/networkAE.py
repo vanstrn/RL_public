@@ -131,7 +131,7 @@ def SFNetwork2(self, configFile, actionSize, netConfigOverride={}, scope=None, d
     conv3 = KL.Conv2D(filters=64,kernel_size=3,strides=1,activation="elu", trainable=training)(conv2)
     conv4 = KL.Conv2D(filters=64,kernel_size=3,strides=1,activation="elu", trainable=training)(conv3)
     flat = KL.Flatten()(conv4)
-    l1 = KL.Dense(200,activation="relu", trainable=training)(flat)
+    l1 = KL.Dense(256,activation="relu", trainable=training)(flat)
     encoded = KL.Dense(SFSize,activation="relu", trainable=training)(l1)
     l1_ = KL.Dense(968,activation="relu")(encoded)
     reshape = KL.Reshape((11,11,8))(l1_)

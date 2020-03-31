@@ -1,13 +1,11 @@
-{ "RunName":"MG4R_SF",
+{ "RunName":"SF_64_128_256_2",
   "GPUCapacitty":0.95,
   "NetworkHPs":{},
 
-  "SampleEpisodes":250,
+  "SampleEpisodes":30,
   "MAX_EP_STEPS":150,
-  "Epochs":1000,
-  "BatchSize":2048,
   "SFSize":1024,
-  "LearningRate":0.001,
+  "SaveFigure":false,
 
   "EnvConfig":"MG4R_v3.json",
   "NetworkConfig":"MG4R_SF_v1.json"

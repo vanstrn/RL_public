@@ -89,8 +89,15 @@ class Network(tf.keras.Model):
         for sectionName,layerList in data["NetworkStructure"].items():
             self.varGroupings[sectionName] = []
             for layerDict in layerList:
-                self.layerList[layerDict["layerName"]] = self.GetLayer(layerDict)
+                if layerDict["layerType"] == "Dense":
+                    if layerDict["Parameters"]["units"] == "actionSize":
+                        layerDict["Parameters"]["units"] = self.actionSize
+                if "ReuseLayer" in layerDict:
+                    self.layerList[layerDict["layerName"]] = self.layerList[layerDict["ReuseLayer"]]
+                else:
+                    self.layerList[layerDict["layerName"]] = GetLayer(layerDict)
                 self.layerInputs[layerDict["layerName"]] = layerDict["layerInput"]
+                self.layerType[layerDict["layerName"]] = layerDict["layerType"]
                 if "multiOutput" in layerDict:
                     self.multiOutput[layerDict["layerName"]] = layerDict["multiOutput"]
                 else:
@@ -154,62 +161,6 @@ class Network(tf.keras.Model):
         for outputName,layerOutput in self.networkOutputs.items():
             results[outputName] = self.layerOutputs[layerOutput]
         return results
-
-    def GetLayer(self, dict):
-        """Based on a dictionary input the function returns the appropriate layer for the NN."""
-        if "ReuseLayer" in dict:
-            layer = self.layerList[dict["ReuseLayer"]]
-        else:
-            if dict["layerType"] == "Dense":
-                if dict["Parameters"]["units"] == "actionSize":
-                    dict["Parameters"]["units"] = self.actionSize
-                layer = KL.Dense( **dict["Parameters"],name=dict["layerName"])
-            elif dict["layerType"] == "Conv2D":
-                layer = KL.Conv2D( **dict["Parameters"],name=dict["layerName"])
-            elif dict["layerType"] == "Conv2DTranspose":
-                layer = KL.Conv2DTranspose( **dict["Parameters"],name=dict["layerName"])
-            elif dict["layerType"] == "SeparableConv":
-                layer = KL.SeparableConv2D( **dict["Parameters"],name=dict["layerName"])
-            elif dict["layerType"] == "Round":
-                layer= RoundingSine(**dict["Parameters"],name=dict["layerName"])
-            elif dict["layerType"] == "Flatten":
-                layer= KL.Flatten()
-            elif dict["layerType"] == "NonLocalNN":
-                layer= Non_local_nn( **dict["Parameters"],name=dict["layerName"])
-            elif dict["layerType"] == "LogSoftMax":
-                layer = tf.nn.log_softmax
-            elif dict["layerType"] == "SoftMax":
-                layer = KL.Activation('softmax')
-            elif dict["layerType"] == "Concatenate":
-                layer = KL.Concatenate( **dict["Parameters"],name=dict["layerName"])
-            elif dict["layerType"] == "Multiply":
-                layer = KL.Multiply( **dict["Parameters"],name=dict["layerName"])
-            elif dict["layerType"] == "Add":
-                layer = KL.Add( **dict["Parameters"],name=dict["layerName"])
-            elif dict["layerType"] == "Reshape":
-                layer = KL.Reshape( **dict["Parameters"],name=dict["layerName"])
-            elif dict["layerType"] == "LSTM":
-                layer = KL.LSTM(**dict["Parameters"],name=dict["layerName"])
-            elif dict["layerType"] == "SimpleRNN":
-                layer = KL.SimpleRNN(**dict["Parameters"],name=dict["layerName"])
-            elif dict["layerType"] == "Sum":
-                layer = tf.keras.backend.sum
-            elif dict["layerType"] == "Inception":
-                layer = Inception(**dict["Parameters"],name=dict["layerName"])
-            elif dict["layerType"] == "ReverseInception":
-                layer = ReverseInception(**dict["Parameters"],name=dict["layerName"])
-            elif dict["layerType"] == "UpSampling2D":
-                layer = KL.UpSampling2D(**dict["Parameters"],name=dict["layerName"])
-            elif dict["layerType"] == "GaussianNoise":
-                layer = KL.GaussianNoise(**dict["Parameters"],name=dict["layerName"])
-            elif dict["layerType"] == "InputNoise":
-                layer = K.random_normal(stddev=dict["Parameters"]["stddev"],
-                                   shape=(1, dict["Parameters"]["size"]))
-            elif dict["layerType"] == "Sigma":
-                layer = KL.Lambda(lambda t: K.exp(.5*t))
-        self.layerType[dict["layerName"]] = dict["layerType"]
-
-        return layer
 
     def getVars(self,scope=None):
         vars = []

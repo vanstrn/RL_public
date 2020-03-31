@@ -29,6 +29,7 @@ import matplotlib.image as mpimg
 import tensorflow.keras.backend as K
 from random import randint
 from environments.Common import CreateEnvironment
+import time
 
 #Input arguments to override the default Config Files
 parser = argparse.ArgumentParser()
@@ -72,11 +73,8 @@ config = tf.ConfigProto(gpu_options=gpu_options, log_device_placement=False, all
 sess = tf.Session(config=config)
 with tf.device('/gpu:0'):
     netConfigOverride["DefaultParams"]["Trainable"] = False
-    SF1,SF2,SF3,SF4 = buildNetwork(settings["NetworkConfig"],nActions,netConfigOverride,scope="Global")
-    try:SF1.load_weights(MODEL_PATH+"/model_phi.h5")
-    except: print("Did not load weights")
-    try:SF2.load_weights(MODEL_PATH+"/model_psi.h5")
-    except: print("Did not load weights")
+    SF1,SF2,SF3,SF4,SF5 = SFNetwork2(settings["NetworkConfig"],nActions,netConfigOverride,scope="Global",SFSize=settings["SFSize"])
+    SF5.load_weights(MODEL_PATH+"/model.h5")
 
 def GetAction(state):
     """
@@ -92,85 +90,118 @@ def GetAction(state):
 def ConstructSample(env,position):
     grid = env.grid.encode()
     if grid[position[0],position[1],1] == 5: #Wall
-    return None
+        return None
     grid[position[0],position[1],0] = 10
     return grid[:,:,:2]
 
-if True:
-    s = []
-    s_next = []
-    r_store = []
-    for i in range(settings["SampleEpisodes"]):
-        s0 = env.reset()
+s = []
+s_next = []
+r_store = []
+label = []
+for i in range(settings["SampleEpisodes"]):
+    s0 = env.reset()
 
-        for j in range(settings["MAX_EP_STEPS"]+1):
+    for j in range(settings["MAX_EP_STEPS"]+1):
 
-            a = GetAction(state=s0)
+        a = GetAction(state=s0)
 
-            s1,r,done,_ = env.step(a)
+        s1,r,done,_ = env.step(a)
 
-            s.append(s0)
-            s_next.append(s1)
-            r_store.append(r)
+        s.append(s0)
+        loc = np.where(s0 == 10)
+        if loc[0]>=10 and loc[1]>=10:
+            label.append(1)
+        elif loc[0]<9 and loc[1]>=10:
+            label.append(2)
+        elif loc[0]>=10 and loc[1]<9:
+            label.append(3)
+        elif loc[0]<9 and loc[1]<9:
+            label.append(4)
+        else:
+            label.append(5)
+        s_next.append(s1)
+        r_store.append(r)
 
-            s0 = s1
-            if done:
-                break
+        s0 = s1
+        if done:
+            break
 
-#####Evaluating using random sampling ########
-#Processing state samples into Psi.
-    psiSamples = SF2.predict(np.stack(s)) # [X,SF Dim]
+####Evaluating using random sampling ########
+# Processing state samples into Psi.
+psiSamples = SF2.predict(np.stack(s)) # [X,SF Dim]
+phi= SF3.predict(np.stack(s))
 
-    ##-Repeat M times to evaluate the effect of sampling.
-    M = 3
-    count = 0
-    dim = psiSamples.shape[1]
-    for replicate in range(M)
-        #Taking Eigenvalues and Eigenvectors of the environment,
-        w_g,v_g = np.linalg.eig(psiSamples[count:count+dim,:])
-        count += dim
-
-        #Creating Eigenpurposes of the N highest Eigenvectors and saving images
-        N = 5
-        for sample in range(N)
-            v_option=np.zeros((dFeatures[0],dFeatures[1]))
-            for i,j in itertools.product(range(dFeatures[0]),range(dFeatures[1])):
-                grid = ConstructSample(env,[i,j])
-                if grid is None: continue
-                phi= SF1.predict(np.expand_dims(grid,0))
-                v_option[i,j]= phi*v_g(:,sample)
-            imgplot = plt.imshow(v_option)
-            plt.title("Option "+str(sample)+" Value Estimate | Eigenvalue:" +str(w_g[sample]))
-            plt.show()
-            plt.savefig(LOG_PATH+"/option"+str(sample)+"replicate"+str(replicate)+".png")
+import time
+import numpy as np
+import pandas as pd
+# from sklearn.datasets import fetch_mldata
+from sklearn.decomposition import PCA
+from sklearn.manifold import TSNE
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+import seaborn as sns
 
 
-if False: #Calculating the MSE in the state,reward and value prediction.
+# mnist = fetch_mldata("MNIST original")
+X = phi
+y = np.stack(label)
 
-    #Reward Prediction Error. Performed over the reward map of entire environment.
-    env.reset()
-    rewardMap = np.zeros((dFeatures[0],dFeatures[1]))
-    for i,j in itertools.product(range(dFeatures[0]),range(dFeatures[1])):
-        grid = ConstructSample(env,[i,j])
-        if grid is None: continue
-        [_,reward] = SF1.predict(np.expand_dims(grid,0))
-        rewardMap[i,j] = reward
-    rewardMapReal = np.zeros((dFeatures[0],dFeatures[1]))
-    rewardMapReal[8,14] = 0.25
-    rewardMapReal[10,14] = 0.25
+feat_cols = [ 'pixel'+str(i) for i in range(X.shape[1]) ]
+df = pd.DataFrame(X,columns=feat_cols)
+df['y'] = y
+df['label'] = df['y'].apply(lambda i: str(i))
+X, y = None, None
 
-    rewardError = np.sum((rewardMapReal-rewardMap)**2)
-    print(rewardError)
+np.random.seed(42)
+rndperm = np.random.permutation(df.shape[0])
 
-    #Value Prediction Error. Performed over the value map of entire environment.
-    from DecompositionVisual import ObstacleVisualization
-    valueMap = np.zeros((dFeatures[0],dFeatures[1]))
-    for i,j in itertools.product(range(dFeatures[0]),range(dFeatures[1])):
-        grid = ConstructSample(env,[i,j])
-        if grid is None: continue
-        [value] = SF4.predict(np.expand_dims(grid,0))
-        valueMap[i,j] = value
-    valueMapReal = ObstacleVisualization()
+pca = PCA(n_components=3)
+pca_result = pca.fit_transform(df[feat_cols].values)
+df['pca-one'] = pca_result[:,0]
+df['pca-two'] = pca_result[:,1]
+df['pca-three'] = pca_result[:,2]
 
-    valueError = np.sum((valueMapReal-valueMap)**2)
-    print(valueError)
+
+plt.figure(figsize=(16,10))
+sns.scatterplot(
+    x="pca-one", y="pca-two",
+    hue="y",
+    palette=sns.color_palette("hls", 5),
+    data=df.loc[rndperm,:],
+    legend="full",
+    alpha=0.3
+)
+if settings["SaveFigure"]:
+    plt.savefig(LOG_PATH+"/PCA_2D_1.png")
+else:
+    plt.show()
+sns.scatterplot(
+    x="pca-two", y="pca-three",
+    hue="y",
+    palette=sns.color_palette("hls", 5),
+    data=df.loc[rndperm,:],
+    legend="full",
+    alpha=0.3
+)
+
+if settings["SaveFigure"]:
+    plt.savefig(LOG_PATH+"/PCA_2D_2.png")
+else:
+    plt.show()
+
+ax = plt.figure(figsize=(16,10)).gca(projection='3d')
+ax.scatter(
+    xs=df.loc[rndperm,:]["pca-one"],
+    ys=df.loc[rndperm,:]["pca-two"],
+    zs=df.loc[rndperm,:]["pca-three"],
+    c=df.loc[rndperm,:]["y"],
+    cmap='tab10'
+)
+ax.set_xlabel('pca-one')
+ax.set_ylabel('pca-two')
+ax.set_zlabel('pca-three')
+
+if settings["SaveFigure"]:
+    plt.savefig(LOG_PATH+"/PCA_3D.png")
+else:
+    plt.show()
