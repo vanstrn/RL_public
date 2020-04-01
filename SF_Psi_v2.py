@@ -78,8 +78,8 @@ with tf.device('/gpu:0'):
         netConfigOverride["DefaultParams"] = {}
         netConfigOverride["DefaultParams"]["Trainable"] = False
     SF1,SF2,SF3,SF4,SF5 = buildNetwork(settings["NetworkConfig"],nActions,netConfigOverride,scope="Global")
-    try:SF5.load_weights(MODEL_PATH+"/model.h5")
-    except: print("Did not load weights")
+    SF5.load_weights(MODEL_PATH+"model.h5")
+    # print("Did not load weights")
 
 def GetAction(state):
     """
