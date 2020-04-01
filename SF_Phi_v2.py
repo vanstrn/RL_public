@@ -171,9 +171,19 @@ class RewardTest(tf.keras.callbacks.Callback):
 
 opt = tf.keras.optimizers.Adam(learning_rate=settings["LearningRate"])
 SF.compile(optimizer=opt, loss=[M4E,"mse"], loss_weights = [1.0,1.0])
+
+if len(s[0].shape) == 4:
+    states = np.vstack(s)
+    next_states = np.vstack(s_next)
+    rewards = np.vstack(r_store).flatten()
+else:
+    states = np.stack(s)
+    next_states = np.stack(s_next)
+    rewards = np.stack(r_store)
+
 SF.fit(
-    np.stack(s),
-    [np.stack(s_next),np.stack(r_store)],
+    states,
+    [next_states,rewards],
     epochs=settings["Epochs"],
     batch_size=settings["BatchSize"],
     shuffle=True,

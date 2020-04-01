@@ -1,5 +1,5 @@
 { "EnvName":"cap-v0",
-  "EnvParams":{ "map_size":[20,20],
+  "EnvParams":{ "map_size":20,
     "config_path":"environments/4v4.ini"},
   "Seed":1337,
   "Wrappers":[
@@ -13,8 +13,6 @@
     "WrapperParameters":{}},
   { "WrapperName":"environments.CTF_v2.Reset",
     "WrapperParameters":{
-      "Policy":"Roomba",
-      "EnvConfigFile":"setting.ini"
-      }}
+      "policy_red":"Roomba"}}
     ]
     }

@@ -72,6 +72,10 @@ def GetLayer( dict):
         layer= RoundingSine(name=dict["layerName"])
     elif dict["layerType"] == "Flatten":
         layer= KL.Flatten()
+    elif dict["layerType"] == "AveragePool":
+        layer= KL.AveragePooling2D(**dict["Parameters"],name=dict["layerName"])
+    elif dict["layerType"] == "GlobalAveragePooling2D":
+        layer= KL.GlobalAveragePooling2D(name=dict["layerName"])
     elif dict["layerType"] == "NonLocalNN":
         layer= Non_local_nn( **dict["Parameters"],name=dict["layerName"])
     elif dict["layerType"] == "LogSoftMax":

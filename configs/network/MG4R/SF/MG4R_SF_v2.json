@@ -2,7 +2,8 @@
   "NetworkBuilder":"network",
   "DefaultParams":{ "SFSize":64,
                     "Trainable":true,
-                    "Filters":64,
+                    "InFilter":64,
+                    "OutFilter":16,
                     "FCUnits":256},
   "Inputs":{"state":[19,19,2]},
   "NetworkStructure":{
@@ -10,38 +11,33 @@
       { "layerType":"Conv2D",
         "layerName":"Conv2D_1",
         "layerInput":"input.state",
-        "Parameters":{"filters":"Filters",
+        "Parameters":{"filters":"InFilter",
                       "kernel_size":4,
                       "strides":2,
+                      "padding":"same",
                       "activation":"elu",
                       "trainable":"Trainable"}},
       { "layerType":"Conv2D",
         "layerName":"Conv2D_2",
         "layerInput":"Conv2D_1",
-        "Parameters":{"filters":"Filters",
-                      "kernel_size":3,
-                      "strides":1,
+        "Parameters":{"filters":"InFilter",
+                      "kernel_size":4,
+                      "strides":2,
+                      "padding":"same",
                       "activation":"elu",
                       "trainable":"Trainable"}},
       { "layerType":"Conv2D",
         "layerName":"Conv2D_3",
         "layerInput":"Conv2D_2",
-        "Parameters":{"filters":"Filters",
-                      "kernel_size":3,
-                      "strides":1,
-                      "activation":"elu",
-                      "trainable":"Trainable"}},
-      { "layerType":"Conv2D",
-        "layerName":"Conv2D_4",
-        "layerInput":"Conv2D_3",
-        "Parameters":{"filters":"Filters",
-                      "kernel_size":3,
-                      "strides":1,
+        "Parameters":{"filters":"InFilter",
+                      "kernel_size":4,
+                      "strides":2,
+                      "padding":"same",
                       "activation":"elu",
                       "trainable":"Trainable"}},
       { "layerType":"Flatten",
         "layerName":"Flatten",
-        "layerInput":"Conv2D_4"},
+        "layerInput":"Conv2D_3"},
       { "layerType":"Dense",
         "layerName":"Dense1",
         "layerInput":"Flatten",
@@ -49,8 +45,14 @@
                       "activation":"relu",
                       "trainable":"Trainable"}},
       { "layerType":"Dense",
-        "layerName":"Phi",
+        "layerName":"Dense2",
         "layerInput":"Dense1",
+        "Parameters":{"units":"FCUnits",
+                      "activation":"relu",
+                      "trainable":"Trainable"}},
+      { "layerType":"Dense",
+        "layerName":"Phi",
+        "layerInput":"Dense2",
         "Parameters":{"units":"SFSize",
                       "activation":"relu",
                       "trainable":"Trainable"}}
@@ -67,13 +69,9 @@
 
 
     "Critic":[
-      { "layerType":"StopGradient",
-        "layerName":"StopGradient",
-        "layerInput":"Phi",
-        "Parameters":{}},
       { "layerType":"Dense",
         "layerName":"Critic_FC1",
-        "layerInput":"StopGradient",
+        "layerInput":"Phi",
         "Parameters":{"units":"FCUnits",
                       "activation":"relu"}},
       { "layerType":"Dense",
@@ -82,8 +80,13 @@
         "Parameters":{"units":"FCUnits",
                       "activation":"relu"}},
       { "layerType":"Dense",
-        "layerName":"Psi",
+        "layerName":"Critic_FC3",
         "layerInput":"Critic_FC2",
+        "Parameters":{"units":"FCUnits",
+                      "activation":"relu"}},
+      { "layerType":"Dense",
+        "layerName":"Psi",
+        "layerInput":"Critic_FC3",
         "Parameters":{"units":"SFSize",
                       "activation":null}}
     ],
@@ -108,21 +111,21 @@
       { "layerType":"Conv2DTranspose",
         "layerName":"Reconstruction_Conv1",
         "layerInput":"Reconstruction_Reshape",
-        "Parameters":{"filters":"Filters",
+        "Parameters":{"filters":"OutFilter",
                       "kernel_size":3,
                       "strides":1,
                       "activation":"elu"}},
       { "layerType":"Conv2DTranspose",
         "layerName":"Reconstruction_Conv2",
         "layerInput":"Reconstruction_Conv1",
-        "Parameters":{"filters":"Filters",
+        "Parameters":{"filters":"OutFilter",
                       "kernel_size":3,
                       "strides":1,
                       "activation":"elu"}},
       { "layerType":"Conv2DTranspose",
         "layerName":"Reconstruction_Conv3",
         "layerInput":"Reconstruction_Conv2",
-        "Parameters":{"filters":"Filters",
+        "Parameters":{"filters":"OutFilter",
                       "kernel_size":3,
                       "strides":1,
                       "activation":"elu"}},
@@ -137,27 +140,26 @@
 
   },
   "NetworkOutputs":[
-      {
-        "prediction":"StatePrediction",
-        "reward_pred":"SuccessorWeights",
-        "psi":"Psi"
-      },
-      {
-        "psi":"Psi"
-      },
-      {
-        "phi":"Phi"
-      },
-      {
-        "critic":"Critic"
-      },
-      {
-        "phi":"Phi",
-        "prediction":"StatePrediction",
-        "reward_pred":"SuccessorWeights",
-        "psi":"Psi",
-        "critic":"Critic"
-      }
+    {
+      "prediction":"StatePrediction",
+      "reward_pred":"SuccessorWeights"
+    },
+    {
+      "psi":"Psi"
+    },
+    {
+      "phi":"Phi"
+    },
+    {
+      "critic":"Critic"
+    },
+    {
+      "phi":"Phi",
+      "prediction":"StatePrediction",
+      "reward_pred":"SuccessorWeights",
+      "psi":"Psi",
+      "critic":"Critic"
+    }
   ],
 
   "NetworkVariableGroups":{
