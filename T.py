@@ -111,7 +111,7 @@ def GetAction(state):
 s = []
 s_next = []
 r_store = []
-for i in range(settings["SampleEpisodes"]):
+for i in range(2):
     s0 = env.reset()
 
     for j in range(settings["MAX_EP_STEPS"]+1):
@@ -128,4 +128,10 @@ for i in range(settings["SampleEpisodes"]):
         if done:
             break
 
-np.savez_compressed("./data/SF_TRIAL2.npz", s=s, s_next=s_next, r_store=r_store)
+# np.savez_compressed("./data/SF_TRIAL2.npz", s=s, s_next=s_next, r_store=r_store)
+print(s[0].shape)
+fig=plt.figure(figsize=(5.5, 8))
+fig.add_subplot(1,1,1)
+plt.title("State")
+imgplot = plt.imshow(s[0])
+plt.show()
