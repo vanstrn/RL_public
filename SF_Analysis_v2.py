@@ -72,11 +72,8 @@ config = tf.ConfigProto(gpu_options=gpu_options, log_device_placement=False, all
 sess = tf.Session(config=config)
 with tf.device('/gpu:0'):
     netConfigOverride["DefaultParams"]["Trainable"] = False
-    SF1,SF2,SF3,SF4 = buildNetwork(settings["NetworkConfig"],nActions,netConfigOverride,scope="Global")
-    try:SF1.load_weights(MODEL_PATH+"/model_phi.h5")
-    except: print("Did not load weights")
-    try:SF2.load_weights(MODEL_PATH+"/model_psi.h5")
-    except: print("Did not load weights")
+    SF1,SF2,SF3,SF4,SF5 = buildNetwork(settings["NetworkConfig"],nActions,netConfigOverride,scope="Global")
+    SF5.load_weights(MODEL_PATH+"model.h5")
 
 def GetAction(state):
     """
@@ -92,7 +89,7 @@ def GetAction(state):
 def ConstructSample(env,position):
     grid = env.grid.encode()
     if grid[position[0],position[1],1] == 5: #Wall
-    return None
+        return None
     grid[position[0],position[1],0] = 10
     return grid[:,:,:2]
 
@@ -119,30 +116,41 @@ if True:
 
 #####Evaluating using random sampling ########
 #Processing state samples into Psi.
-    psiSamples = SF2.predict(np.stack(s)) # [X,SF Dim]
+    psi = SF2.predict(np.stack(s)) # [X,SF Dim]
 
     ##-Repeat M times to evaluate the effect of sampling.
     M = 3
-    count = 0
-    dim = psiSamples.shape[1]
-    for replicate in range(M)
+    dim = psi.shape[1]
+    for replicate in range(M):
         #Taking Eigenvalues and Eigenvectors of the environment,
-        w_g,v_g = np.linalg.eig(psiSamples[count:count+dim,:])
-        count += dim
+        psiSamples = np.zeros([dim,dim])
+        #Randomly collecting samples from the random space.
+        for i in range(dim):
+            psiSamples[i,:] = psi[randint(1,psiSamples.shape[0]),:]
+
+        w_g,v_g = np.linalg.eig(psiSamples)
 
         #Creating Eigenpurposes of the N highest Eigenvectors and saving images
         N = 5
-        for sample in range(N)
+        offset = 0
+        for sample in range(N):
+
             v_option=np.zeros((dFeatures[0],dFeatures[1]))
             for i,j in itertools.product(range(dFeatures[0]),range(dFeatures[1])):
                 grid = ConstructSample(env,[i,j])
                 if grid is None: continue
-                phi= SF1.predict(np.expand_dims(grid,0))
-                v_option[i,j]= phi*v_g(:,sample)
+                phi= SF3.predict(np.expand_dims(grid,0))
+                if sample+offset >= dim:
+                    continue
+                v_option[i,j]=np.matmul(phi,v_g[:,sample+offset])[0]
+                if np.iscomplex(w_g[sample+offset]):
+                    offset+=1
+
             imgplot = plt.imshow(v_option)
-            plt.title("Option "+str(sample)+" Value Estimate | Eigenvalue:" +str(w_g[sample]))
-            plt.show()
+            plt.title("Replicate  "+str(replicate)+" Option "+str(sample)+" Value Estimate | Eigenvalue:" +str(w_g[sample+offset]))
+            # plt.show()
             plt.savefig(LOG_PATH+"/option"+str(sample)+"replicate"+str(replicate)+".png")
+
 
 
 if False: #Calculating the MSE in the state,reward and value prediction.

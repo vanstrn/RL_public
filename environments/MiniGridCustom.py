@@ -1,6 +1,4 @@
 import gym
-from utils.multiprocessing import SubprocVecEnv
-from utils.utils import MovingAverage
 import numpy as np
 
 from gym_minigrid.minigrid import *
@@ -67,7 +65,64 @@ class Static4Rooms(MiniGridEnv):
         obs, reward, done, info = MiniGridEnv.step(self, action)
         return obs, reward, done, info
 
+class Clasic4Rooms(MiniGridEnv):
+    def __init__(self, agent_pos=None, goal_pos=None):
+        self._agent_default_pos = agent_pos
+        self._goal_default_pos = goal_pos
+        super().__init__(grid_size=13, max_steps=100)
+
+    def _gen_grid(self,width,height):
+        # Create the grid
+        self.grid = Grid(width, height)
+
+        # Generate the surrounding walls
+        self.grid.horz_wall(0, 0)
+        self.grid.horz_wall(0, height - 1)
+        self.grid.vert_wall(0, 0)
+        self.grid.vert_wall(width - 1, 0)
+
+        room_w = width // 2
+        room_h = height // 2
+
+        # Creating Walls
+        self.grid.vert_wall(6, 0, height)
+        self.grid.horz_wall(6, 7, width//2)
+        self.grid.horz_wall(0, 6, width//2)
+
+        self.grid.set(6,3, None)
+        self.grid.set(2,6, None)
+        self.grid.set(6,10, None)
+        self.grid.set(9,7, None)
+
+        # Randomize the player start position and orientation
+        if self._agent_default_pos is not None:
+            self.agent_pos = self._agent_default_pos
+            self.grid.set(*self._agent_default_pos, None)
+            self.agent_dir = self._rand_int(0, 4)  # assuming random start direction
+        else:
+            self.place_agent()
+
+        if self._goal_default_pos is not None:
+            goal = Goal()
+            self.put_obj(goal, *self._goal_default_pos)
+            goal.init_pos, goal.cur_pos = self._goal_default_pos
+        else:
+            self.place_obj(Goal())
+        self.mission = 'Reach the goal'
+
+    def step(self, action):
+        obs, reward, done, info = MiniGridEnv.step(self, action)
+        return obs, reward, done, info
+
 register(
     id='MiniGrid-FourRooms-v1',
     entry_point='environments.MiniGridCustom:Static4Rooms'
 )
+register(
+    id='MiniGrid-FourRooms-v2',
+    entry_point='environments.MiniGridCustom:Clasic4Rooms'
+)
+
+if __name__ == "__main__":
+    env = gym.make("MiniGrid-FourRooms-v2")
+    env.render()
