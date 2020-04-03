@@ -47,3 +47,53 @@ python SF_Phi_v2.py -f MG4R_SF_Phi.json -c '{"RunName":"SF_v2_T4_2048","NetworkC
 python SF_Phi_v2.py -f MG4R_SF_Phi.json -c '{"RunName":"SF_v3_T1_256","NetworkConfig":"MG4R_SF_v3.json"}' -n '{"DefaultParams":{"InFilter":64,"OutFilter":16,"SFSize":256,"FCUnits":256}}'
 python SF_Phi_v2.py -f MG4R_SF_Phi.json -c '{"RunName":"SF_v3_T1_512","NetworkConfig":"MG4R_SF_v3.json"}' -n '{"DefaultParams":{"InFilter":64,"OutFilter":16,"SFSize":512,"FCUnits":256}}'
 python SF_Phi_v2.py -f MG4R_SF_Phi.json -c '{"RunName":"SF_v3_T1_512","NetworkConfig":"MG4R_SF_v3.json"}' -n '{"DefaultParams":{"InFilter":64,"OutFilter":16,"SFSize":1024,"FCUnits":256}}'
+
+#########################
+
+python SF_Psi_v2.py -f MG4R_SF_Psi.json -c '{"RunName":"SF_v1_T1_256","NetworkConfig":"MG4R_SF_v1.json"}' -n '{"DefaultParams":{"InFilter":64,"OutFilter":16,"SFSize":256,"FCUnits":256}}'
+python SF_Psi_v2.py -f MG4R_SF_Psi.json -c '{"RunName":"SF_v1_T2_256","NetworkConfig":"MG4R_SF_v1.json"}' -n '{"DefaultParams":{"InFilter":96,"OutFilter":16,"SFSize":256,"FCUnits":256}}'
+python SF_Psi_v2.py -f MG4R_SF_Psi.json -c '{"RunName":"SF_v1_T3_256","NetworkConfig":"MG4R_SF_v1.json"}' -n '{"DefaultParams":{"InFilter":128,"OutFilter":16,"SFSize":256,"FCUnits":256}}'
+python SF_Psi_v2.py -f MG4R_SF_Psi.json -c '{"RunName":"SF_v1_T4_256","NetworkConfig":"MG4R_SF_v1.json"}' -n '{"DefaultParams":{"InFilter":64,"OutFilter":16,"SFSize":256,"FCUnits":512}}'
+python SF_Psi_v2.py -f MG4R_SF_Psi.json -c '{"RunName":"SF_v1_T5_256","NetworkConfig":"MG4R_SF_v1.json"}' -n '{"DefaultParams":{"InFilter":64,"OutFilter":16,"SFSize":256,"FCUnits":1024}}'
+
+python SF_Psi_v2.py -f MG4R_SF_Psi.json -c '{"RunName":"SF_v1_T1_512","NetworkConfig":"MG4R_SF_v1.json"}' -n '{"DefaultParams":{"InFilter":64,"OutFilter":16,"SFSize":512,"FCUnits":256}}'
+python SF_Psi_v2.py -f MG4R_SF_Psi.json -c '{"RunName":"SF_v1_T2_512","NetworkConfig":"MG4R_SF_v1.json"}' -n '{"DefaultParams":{"InFilter":96,"OutFilter":16,"SFSize":512,"FCUnits":256}}'
+python SF_Psi_v2.py -f MG4R_SF_Psi.json -c '{"RunName":"SF_v1_T3_512","NetworkConfig":"MG4R_SF_v1.json"}' -n '{"DefaultParams":{"InFilter":128,"OutFilter":16,"SFSize":512,"FCUnits":256}}'
+python SF_Psi_v2.py -f MG4R_SF_Psi.json -c '{"RunName":"SF_v1_T4_512","NetworkConfig":"MG4R_SF_v1.json"}' -n '{"DefaultParams":{"InFilter":64,"OutFilter":16,"SFSize":512,"FCUnits":512}}'
+python SF_Psi_v2.py -f MG4R_SF_Psi.json -c '{"RunName":"SF_v1_T5_512","NetworkConfig":"MG4R_SF_v1.json"}' -n '{"DefaultParams":{"InFilter":64,"OutFilter":16,"SFSize":512,"FCUnits":1024}}'
+
+python SF_Psi_v2.py -f MG4R_SF_Psi.json -c '{"RunName":"SF_v1_T1_1024","NetworkConfig":"MG4R_SF_v1.json"}' -n '{"DefaultParams":{"InFilter":64,"OutFilter":16,"SFSize":1024,"FCUnits":256}}'
+python SF_Psi_v2.py -f MG4R_SF_Psi.json -c '{"RunName":"SF_v1_T2_1024","NetworkConfig":"MG4R_SF_v1.json"}' -n '{"DefaultParams":{"InFilter":96,"OutFilter":16,"SFSize":1024,"FCUnits":256}}'
+python SF_Psi_v2.py -f MG4R_SF_Psi.json -c '{"RunName":"SF_v1_T3_1024","NetworkConfig":"MG4R_SF_v1.json"}' -n '{"DefaultParams":{"InFilter":128,"OutFilter":16,"SFSize":1024,"FCUnits":256}}'
+python SF_Psi_v2.py -f MG4R_SF_Psi.json -c '{"RunName":"SF_v1_T4_1024","NetworkConfig":"MG4R_SF_v1.json"}' -n '{"DefaultParams":{"InFilter":64,"OutFilter":16,"SFSize":1024,"FCUnits":512}}'
+python SF_Psi_v2.py -f MG4R_SF_Psi.json -c '{"RunName":"SF_v1_T5_1024","NetworkConfig":"MG4R_SF_v1.json"}' -n '{"DefaultParams":{"InFilter":64,"OutFilter":16,"SFSize":1024,"FCUnits":1024}}'
+
+python SF_Psi_v2.py -f MG4R_SF_Psi.json -c '{"RunName":"SF_v1_T1_2048","NetworkConfig":"MG4R_SF_v1.json"}' -n '{"DefaultParams":{"InFilter":64,"OutFilter":16,"SFSize":2048,"FCUnits":256}}'
+python SF_Psi_v2.py -f MG4R_SF_Psi.json -c '{"RunName":"SF_v1_T2_2048","NetworkConfig":"MG4R_SF_v1.json"}' -n '{"DefaultParams":{"InFilter":96,"OutFilter":16,"SFSize":2048,"FCUnits":256}}'
+python SF_Psi_v2.py -f MG4R_SF_Psi.json -c '{"RunName":"SF_v1_T3_2048","NetworkConfig":"MG4R_SF_v1.json"}' -n '{"DefaultParams":{"InFilter":128,"OutFilter":16,"SFSize":2048,"FCUnits":256}}'
+python SF_Psi_v2.py -f MG4R_SF_Psi.json -c '{"RunName":"SF_v1_T4_2048","NetworkConfig":"MG4R_SF_v1.json"}' -n '{"DefaultParams":{"InFilter":64,"OutFilter":16,"SFSize":2048,"FCUnits":512}}'
+python SF_Psi_v2.py -f MG4R_SF_Psi.json -c '{"RunName":"SF_v1_T5_2048","NetworkConfig":"MG4R_SF_v1.json"}' -n '{"DefaultParams":{"InFilter":64,"OutFilter":16,"SFSize":2048,"FCUnits":1024}}'
+
+python SF_Psi_v2.py -f MG4R_SF_Psi.json -c '{"RunName":"SF_v2_T1_256","NetworkConfig":"MG4R_SF_v2.json"}' -n '{"DefaultParams":{"InFilter":64,"OutFilter":16,"SFSize":256,"FCUnits":256}}'
+python SF_Psi_v2.py -f MG4R_SF_Psi.json -c '{"RunName":"SF_v2_T2_256","NetworkConfig":"MG4R_SF_v2.json"}' -n '{"DefaultParams":{"InFilter":96,"OutFilter":16,"SFSize":256,"FCUnits":256}}'
+python SF_Psi_v2.py -f MG4R_SF_Psi.json -c '{"RunName":"SF_v2_T3_256","NetworkConfig":"MG4R_SF_v2.json"}' -n '{"DefaultParams":{"InFilter":128,"OutFilter":16,"SFSize":256,"FCUnits":256}}'
+python SF_Psi_v2.py -f MG4R_SF_Psi.json -c '{"RunName":"SF_v2_T4_256","NetworkConfig":"MG4R_SF_v2.json"}' -n '{"DefaultParams":{"InFilter":128,"OutFilter":16,"SFSize":256,"FCUnits":512}}'
+
+python SF_Psi_v2.py -f MG4R_SF_Psi.json -c '{"RunName":"SF_v2_T1_512","NetworkConfig":"MG4R_SF_v2.json"}' -n '{"DefaultParams":{"InFilter":64,"OutFilter":16,"SFSize":512,"FCUnits":256}}'
+python SF_Psi_v2.py -f MG4R_SF_Psi.json -c '{"RunName":"SF_v2_T2_512","NetworkConfig":"MG4R_SF_v2.json"}' -n '{"DefaultParams":{"InFilter":96,"OutFilter":16,"SFSize":512,"FCUnits":256}}'
+python SF_Psi_v2.py -f MG4R_SF_Psi.json -c '{"RunName":"SF_v2_T3_512","NetworkConfig":"MG4R_SF_v2.json"}' -n '{"DefaultParams":{"InFilter":128,"OutFilter":16,"SFSize":512,"FCUnits":256}}'
+python SF_Psi_v2.py -f MG4R_SF_Psi.json -c '{"RunName":"SF_v2_T4_512","NetworkConfig":"MG4R_SF_v2.json"}' -n '{"DefaultParams":{"InFilter":128,"OutFilter":16,"SFSize":512,"FCUnits":512}}'
+
+python SF_Psi_v2.py -f MG4R_SF_Psi.json -c '{"RunName":"SF_v2_T1_1024","NetworkConfig":"MG4R_SF_v2.json"}' -n '{"DefaultParams":{"InFilter":64,"OutFilter":16,"SFSize":1024,"FCUnits":256}}'
+python SF_Psi_v2.py -f MG4R_SF_Psi.json -c '{"RunName":"SF_v2_T2_1024","NetworkConfig":"MG4R_SF_v2.json"}' -n '{"DefaultParams":{"InFilter":96,"OutFilter":16,"SFSize":1024,"FCUnits":256}}'
+python SF_Psi_v2.py -f MG4R_SF_Psi.json -c '{"RunName":"SF_v2_T3_1024","NetworkConfig":"MG4R_SF_v2.json"}' -n '{"DefaultParams":{"InFilter":128,"OutFilter":16,"SFSize":1024,"FCUnits":256}}'
+python SF_Psi_v2.py -f MG4R_SF_Psi.json -c '{"RunName":"SF_v2_T4_1024","NetworkConfig":"MG4R_SF_v2.json"}' -n '{"DefaultParams":{"InFilter":128,"OutFilter":16,"SFSize":1024,"FCUnits":512}}'
+
+python SF_Psi_v2.py -f MG4R_SF_Psi.json -c '{"RunName":"SF_v2_T1_2048","NetworkConfig":"MG4R_SF_v2.json"}' -n '{"DefaultParams":{"InFilter":64,"OutFilter":16,"SFSize":2048,"FCUnits":256}}'
+python SF_Psi_v2.py -f MG4R_SF_Psi.json -c '{"RunName":"SF_v2_T2_2048","NetworkConfig":"MG4R_SF_v2.json"}' -n '{"DefaultParams":{"InFilter":96,"OutFilter":16,"SFSize":2048,"FCUnits":256}}'
+python SF_Psi_v2.py -f MG4R_SF_Psi.json -c '{"RunName":"SF_v2_T3_2048","NetworkConfig":"MG4R_SF_v2.json"}' -n '{"DefaultParams":{"InFilter":128,"OutFilter":16,"SFSize":2048,"FCUnits":256}}'
+python SF_Psi_v2.py -f MG4R_SF_Psi.json -c '{"RunName":"SF_v2_T4_2048","NetworkConfig":"MG4R_SF_v2.json"}' -n '{"DefaultParams":{"InFilter":128,"OutFilter":16,"SFSize":2048,"FCUnits":512}}'
+
+python SF_Psi_v2.py -f MG4R_SF_Psi.json -c '{"RunName":"SF_v3_T1_256","NetworkConfig":"MG4R_SF_v3.json"}' -n '{"DefaultParams":{"InFilter":64,"OutFilter":16,"SFSize":256,"FCUnits":256}}'
+python SF_Psi_v2.py -f MG4R_SF_Psi.json -c '{"RunName":"SF_v3_T1_512","NetworkConfig":"MG4R_SF_v3.json"}' -n '{"DefaultParams":{"InFilter":64,"OutFilter":16,"SFSize":512,"FCUnits":256}}'
+python SF_Psi_v2.py -f MG4R_SF_Psi.json -c '{"RunName":"SF_v3_T1_512","NetworkConfig":"MG4R_SF_v3.json"}' -n '{"DefaultParams":{"InFilter":64,"OutFilter":16,"SFSize":1024,"FCUnits":256}}'
