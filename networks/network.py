@@ -90,8 +90,9 @@ class Network(tf.keras.Model):
             self.varGroupings[sectionName] = []
             for layerDict in layerList:
                 if layerDict["layerType"] == "Dense":
-                    if layerDict["Parameters"]["units"] == "actionSize":
-                        layerDict["Parameters"]["units"] = self.actionSize
+                    if "Parameters" in layerDict["layerType"]:
+                        if layerDict["Parameters"]["units"] == "actionSize":
+                            layerDict["Parameters"]["units"] = self.actionSize
                 if "ReuseLayer" in layerDict:
                     self.layerList[layerDict["layerName"]] = self.layerList[layerDict["ReuseLayer"]]
                 else:

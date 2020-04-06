@@ -29,6 +29,8 @@ parser.add_argument("-e", "--environment", required=False,
                     help="JSON configuration string to override environment parameters")
 parser.add_argument("-n", "--network", required=False,
                     help="JSON configuration string to override network parameters")
+parser.add_argument("-p", "--processor", required=False, default="/gpu:0",
+                    help="Processor identifier string. Ex. /cpu:0 /gpu:0")
 args = parser.parse_args()
 if args.config is not None: configOverride = json.loads(unquote(args.config))
 else: configOverride = {}
@@ -49,14 +51,16 @@ env,dFeatures,nActions,nTrajs = CreateEnvironment(envSettings)
 EXP_NAME = settings["RunName"]
 MODEL_PATH = './models/'+EXP_NAME
 LOG_PATH = './logs/'+EXP_NAME
+IMAGE_PATH = './images/'+EXP_NAME
 CreatePath(LOG_PATH)
 CreatePath(MODEL_PATH)
+CreatePath(IMAGE_PATH)
 
 #Creating the Environment and Network to be used in training
 gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=settings["GPUCapacitty"], allow_growth=True)
 config = tf.ConfigProto(gpu_options=gpu_options, log_device_placement=False, allow_soft_placement=True)
 sess = tf.Session(config=config)
-with tf.device('/cpu:0'):
+with tf.device(args.processor):
     global_step = tf.Variable(0, trainable=False, name='global_step')
     global_step_next = tf.assign_add(global_step,1)
     network = Network(settings["NetworkConfig"],nActions,netConfigOverride)
@@ -70,6 +74,11 @@ net.InitializeVariablesFromFile(saver,MODEL_PATH)
 InitializeVariables(sess) #Included to catch if there are any uninitalized variables.
 
 progbar = tf.keras.utils.Progbar(None, unit_name='Training',stateful_metrics=["Reward"])
+
+loggingFunctions=[]
+for loggingFunc in settings["LoggingFunctions"]:
+    func = GetFunction(loggingFunc)
+    loggingFunctions.append(func(env,net,IMAGE_PATH))
 
 for i in range(settings["MAX_EP"]):
 
@@ -100,6 +109,9 @@ for i in range(settings["MAX_EP"]):
         dict = net.GetStatistics()
         loggingDict.update(dict)
         Record(loggingDict, writer, sess.run(global_step))
+        for func in loggingFunctions:
+            func(sess.run(global_step))
 
     if saving:
         saver.save(sess, MODEL_PATH+'/ctf_policy.ckpt', global_step=sess.run(global_step))
+    progbar.update(i)

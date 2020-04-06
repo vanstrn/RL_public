@@ -36,6 +36,7 @@ class OffPolicySF(Method):
 
         input = {"state":self.s}
         out = self.Model(input)
+        self.value_pred = out["critic"]
         self.state_pred = out["prediction"]
         self.reward_pred = out["reward_pred"]
         self.phi = out["phi"]
@@ -43,16 +44,13 @@ class OffPolicySF(Method):
 
         self.buffer = [Trajectory(depth=7) for _ in range(nTrajs)]
 
-        self.c_params = self.Model.GetVariables("Critic")
-        self.s_params = self.Model.GetVariables("Reconstruction")
-        self.r_params = self.Model.GetVariables("Reward")
+        self.params = self.Model.getVars()
 
-        with tf.name_scope('c_loss'):
+        with tf.name_scope('loss'):
             sf_error = tf.subtract(self.td_target, self.psi, name='TD_error')
             sf_error = tf.square(sf_error)
             self.c_loss = tf.reduce_mean(sf_error,name="sf_loss")
 
-        with tf.name_scope('s_loss'):
             if HPs["Loss"] == "MSE":
                 self.s_loss = tf.losses.mean_squared_error(self.state_pred,self.s_next)
             elif HPs["Loss"] == "KL":
@@ -60,62 +58,45 @@ class OffPolicySF(Method):
             elif HPs["Loss"] == "M4E":
                 self.s_loss = tf.reduce_mean((self.state_pred-self.s_next)**4)
 
-        with tf.name_scope('r_loss'):
             self.r_loss = tf.losses.mean_squared_error(self.reward,tf.squeeze(self.reward_pred))
 
+            self.loss = self.s_loss + HPs["CriticBeta"]*self.c_loss + HPs["RewardBeta"]*self.r_loss
+
         if HPs["Optimizer"] == "Adam":
-            self.Coptimizer = tf.keras.optimizers.Adam(HPs["Critic LR"])
-            self.Soptimizer = tf.keras.optimizers.Adam(HPs["State LR"])
-            self.Roptimizer = tf.keras.optimizers.Adam(HPs["Reward LR"])
+            self.optimizer = tf.keras.optimizers.Adam(HPs["LR"])
         elif HPs["Optimizer"] == "RMS":
-            self.Coptimizer = tf.keras.optimizers.RMSProp(HPs["Critic LR"])
-            self.Soptimizer = tf.keras.optimizers.RMSProp(HPs["State LR"])
-            self.Roptimizer = tf.keras.optimizers.RMSProp(HPs["Reward LR"])
+            self.optimizer = tf.keras.optimizers.RMSProp(HPs["LR"])
         elif HPs["Optimizer"] == "Adagrad":
-            self.Coptimizer = tf.keras.optimizers.Adagrad(HPs["Critic LR"])
-            self.Soptimizer = tf.keras.optimizers.Adagrad(HPs["State LR"])
-            self.Roptimizer = tf.keras.optimizers.Adagrad(HPs["Reward LR"])
+            self.optimizer = tf.keras.optimizers.Adagrad(HPs["LR"])
         elif HPs["Optimizer"] == "Adadelta":
-            self.Coptimizer = tf.keras.optimizers.Adadelta(HPs["Critic LR"])
-            self.Soptimizer = tf.keras.optimizers.Adadelta(HPs["State LR"])
-            self.Roptimizer = tf.keras.optimizers.Adadelta(HPs["Reward LR"])
+            self.optimizer = tf.keras.optimizers.Adadelta(HPs["LR"])
         elif HPs["Optimizer"] == "Adamax":
-            self.Coptimizer = tf.keras.optimizers.Adamax(HPs["Critic LR"])
-            self.Soptimizer = tf.keras.optimizers.Adamax(HPs["State LR"])
-            self.Roptimizer = tf.keras.optimizers.Adamax(HPs["Reward LR"])
+            self.optimizer = tf.keras.optimizers.Adamax(HPs["LR"])
         elif HPs["Optimizer"] == "Nadam":
-            self.Coptimizer = tf.keras.optimizers.Nadam(HPs["Critic LR"])
-            self.Soptimizer = tf.keras.optimizers.Nadam(HPs["State LR"])
-            self.Roptimizer = tf.keras.optimizers.Nadam(HPs["Reward LR"])
+            self.optimizer = tf.keras.optimizers.Nadam(HPs["LR"])
         elif HPs["Optimizer"] == "SGD":
-            self.Coptimizer = tf.keras.optimizers.SGD(HPs["Critic LR"])
-            self.Soptimizer = tf.keras.optimizers.SGD(HPs["State LR"])
-            self.Roptimizer = tf.keras.optimizers.SGD(HPs["Reward LR"])
+            self.optimizer = tf.keras.optimizers.SGD(HPs["LR"])
         elif HPs["Optimizer"] == "Amsgrad":
-            self.Coptimizer = tf.keras.optimizers.Adam(HPs["Critic LR"],amsgrad=True)
-            self.Soptimizer = tf.keras.optimizers.Adam(HPs["State LR"],amsgrad=True)
-            self.Roptimizer = tf.keras.optimizers.Adam(HPs["Reward LR"],amsgrad=True)
+            self.optimizer = tf.keras.optimizers.Nadam(HPs["LR"],amsgrad=True)
         else:
             print("Not selected a proper Optimizer")
             exit()
 
         with tf.name_scope('local_grad'):
-            self.c_grads = self.Coptimizer.get_gradients(self.c_loss, self.c_params)
-            self.s_grads = self.Soptimizer.get_gradients(self.s_loss, self.s_params)
-            self.r_grads = self.Roptimizer.get_gradients(self.r_loss, self.r_params)
+            self.grads = self.optimizer.get_gradients(self.loss, self.params)
 
         with tf.name_scope('update'):
-            self.update_c_op = self.Coptimizer.apply_gradients(zip(self.c_grads, self.c_params))
-            self.update_s_op = self.Soptimizer.apply_gradients(zip(self.s_grads, self.s_params))
-            self.update_r_op = self.Roptimizer.apply_gradients(zip(self.r_grads, self.r_params))
+            self.update_op = self.optimizer.apply_gradients(zip(self.grads, self.params))
 
-        self.update_ops = [self.update_c_op,self.update_s_op,self.update_r_op]
-        self.grads = [self.c_grads,self.s_grads,self.r_grads]
+
+        self.update_ops = [self.update_op]
+        self.grads = [self.grads]
         self.losses = [self.c_loss,self.s_loss,self.r_loss]
 
         self.grad_MA = [MovingAverage(400) for i in range(len(self.grads))]
-        self.loss_MA = [MovingAverage(400) for i in range(len(self.grads))]
-        self.labels = ["Critic","State","Reward"]
+        self.loss_MA = [MovingAverage(400) for i in range(len(self.losses))]
+        self.Gradlabels = ["Total"]
+        self.Losslabels = ["Critic","State","Reward"]
 
         self.clearBuffer = False
 
@@ -137,19 +118,22 @@ class OffPolicySF(Method):
         return actions ,[phi,psi]  # return a int and extra data that needs to be fed to buffer.
 
     def PredictValue(self,state):
-        s = state[np.newaxis,:]
-        out = self.sess.run(self.value_pred)
+        s = state
+        # s = state[np.newaxis,:]
+        out = self.sess.run(self.value_pred, {self.s: s})
         return out
     def PredictState(self,state):
-        s = state[np.newaxis,:]
-        out = self.sess.run(self.state_pred)
+        s = state
+        # s = state[np.newaxis,:]
+        out = self.sess.run(self.state_pred, {self.s: s})
         return out
     def PredictReward(self,state):
-        s = state[np.newaxis,:]
-        out = self.sess.run(self.reward_pred)
+        s = state
+        # s = state[np.newaxis,:]
+        out = self.sess.run(self.reward_pred, {self.s: s})
         return out
 
-    def Update(self,episode=0,statistics=True):
+    def Update(self,HPs,episode=0,statistics=True):
         """
         The main update function for A3C. The function pushes gradients to the global AC Network.
         The second function is to Pull
@@ -164,7 +148,7 @@ class OffPolicySF(Method):
         for traj in range(len(self.buffer)):
 
             clip = -1
-            td_diff = self.ProcessBuffer(traj,clip)
+            td_diff = self.ProcessBuffer(HPs,traj,clip)
 
             batches = len(self.buffer[traj][0][:clip])//self.HPs["MinibatchSize"]+1
             if "StackedDim" in self.HPs:
@@ -194,9 +178,9 @@ class OffPolicySF(Method):
                         #Perform update operations
                         try:
                             out = self.sess.run(self.update_ops+self.losses+self.grads, feedDict)   # local grads applied to global net.
-                            out = np.array_split(out,3)
-                            losses = out[1]
-                            grads = out[2]
+                            update_ops = out.pop(0)
+                            grads=out.pop(-1)
+                            losses = out
 
                             for i,loss in enumerate(losses):
                                 self.loss_MA[i].append(loss)
@@ -221,18 +205,21 @@ class OffPolicySF(Method):
 
     def GetStatistics(self):
         dict ={}
-        for i,label in enumerate(self.labels):
+        for i,label in enumerate(self.Gradlabels):
             dict["Training Results/Vanishing Gradient " + label] = self.grad_MA[i]()
+        for i,label in enumerate(self.Losslabels):
             dict["Training Results/Loss " + label] = self.loss_MA[i]()
         return dict
 
 
-    def ProcessBuffer(self,traj,clip):
+    def ProcessBuffer(self,HPs,traj,clip):
         """
         Process the buffer to calculate td_target.
 
         Parameters
         ----------
+        Model : HPs
+            Hyperparameters for training.
         traj : Trajectory
             Data stored by the neural network.
         clip : list[bool]
@@ -248,7 +235,7 @@ class OffPolicySF(Method):
         # print("Starting Processing Buffer\n")
         # tracker.print_diff()
 
-        td_target, _ = gae(self.buffer[traj][5][:clip], self.buffer[traj][6][:clip], np.zeros_like(self.buffer[traj][5][0]),self.HPs["Gamma"],self.HPs["lambda"])
+        td_target, _ = gae(self.buffer[traj][5][:clip], self.buffer[traj][6][:clip], np.zeros_like(self.buffer[traj][5][0]),HPs["Gamma"],HPs["lambda"])
         # tracker.print_diff()
         return td_target
 
