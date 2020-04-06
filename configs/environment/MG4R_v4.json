@@ -5,6 +5,8 @@
   "Wrappers":[
   { "WrapperName":"environments.MiniGridWrappers.DiscreteAction",
     "WrapperParameters":{}},
+  { "WrapperName":"environments.MiniGridWrappers.RewardWrapper",
+    "WrapperParameters":{}},
   { "WrapperName":"environments.MiniGridWrappers.FullyObsWrapper_v2",
     "WrapperParameters":{}},
   { "WrapperName":"environments.Common.NPConverter",

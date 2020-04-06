@@ -12,6 +12,8 @@
   { "WrapperName":"environments.Common.RewardLogging",
     "WrapperParameters":{}},
   { "WrapperName":"gym_minigrid.wrappers.ImgObsWrapper",
+    "WrapperParameters":{}},
+  { "WrapperName":"gym_minigrid.wrappers.RewardWrapper",
     "WrapperParameters":{}}
   ]
   }

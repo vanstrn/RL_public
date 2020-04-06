@@ -54,6 +54,19 @@ class FullyObsWrapper_v2(gym.core.ObservationWrapper):
 
         return full_grid[:,:,:2]
 
+class RewardWrapper(gym.core.Wrapper):
+    def reset(self, **kwargs):
+        return self.env.reset(**kwargs)
+
+    def step(self, action):
+        observation, reward, done, info = self.env.step(action)
+        return observation, self.reward(reward,done), done, info
+
+    def reward(self,reward,done):
+        if done and reward !=0:
+            return 1
+        else: return 0
+
 class FullyObsWrapper_v3(gym.core.ObservationWrapper):
     """
     Fully observable gridworld using a compact grid encoding
