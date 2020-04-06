@@ -51,7 +51,7 @@ class ReverseInception(Layer):
 
     def get_config(self):
         config = {}
-        base_config = super(ApproxRounding, self).get_config()
+        base_config = super(ReverseInception, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
 if __name__ == "__main__":

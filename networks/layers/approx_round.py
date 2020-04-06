@@ -5,7 +5,7 @@ import numpy as np
 class RoundingSawtooth(Layer):
     """Does approximate rounding with Sawtooth wave."""
     def __init__(self, interval=1.0, **kwargs):
-        super(ApproxRounding, self).__init__(**kwargs)
+        super(RoundingSawtooth, self).__init__(**kwargs)
         self.interval=interval
 
     def call(self, inputs):
@@ -16,7 +16,7 @@ class RoundingSawtooth(Layer):
 
     def get_config(self):
         config = {}
-        base_config = super(ApproxRounding, self).get_config()
+        base_config = super(RoundingSawtooth, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
 class RoundingSine(Layer):
@@ -41,7 +41,7 @@ if __name__ == "__main__":
     from tensorflow.keras.models import Sequential
     import tensorflow as tf
     model=Sequential()
-    model.add(ApproxRounding())
+    model.add(RoundingSawtooth())
     x=tf.convert_to_tensor(np.random.random([3,3]), dtype=tf.float32)
     print(x)
     print(model(x))
