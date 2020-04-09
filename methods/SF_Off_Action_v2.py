@@ -67,7 +67,7 @@ class OffPolicySF(Method):
         if HPs["Optimizer"] == "Adam":
             self.optimizer = tf.keras.optimizers.Adam(HPs["LR"])
         elif HPs["Optimizer"] == "RMS":
-            self.optimizer = tf.keras.optimizers.RMSProp(HPs["LR"])
+            self.optimizer = tf.keras.optimizers.RMSprop(HPs["LR"])
         elif HPs["Optimizer"] == "Adagrad":
             self.optimizer = tf.keras.optimizers.Adagrad(HPs["LR"])
         elif HPs["Optimizer"] == "Adadelta":
@@ -78,6 +78,8 @@ class OffPolicySF(Method):
             self.optimizer = tf.keras.optimizers.Nadam(HPs["LR"])
         elif HPs["Optimizer"] == "SGD":
             self.optimizer = tf.keras.optimizers.SGD(HPs["LR"])
+        elif HPs["Optimizer"] == "SGD-Nesterov":
+            self.optimizer = tf.keras.optimizers.SGD(HPs["LR"],nesterov=True)
         elif HPs["Optimizer"] == "Amsgrad":
             self.optimizer = tf.keras.optimizers.Nadam(HPs["LR"],amsgrad=True)
         else:
