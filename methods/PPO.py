@@ -53,7 +53,6 @@ class PPO(Method):
         with self.sess.as_default(), self.sess.graph.as_default():
             with tf.name_scope(scope):
                 #Placeholders
-                print(stateShape)
                 self.s = tf.placeholder(tf.float32, [None]+stateShape, 'S')
                 self.a_his = tf.placeholder(tf.int32, [None, ], 'A')
                 self.td_target_ = tf.placeholder(tf.float32, [None], 'Vtarget')
@@ -101,6 +100,7 @@ class PPO(Method):
         self.CriticLossMA = MovingAverage(400)
         self.ActorLossMA = MovingAverage(400)
         self.GradMA = MovingAverage(400)
+        self.HPs = HPs
 
     def GetAction(self, state, episode=1,step=0):
         """
@@ -140,39 +140,44 @@ class PPO(Method):
         """
         for traj in range(len(self.buffer)):
 
-            #Finding if there are more than 1 done in the sequence. Clipping values if required.
             clip = -1
-            try:
-                for j in range(2):
-                    clip = self.buffer[traj][4].index(True, clip + 1)
-            except:
-                clip=len(self.buffer[traj][4])
+            if len(self.buffer[traj][0][:clip]) == 0:
+                continue
+            #Finding if there are more than 1 done in the sequence. Clipping values if required.
 
             td_target, advantage = self.ProcessBuffer(HPs,traj,clip)
+
+            batches = len(self.buffer[traj][0][:clip])//self.HPs["MinibatchSize"]+1
+            s = np.array_split( self.buffer[traj][0][:clip], batches)
+            a_his = np.array_split( np.asarray(self.buffer[traj][1][:clip]).reshape(-1), batches)
+            td_target_ = np.array_split( td_target, batches)
+            advantage_ = np.array_split( np.reshape(advantage, [-1]), batches)
+            old_log_logits_ = np.array_split( np.reshape(self.buffer[traj][6][:clip], [-1,self.actionSize]), batches)
 
             #Create a dictionary with all of the samples?
             #Use a sampler to feed the update operation?
 
             #Staging Buffer inputs into the entries to run through the network.
             # print(td_target)
-            if len(self.buffer[traj][0][:clip]) == 0:
-                continue
-            feed_dict = {self.s: self.buffer[traj][0][:clip],
-                         self.a_his: np.asarray(self.buffer[traj][1][:clip]).reshape(-1),
-                         self.td_target_: td_target,
-                         self.advantage_: np.reshape(advantage, [-1]),
-                         self.old_log_logits_: np.reshape(self.buffer[traj][6][:clip], [-1,self.actionSize])}
-            aLoss, cLoss, entropy,grads, _ = self.sess.run([self.actor_loss,self.critic_loss,self.entropy,self.gradients,self.update_ops], feed_dict)
+            for epoch in range(self.HPs["Epochs"]):
+                for i in range(batches):
 
-            self.EntropyMA.append(entropy)
-            self.CriticLossMA.append(cLoss)
-            self.ActorLossMA.append(aLoss)
-            total_counter = 0
-            vanish_counter = 0
-            for grad in grads:
-                total_counter += np.prod(grad.shape)
-                vanish_counter += (np.absolute(grad)<1e-8).sum()
-            self.GradMA.append(vanish_counter/total_counter)
+                    feed_dict = {self.s: s[i],
+                                 self.a_his: a_his[i],
+                                 self.td_target_:td_target_[i],
+                                 self.advantage_: advantage_[i],
+                                 self.old_log_logits_: old_log_logits_[i]}
+                    aLoss, cLoss, entropy,grads, _ = self.sess.run([self.actor_loss,self.critic_loss,self.entropy,self.gradients,self.update_ops], feed_dict)
+
+                    self.EntropyMA.append(entropy)
+                    self.CriticLossMA.append(cLoss)
+                    self.ActorLossMA.append(aLoss)
+                    total_counter = 0
+                    vanish_counter = 0
+                    for grad in grads:
+                        total_counter += np.prod(grad.shape)
+                        vanish_counter += (np.absolute(grad)<1e-8).sum()
+                    self.GradMA.append(vanish_counter/total_counter)
 
 
     def GetStatistics(self):

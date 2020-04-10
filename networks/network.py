@@ -39,7 +39,6 @@ class Network(tf.keras.Model):
         -------
         N/A
         """
-
         self.debug =debug
         self.actionSize = actionSize
 
@@ -80,19 +79,16 @@ class Network(tf.keras.Model):
         self.multiOutput = {}
         self.layerGroupList = {}
         self.varGroupings = {}
-
         #Creating Recursion sweep to go through dictionaries and lists in the networkConfig to insert user defined values.
         if "DefaultParams" in data.keys():
             data["NetworkStructure"] = UpdateStringValues(data["NetworkStructure"],data["DefaultParams"])
+        data["NetworkStructure"] = UpdateStringValues(data["NetworkStructure"],{"actionSize":self.actionSize})
 
             #Creating all of the layers
         for sectionName,layerList in data["NetworkStructure"].items():
             self.varGroupings[sectionName] = []
             for layerDict in layerList:
-                if layerDict["layerType"] == "Dense":
-                    if "Parameters" in layerDict["layerType"]:
-                        if layerDict["Parameters"]["units"] == "actionSize":
-                            layerDict["Parameters"]["units"] = self.actionSize
+
                 if "ReuseLayer" in layerDict:
                     self.layerList[layerDict["layerName"]] = self.layerList[layerDict["ReuseLayer"]]
                 else:
