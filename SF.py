@@ -43,12 +43,12 @@ parser.add_argument("-n", "--network", required=False,
                     help="JSON configuration string to override network parameters")
 parser.add_argument("-p", "--processor", required=False, default="/gpu:0",
                     help="Processor identifier string. Ex. /cpu:0 /gpu:0")
-parser.add_argument("-i", "--phi", required=False, default=True,
-                    help="Whether to run the Phi training of a neural network.")
-parser.add_argument("-s", "--psi", required=False, default=True,
-                    help="Whether to run the Psi training of a neural network.")
-parser.add_argument("-a", "--analysis", required=False, default=True,
-                    help="Whether to run the Analysis of the network.")
+parser.add_argument("-i", "--phi", required=False, default=True, action='store_false',
+                    help="Whether to run the Phi training of a neural network. If tag is present will not run.")
+parser.add_argument("-s", "--psi", required=False, default=True, action='store_false',
+                    help="Whether to run the Psi training of a neural network. If tag is present will not run.")
+parser.add_argument("-a", "--analysis", required=False, default=True, action='store_false',
+                    help="Whether to run the Analysis of the network. If tag is present will not run.")
 parser.add_argument("-d", "--data", required=False, default="",
                     help="Which data to use for the training.")
 parser.add_argument("-l", "--load", required=False, default="",

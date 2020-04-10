@@ -179,6 +179,8 @@ class PPO(Method):
                         vanish_counter += (np.absolute(grad)<1e-8).sum()
                     self.GradMA.append(vanish_counter/total_counter)
 
+        self.ClearTrajectory()
+
 
     def GetStatistics(self):
         dict = {"Training Results/Entropy":self.EntropyMA(),

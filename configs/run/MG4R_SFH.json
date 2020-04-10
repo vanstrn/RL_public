@@ -1,7 +1,7 @@
 { "RunName":"MG4R_SF",
   "GPUCapacitty":0.95,
   "NetworkHPs":{"eps":0.2,
-                "EntropyBeta":0.1,
+                "EntropyBeta":0.00,
                 "CriticBeta":0.5,
                 "Critic LR":0.001,
                 "Gamma":0.9,
@@ -15,9 +15,9 @@
   "MAX_EP":50000,
   "UPDATE_GLOBAL_ITER":151,
   "SaveFreq":1000,
-  "LogFreq":50,
+  "LogFreq":10,
 
-  "NumOptions":10,
+  "NumOptions":32,
 
   "EnvConfig":"MG4R_v3.json",
   "SFNetworkConfig":"MG4R_SF_v1.json",

@@ -1,14 +1,8 @@
-import tensorflow as tf
-import numpy as np
-import gym, gym_minigrid, gym_cap
-
-from utils.RL_Wrapper import TrainedNetwork
-from utils.utils import InitializeVariables
 
 """
 Framework for setting up an experiment.
 """
-
+import time
 import numpy as np
 import gym
 import gym_minigrid,gym_cap
@@ -40,8 +34,12 @@ parser.add_argument("-e", "--environment", required=False,
                     help="JSON configuration string to override environment parameters")
 parser.add_argument("-n", "--network", required=False,
                     help="JSON configuration string to override network parameters")
+parser.add_argument("-s", "--sfnetwork", required=False,
+                    help="JSON configuration string to override network parameters")
 parser.add_argument("-p", "--processor", required=False, default="/gpu:0",
                     help="Processor identifier string. Ex. /cpu:0 /gpu:0")
+parser.add_argument("-r", "--reward", required=False, default=False, action='store_true',
+                    help="Determines if the sub-policies are trained and not Q-tables.")
 
 args = parser.parse_args()
 if args.config is not None: configOverride = json.loads(unquote(args.config))
@@ -50,6 +48,8 @@ if args.environment is not None: envConfigOverride = json.loads(unquote(args.env
 else: envConfigOverride = {}
 if args.network is not None: netConfigOverride = json.loads(unquote(args.network))
 else: netConfigOverride = {}
+if args.sfnetwork is not None: SFnetConfigOverride = json.loads(unquote(args.sfnetwork))
+else: SFnetConfigOverride = {}
 
 #Reading in Config Files
 with open("configs/run/"+args.file) as json_file:
@@ -61,11 +61,14 @@ with open("configs/environment/"+settings["EnvConfig"]) as json_file:
 
 EXP_NAME = settings["RunName"]
 MODEL_PATH = './models/'+EXP_NAME+ '/'
-LOG_PATH = './logs/'+EXP_NAME
 IMAGE_PATH = './images/SF/'+EXP_NAME
+ts = str(time.time())
+MODEL_PATH_ = './models/'+EXP_NAME+"_"+ts+'/'
+LOG_PATH = './logs/'+EXP_NAME+"_"+ts
 CreatePath(LOG_PATH)
 CreatePath(IMAGE_PATH)
 CreatePath(MODEL_PATH)
+CreatePath(MODEL_PATH_)
 
 #Creating the Environment
 env,dFeatures,nActions,nTrajs = CreateEnvironment(envSettings)
@@ -75,8 +78,8 @@ gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=settings["GPUCapacit
 config = tf.ConfigProto(gpu_options=gpu_options, log_device_placement=False, allow_soft_placement=True)
 sess = tf.Session(config=config)
 with tf.device(args.processor):
-    SF1,SF2,SF3,SF4,SF5 = buildNetwork(settings["SFNetworkConfig"],nActions,netConfigOverride,scope="Global")
-    SF5.load_weights(MODEL_PATH+"/model.h5")
+    SF1,SF2,SF3,SF4,SF5 = buildNetwork(settings["SFNetworkConfig"],nActions,SFnetConfigOverride,scope="Global")
+    SF5.load_weights(MODEL_PATH+"model.h5")
 
 #Collecting Samples for the Decomposition Analysis.
 def GetAction(state):
@@ -177,7 +180,7 @@ with tf.device(args.processor):
 #Creating Auxilary Functions for logging and saving.
 writer = tf.summary.FileWriter(LOG_PATH,graph=sess.graph)
 saver = tf.train.Saver(max_to_keep=3, var_list=net.getVars+[global_step])
-net.InitializeVariablesFromFile(saver,MODEL_PATH)
+net.InitializeVariablesFromFile(saver,MODEL_PATH_)
 InitializeVariables(sess) #Included to catch if there are any uninitalized variables.
 
 progbar = tf.keras.utils.Progbar(None, unit_name='Training',stateful_metrics=["Reward"])
@@ -220,5 +223,5 @@ for i in range(settings["MAX_EP"]):
             func(sess.run(global_step))
 
     if saving:
-        saver.save(sess, MODEL_PATH+'/ctf_policy.ckpt', global_step=sess.run(global_step))
+        saver.save(sess, MODEL_PATH_+'/ctf_policy.ckpt', global_step=sess.run(global_step))
     progbar.update(i)

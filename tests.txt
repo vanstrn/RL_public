@@ -1,0 +1,32 @@
+################################################################################
+# Running SF training for Phi/Psi.
+################################################################################
+
+#Running experiment based on a specified config file
+python SF.py -f MG4R_SF.json
+
+#Overriding parameters in the config file
+python SF.py -f MG4R_SF.json -c '{"RunName":"SF_v3_T1_512","NetworkConfig":"MG4R_SF_v3.json"}'
+
+#Overriding parameters in the network file.
+python SF.py -f MG4R_SF.json  -n '{"DefaultParams":{"InFilter":64,"OutFilter":16,"SFSize":512,"FCUnits":256}}'
+
+#Running only Phi/Psi training and no analysis
+python SF.py -f MG4R_SF.json -a
+
+#Running only analysis
+python SF.py -f MG4R_SF.json -s -i
+
+#Running SF with prepackaged data-set
+python SF.py -f MG4R_SF.json -d SF_TRIAL1.npz
+
+################################################################################
+# Running SF Hierarchy training
+#   Begins by loading SF file from previous training and then creates/trains
+#   a Hierarchical Controller
+################################################################################
+
+# -s Are config overrides for the SF network that is loaded
+python SF_Hierarchy.py -f MG4R_SFH.json -c '{"RunName":"SF_v3_T1_256_2","SFNetworkConfig":"MG4R_SF_v3.json"}' -s '{"DefaultParams":{"InFilter":64,"OutFilter":16,"SFSize":256,"FCUnits":256}}'
+python SF_Hierarchy.py -f MG4R_SFH.json -c '{"RunName":"SF_v3_T1_512_3","SFNetworkConfig":"MG4R_SF_v3.json"}' -s '{"DefaultParams":{"InFilter":64,"OutFilter":16,"SFSize":512,"FCUnits":256}}'
+python SF_Hierarchy.py -f MG4R_SFH.json -c '{"RunName":"SF_v3_T1_1024_3","SFNetworkConfig":"MG4R_SF_v3.json"}' -s '{"DefaultParams":{"InFilter":64,"OutFilter":16,"SFSize":1024,"FCUnits":256}}'
