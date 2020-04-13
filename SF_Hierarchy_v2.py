@@ -40,6 +40,8 @@ parser.add_argument("-p", "--processor", required=False, default="/gpu:0",
                     help="Processor identifier string. Ex. /cpu:0 /gpu:0")
 parser.add_argument("-r", "--reward", required=False, default=False, action='store_true',
                     help="Determines if the sub-policies are trained and not Q-tables.")
+parser.add_argument("-l", "--load", required=False, default="",
+                    help="Whether or not to load different data")
 
 args = parser.parse_args()
 if args.config is not None: configOverride = json.loads(unquote(args.config))
@@ -86,7 +88,14 @@ with tf.device(args.processor):
     SF1,SF2,SF3,SF4,SF5 = buildNetwork(settings["SFNetworkConfig"],nActions,SFnetConfigOverride,scope="Global")
     SF5.load_weights(MODEL_PATH+"model.h5")
 
+
 #Collecting Samples for the Decomposition Analysis.
+def ConstructSample(env,position):
+    grid = env.grid.encode()
+    if grid[position[0],position[1],1] == 5:
+        return None
+    grid[position[0],position[1],0] = 10
+    return grid[:,:,:2]
 def GetAction(state):
     """
     Contains the code to run the network based on an input.
@@ -98,32 +107,35 @@ def GetAction(state):
         probs =np.full((state.shape[0],nActions),p)
         actions = np.array([np.random.choice(probs.shape[1], p=prob / sum(prob)) for prob in probs])
         return actions
-s = []
-s_next = []
-r_store = []
-for i in range(settings["SampleEpisodes"]):
-    s0 = env.reset()
+if args.load == "":
+    s = []
+    for i in range(settings["SampleEpisodes"]):
+        s0 = env.reset()
 
-    for j in range(settings["MAX_EP_STEPS"]+1):
+        for j in range(settings["MAX_EP_STEPS"]+1):
 
-        a = GetAction(state=s0)
+            a = GetAction(state=s0)
 
-        s1,r,done,_ = env.step(a)
+            s1,r,done,_ = env.step(a)
 
-        s.append(s0)
-        s_next.append(s1)
-        r_store.append(r)
+            s.append(s0)
 
-        s0 = s1
-        if done:
-            break
-
-def ConstructSample(env,position):
-    grid = env.grid.encode()
-    if grid[position[0],position[1],1] == 5:
-        return None
-    grid[position[0],position[1],0] = 10
-    return grid[:,:,:2]
+            s0 = s1
+            if done:
+                break
+elif args.load == "Uniform":
+    s = []
+    for i,j in itertools.product(range(dFeatures[0]),range(dFeatures[1])):
+        grid = ConstructSample(env,[i,j])
+        if grid is None: continue
+        s.append(grid)
+    s = s.extend(s)
+    s = s.extend(s)
+    s = s.extend(s)
+    s = s.extend(s)
+else:
+    loadedData = np.load('./data/'+args.data)
+    s = loadedData["s"]
 
 def SmoothOption(option, gamma =0.9):
     # option[option<0.0] = 0.0

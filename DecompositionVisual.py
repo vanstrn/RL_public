@@ -67,7 +67,7 @@ def SquareVisualization():
     fig.colorbar(images[0], ax=axs, orientation='horizontal', fraction=.1)
     plt.show()
 
-def ObstacleVisualization(plotting=False):
+def ObstacleVisualization(location=[7,7],plotting=True):
     grid = np.array([   [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
                         [1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1],
                         [1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1],
@@ -88,8 +88,8 @@ def ObstacleVisualization(plotting=False):
                         [1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1],
                         [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
                         ])
-    TerminalLocations = [[9,14]]
-    Rewards = [1]
+    TerminalLocations = [location]
+    Rewards = [2.0]
     gamma = 0.99
 
     obstacles = np.sum(grid)
@@ -278,4 +278,5 @@ def ObstacleVisualization_v2(plotting=True):
     return valueGrid
 
 if __name__ == "__main__":
-    ObstacleVisualization_v2()
+    ObstacleVisualization(location=[9,14])
+    ObstacleVisualization(location=[7,7])

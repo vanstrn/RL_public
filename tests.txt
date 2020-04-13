@@ -32,3 +32,9 @@ python SF_Hierarchy.py -f MG4R_SFH.json -c '{"RunName":"SF_v3_T1_512_3","SFNetwo
 python SF_Hierarchy.py -f MG4R_SFH.json -c '{"RunName":"SF_v3_T1_1024_3","SFNetworkConfig":"MG4R_SF_v3.json"}' -s '{"DefaultParams":{"InFilter":64,"OutFilter":16,"SFSize":1024,"FCUnits":256}}'
 
 python SF_Hierarchy_v2.py -f MG4R_SFH.json -c '{"RunName":"SF_v3_T1_256_2","SFNetworkConfig":"MG4R_SF_v3.json"}' -s '{"DefaultParams":{"InFilter":64,"OutFilter":16,"SFSize":256,"FCUnits":256}}'
+
+python SF.py -f MG4R_SF.json  -c '{"RunName":"MG4R_v1_SF_1024"}' -n '{"DefaultParams":{"SFSize":1024}}'
+python SF.py -f MG4R_SF.json  -c '{"RunName":"MG4R_v1_SF_512"}' -n '{"DefaultParams":{"SFSize":512}}'
+python SF.py -f MG4R_SF.json  -c '{"RunName":"MG4R_v1_SF_256"}' -n '{"DefaultParams":{"SFSize":256}}'
+python SF.py -f MG4R_SF.json  -c '{"RunName":"MG4R_v1_SF_128"}' -n '{"DefaultParams":{"SFSize":128}}'
+python SF.py -f MG4R_SF.json  -c '{"RunName":"MG4R_v1_SF_64"}' -n '{"DefaultParams":{"SFSize":64}}'

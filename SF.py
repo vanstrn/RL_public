@@ -139,13 +139,24 @@ else:
     s_next = loadedData["s_next"]
     r_store = loadedData["r_store"]
 
+def PlotOccupancy(states,title=""):
+    #Taking average over the list of states.
+    state = np.stack(states)
+    occupancy = np.amax(state,axis=0)
+    #plotting them
+    fig=plt.figure(figsize=(5.5, 5.5))
+    fig.add_subplot(1,1,1)
+    plt.title("State Occupancy")
+    imgplot = plt.imshow(occupancy[:,:,0], vmin=0,vmax=10)
+    plt.savefig(LOG_PATH+"/StateOccupancy_"+title+".png")
+    plt.close()
 
 def ConstructSample(env,position):
     grid = env.grid.encode()
     if grid[position[0],position[1],1] == 5:
         return None
-        grid[position[0],position[1],0] = 10
-        return grid[:,:,:2]
+    grid[position[0],position[1],0] = 10
+    return grid[:,:,:2]
 #Defining Saving Functions for the models
 class SaveModel(tf.keras.callbacks.Callback):
     def __init__(self,superEpochs=None):
@@ -260,6 +271,7 @@ elif settings["Optimizer"] == "Amsgrad":
     opt = tf.keras.optimizers.Nadam(settings["LearningRate"],amsgrad=True)
 
 if args.phi:
+    PlotOccupancy(s,title="TrainingOccupancy")
     SF1.compile(optimizer=opt, loss=[M4E,"mse"], loss_weights = [1.0,1.0])
     SF1.fit(
         np.stack(s),
@@ -297,7 +309,9 @@ if args.analysis:
         psiSamples = np.zeros([dim,dim])
         #Randomly collecting samples from the random space.
         for i in range(dim):
-            psiSamples[i,:] = psi[randint(1,psiSamples.shape[0]),:]
+            sample = randint(1,psiSamples.shape[0])
+            PlotOccupancy(s[sample],title="Replicate1Occupancy")
+            psiSamples[i,:] = psi[sample,:]
 
         w_g,v_g = np.linalg.eig(psiSamples)
 
