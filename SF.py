@@ -308,10 +308,12 @@ if args.analysis:
         #Taking Eigenvalues and Eigenvectors of the environment,
         psiSamples = np.zeros([dim,dim])
         #Randomly collecting samples from the random space.
+        s_sampled=[]
         for i in range(dim):
             sample = randint(1,psiSamples.shape[0])
-            PlotOccupancy(s[sample],title="Replicate1Occupancy")
+            s_sampled.append(s[sample])
             psiSamples[i,:] = psi[sample,:]
+        PlotOccupancy(s_sample[sample],title="Replicate"+str(replicate))
 
         w_g,v_g = np.linalg.eig(psiSamples)
 

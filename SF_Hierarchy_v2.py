@@ -86,7 +86,7 @@ config = tf.ConfigProto(gpu_options=gpu_options, log_device_placement=False, all
 sess = tf.Session(config=config)
 with tf.device(args.processor):
     SF1,SF2,SF3,SF4,SF5 = buildNetwork(settings["SFNetworkConfig"],nActions,SFnetConfigOverride,scope="Global")
-    SF5.load_weights(MODEL_PATH+"model.h5")
+    # SF5.load_weights(MODEL_PATH+"model.h5")
 
 
 #Collecting Samples for the Decomposition Analysis.
@@ -96,46 +96,18 @@ def ConstructSample(env,position):
         return None
     grid[position[0],position[1],0] = 10
     return grid[:,:,:2]
-def GetAction(state):
-    """
-    Contains the code to run the network based on an input.
-    """
-    p = 1/nActions
-    if len(state.shape)==3:
-        probs =np.full((1,nActions),p)
-    else:
-        probs =np.full((state.shape[0],nActions),p)
-        actions = np.array([np.random.choice(probs.shape[1], p=prob / sum(prob)) for prob in probs])
-        return actions
-if args.load == "":
-    s = []
-    for i in range(settings["SampleEpisodes"]):
-        s0 = env.reset()
 
-        for j in range(settings["MAX_EP_STEPS"]+1):
-
-            a = GetAction(state=s0)
-
-            s1,r,done,_ = env.step(a)
-
-            s.append(s0)
-
-            s0 = s1
-            if done:
-                break
-elif args.load == "Uniform":
-    s = []
-    for i,j in itertools.product(range(dFeatures[0]),range(dFeatures[1])):
-        grid = ConstructSample(env,[i,j])
-        if grid is None: continue
-        s.append(grid)
-    s = s.extend(s)
-    s = s.extend(s)
-    s = s.extend(s)
-    s = s.extend(s)
-else:
-    loadedData = np.load('./data/'+args.data)
-    s = loadedData["s"]
+def PlotOccupancy(states,title=""):
+    #Taking average over the list of states.
+    state = np.stack(states)
+    occupancy = np.amax(state,axis=0)
+    #plotting them
+    fig=plt.figure(figsize=(5.5, 5.5))
+    fig.add_subplot(1,1,1)
+    plt.title("State Occupancy")
+    imgplot = plt.imshow(occupancy[:,:,0], vmin=0,vmax=10)
+    plt.savefig(IMAGE_PATH+"/StateOccupancy_"+title+".png")
+    plt.close()
 
 def SmoothOption(option, gamma =0.9):
     # option[option<0.0] = 0.0
@@ -185,14 +157,69 @@ def SmoothOption(option, gamma =0.9):
 
     return smoothedOption
 
+def GetAction(state):
+    """
+    Contains the code to run the network based on an input.
+    """
+    p = 1/nActions
+    if len(state.shape)==3:
+        probs =np.full((1,nActions),p)
+    else:
+        probs =np.full((state.shape[0],nActions),p)
+    actions = np.array([np.random.choice(probs.shape[1], p=prob / sum(prob)) for prob in probs])
+    return actions
+if args.load == "":
+    s = []
+    for i in range(settings["SampleEpisodes"]):
+        s0 = env.reset()
+
+        for j in range(settings["MAX_EP_STEPS"]+1):
+
+            a = GetAction(state=s0)
+
+            s1,r,done,_ = env.step(a)
+
+            s.append(s0)
+
+            s0 = s1
+            if done:
+                break
+elif args.load == "Uniform":
+    s = []
+    for i,j in itertools.product(range(dFeatures[0]),range(dFeatures[1])):
+        grid = ConstructSample(env,[i,j])
+        if grid is None: continue
+        s.append(grid)
+    s.extend(s)
+    s.extend(s)
+    s.extend(s)
+else:
+    loadedData = np.load('./data/'+args.data)
+    s = loadedData["s"]
+
+
 psi = SF2.predict(np.stack(s)) # [X,SF Dim]
 
 dim = psi.shape[1]
-#Taking Eigenvalues and Eigenvectors of the environment,
-psiSamples = np.zeros([dim,dim])
-#Randomly collecting samples from the random space.
-for i in range(dim):
-    psiSamples[i,:] = psi[randint(1,psiSamples.shape[0]),:]
+
+if args.load != "":
+    psiSamples = np.zeros([dim,dim])
+    #Randomly collecting samples from the random space.
+    s_sampled=[]
+    for i in range(dim):
+        psiSamples[i,:] = psi[i,:]
+        s_sampled.append(s[i])
+    PlotOccupancy(s_sampled,title="Policy")
+else:
+    #Taking Eigenvalues and Eigenvectors of the environment,
+    psiSamples = np.zeros([dim,dim])
+    #Randomly collecting samples from the random space.
+    s_sampled=[]
+    for i in range(dim):
+        sample = randint(1,psiSamples.shape[0])
+        psiSamples[i,:] = psi[sample,:]
+        s_sampled.append(s[sample])
+    PlotOccupancy(s_sampled,title="Policy")
 
 w_g,v_g = np.linalg.eig(psiSamples)
 
