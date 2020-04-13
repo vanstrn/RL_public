@@ -39,8 +39,8 @@ python SF.py -f MG4R_v1_SF.json  -c '{"RunName":"MG4R_v1_SF_256"}' -n '{"Default
 python SF.py -f MG4R_v1_SF.json  -c '{"RunName":"MG4R_v1_SF_128"}' -n '{"DefaultParams":{"SFSize":128}}'
 python SF.py -f MG4R_v1_SF.json  -c '{"RunName":"MG4R_v1_SF_64"}' -n '{"DefaultParams":{"SFSize":64}}'
 
-python SF_Hierarchy_v2.py -f MG4R_v1_SF.json  -c '{"RunName":"MG4R_v1_SF_1024"}' -n '{"DefaultParams":{"SFSize":1024}}'
-python SF_Hierarchy_v2.py -f MG4R_v1_SF.json  -c '{"RunName":"MG4R_v1_SF_512"}' -n '{"DefaultParams":{"SFSize":512}}'
-python SF_Hierarchy_v2.py -f MG4R_v1_SF.json  -c '{"RunName":"MG4R_v1_SF_256"}' -n '{"DefaultParams":{"SFSize":256}}'
-python SF_Hierarchy_v2.py -f MG4R_v1_SF.json  -c '{"RunName":"MG4R_v1_SF_128"}' -n '{"DefaultParams":{"SFSize":128}}'
-python SF_Hierarchy_v2.py -f MG4R_v1_SF.json  -c '{"RunName":"MG4R_v1_SF_64"}' -n '{"DefaultParams":{"SFSize":64}}'
+python SF_Hierarchy_v2.py -f MG4R_SFH.json  -c '{"RunName":"MG4R_v1_SF_1024"}' -n '{"DefaultParams":{"SFSize":1024}}'
+python SF_Hierarchy_v2.py -f MG4R_SFH.json  -c '{"RunName":"MG4R_v1_SF_512"}' -n '{"DefaultParams":{"SFSize":512}}'
+python SF_Hierarchy_v2.py -f MG4R_SFH.json  -c '{"RunName":"MG4R_v1_SF_256"}' -n '{"DefaultParams":{"SFSize":256}}'
+python SF_Hierarchy_v2.py -f MG4R_SFH.json  -c '{"RunName":"MG4R_v1_SF_128"}' -n '{"DefaultParams":{"SFSize":128}}'
+python SF_Hierarchy_v2.py -f MG4R_SFH.json  -c '{"RunName":"MG4R_v1_SF_64"}' -n '{"DefaultParams":{"SFSize":64}}'
