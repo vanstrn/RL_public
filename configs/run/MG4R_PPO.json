@@ -1,4 +1,4 @@
-{ "RunName":"MG4R_SF",
+{ "RunName":"MG4R_PPO6",
   "GPUCapacitty":0.95,
   "NetworkHPs":{"eps":0.2,
                 "EntropyBeta":0.00,
@@ -9,21 +9,18 @@
                 "Optimizer":"Adam",
                 "Epochs":5,
                 "BatchSize":1024,
-                "FS":1,
+                "FS":2,
                 "MinibatchSize":32},
   "SampleEpisodes":50,
   "MAX_EP_STEPS":150,
   "MAX_EP":5000,
   "UPDATE_GLOBAL_ITER":151,
-  "SaveFreq":1000,
-  "LogFreq":10,
+  "SAVE_FREQ":1000,
+  "LOG_FREQ":10,
 
-  "NumOptions":32,
-
-  "EnvConfig":"MG4R_v3.json",
-  "SFNetworkConfig":"MG4R_SF_v1.json",
+  "EnvConfig":"MG4R_v1.json",
   "NetworkConfig":"MG4R_PPO_v2.json",
-  "Method":"methods.PPO_FS.PPO",
+  "Method":"methods.PPO.PPO",
 
   "LoggingFunctions":[]
 

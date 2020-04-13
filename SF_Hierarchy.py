@@ -137,7 +137,7 @@ offset = 0
 options = []
 for sample in range(N):
 
-    v_option=np.full((dFeatures[0],dFeatures[1]),-5)
+    v_option=np.full((dFeatures[0],dFeatures[1]),0,dtype=np.float32)
     for i,j in itertools.product(range(dFeatures[0]),range(dFeatures[1])):
         grid = ConstructSample(env,[i,j])
         if grid is None: continue
@@ -159,10 +159,22 @@ def UseSubpolicy(s,subpolicyNum):
     locX,locY = np.unravel_index(np.argmax(s[:,:,0], axis=None), s[:,:,0].shape)
     #Getting Value of all adjacent policies. Ignoring location of the walls.
     actionValue = []
-    actionValue.append(options[int(subpolicyNum)][int(locX),  int(locY+1)  ]) # Go Up
-    actionValue.append(options[int(subpolicyNum)][int(locX+1),int(locY)    ]) # Go Right
-    actionValue.append(options[int(subpolicyNum)][int(locX),  int(locY-1)  ]) # Go Down
-    actionValue.append(options[int(subpolicyNum)][int(locX-1),int(locY)    ]) # Go Left
+    if [int(locX),int(locY+1),0] == 2:
+        actionValue.append(-999)
+    else:
+        actionValue.append(options[int(subpolicyNum)][int(locX),  int(locY+1)  ]) # Go Up
+    if [int(locX+1),int(locY),0] == 2:
+        actionValue.append(-999)
+    else:
+        actionValue.append(options[int(subpolicyNum)][int(locX+1),int(locY)    ]) # Go Right
+    if [int(locX),int(locY-1),0] == 2:
+        actionValue.append(-999)
+    else:
+        actionValue.append(options[int(subpolicyNum)][int(locX),  int(locY-1)  ]) # Go Down
+    if [int(locX-1),int(locY),0] == 2:
+        actionValue.append(-999)
+    else:
+        actionValue.append(options[int(subpolicyNum)][int(locX-1),int(locY)    ]) # Go Left
 
     #Selecting Action with Highest Value. Will always take a movement.
     return actionValue.index(max(actionValue))

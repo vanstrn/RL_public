@@ -138,21 +138,24 @@ class PPO(Method):
         -------
         N/A
         """
+        samples=0
+        for i in range(len(self.buffer)):
+            samples +=len(self.buffer[i])
+        if samples < self.HPs["BatchSize"]:
+            return
+
         for traj in range(len(self.buffer)):
 
-            clip = -1
-            if len(self.buffer[traj][0][:clip]) == 0:
-                continue
             #Finding if there are more than 1 done in the sequence. Clipping values if required.
 
-            td_target, advantage = self.ProcessBuffer(HPs,traj,clip)
+            td_target, advantage = self.ProcessBuffer(traj)
 
-            batches = len(self.buffer[traj][0][:clip])//self.HPs["MinibatchSize"]+1
-            s = np.array_split( self.buffer[traj][0][:clip], batches)
-            a_his = np.array_split( np.asarray(self.buffer[traj][1][:clip]).reshape(-1), batches)
+            batches = len(self.buffer[traj][0])//self.HPs["MinibatchSize"]+1
+            s = np.array_split( self.buffer[traj][0], batches)
+            a_his = np.array_split( np.asarray(self.buffer[traj][1]).reshape(-1), batches)
             td_target_ = np.array_split( td_target, batches)
             advantage_ = np.array_split( np.reshape(advantage, [-1]), batches)
-            old_log_logits_ = np.array_split( np.reshape(self.buffer[traj][6][:clip], [-1,self.actionSize]), batches)
+            old_log_logits_ = np.array_split( np.reshape(self.buffer[traj][6], [-1,self.actionSize]), batches)
 
             #Create a dictionary with all of the samples?
             #Use a sampler to feed the update operation?
@@ -190,7 +193,7 @@ class PPO(Method):
         return dict
 
 
-    def ProcessBuffer(self,HPs,traj,clip):
+    def ProcessBuffer(self,traj):
         """
         Process the buffer and backpropagates the loses through the NN.
 
@@ -213,8 +216,15 @@ class PPO(Method):
         # print("Starting Processing Buffer\n")
         # tracker.print_diff()
 
-        td_target, advantage = gae(self.buffer[traj][2][:clip],self.buffer[traj][5][:clip],0,HPs["Gamma"],HPs["lambda"])
-        # tracker.print_diff()
+        split_loc = [i+1 for i, x in enumerate(self.buffer[traj][4]) if x]
+
+        reward_lists = np.split(self.buffer[traj][2],split_loc)
+        value_lists = np.split(self.buffer[traj][5],split_loc)
+
+        td_target=[]; advantage=[]
+        for rew,value in zip(reward_lists,value_lists):
+            td_target_i, advantage_i = gae(rew,value.reshape(-1).tolist(),0,self.HPs["Gamma"],self.HPs["lambda"])
+            td_target.extend(td_target_i); advantage.extend( advantage_i)
         return td_target, advantage
 
     @property

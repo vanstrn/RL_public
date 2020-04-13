@@ -106,6 +106,8 @@ def GetLayer( dict):
         layer = KL.GaussianNoise(**dict["Parameters"],name=dict["layerName"])
     elif dict["layerType"] == "StopGradient":
         layer = KL.Lambda(lambda x: K.stop_gradient(x))
+    elif dict["layerType"] == "StopNan":
+        layer = KL.Lambda(lambda x: tf.math.maximum(x,1E-9))
 
     return layer
 

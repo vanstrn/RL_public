@@ -46,7 +46,8 @@ class PPO_Hierarchy(Method):
         self.method = "Greedy" #Create input for this.
 
         #Creating appropriate buffer for the method.
-        self.buffer = [Trajectory(depth=7) for _ in range(nTrajs)]
+        self.buffer = [Trajectory(depth=11) for _ in range(nTrajs)]
+        #[s0,a,a_hier,r,r_sub,s1,done]+[critics, logits, HL_log_logits, HL_v]
 
         with self.sess.as_default(), self.sess.graph.as_default():
             with tf.name_scope(scope):
@@ -153,7 +154,7 @@ class PPO_Hierarchy(Method):
         logits = [sub_log_logits[mod][idx] for idx, mod in enumerate(HL_actions)]
 
         actions = np.array([np.random.choice(probs.shape[1], p=prob / sum(prob)) for prob in probs])
-        return actions, [critics, logits, HL_actions, HL_log_logits, HL_v]
+        return actions, HL_actions, [critics, logits, HL_log_logits, HL_v]
 
     def Update(self,HPs):
         """

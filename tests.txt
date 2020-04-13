@@ -30,3 +30,5 @@ python SF.py -f MG4R_SF.json -d SF_TRIAL1.npz
 python SF_Hierarchy.py -f MG4R_SFH.json -c '{"RunName":"SF_v3_T1_256_2","SFNetworkConfig":"MG4R_SF_v3.json"}' -s '{"DefaultParams":{"InFilter":64,"OutFilter":16,"SFSize":256,"FCUnits":256}}'
 python SF_Hierarchy.py -f MG4R_SFH.json -c '{"RunName":"SF_v3_T1_512_3","SFNetworkConfig":"MG4R_SF_v3.json"}' -s '{"DefaultParams":{"InFilter":64,"OutFilter":16,"SFSize":512,"FCUnits":256}}'
 python SF_Hierarchy.py -f MG4R_SFH.json -c '{"RunName":"SF_v3_T1_1024_3","SFNetworkConfig":"MG4R_SF_v3.json"}' -s '{"DefaultParams":{"InFilter":64,"OutFilter":16,"SFSize":1024,"FCUnits":256}}'
+
+python SF_Hierarchy_v2.py -f MG4R_SFH.json -c '{"RunName":"SF_v3_T1_256_2","SFNetworkConfig":"MG4R_SF_v3.json"}' -s '{"DefaultParams":{"InFilter":64,"OutFilter":16,"SFSize":256,"FCUnits":256}}'

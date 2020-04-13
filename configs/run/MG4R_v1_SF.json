@@ -1,0 +1,19 @@
+{ "RunName":"MG4R_v1_SF",
+  "GPUCapacitty":0.95,
+  "NetworkHPs":{},
+  "Optimizer":"Adam",
+  "SampleEpisodes":200,
+  "MAX_EP_STEPS":150,
+  "PhiEpochs":10000,
+  "PsiEpochs":10000,
+  "FitIterations":20,
+  "BatchSize":2048,
+  "Gamma":0.99,
+  "LearningRate":0.001,
+  "SaveFreq":500,
+  "LogFreq":100,
+
+  "EnvConfig":"MG4R_v1.json",
+  "NetworkConfig":"MG4R_v1_SF.json"
+
+  }
