@@ -16,7 +16,6 @@ import tensorflow as tf
 import argparse
 from urllib.parse import unquote
 
-from networks.networkAE import *
 from networks.network_v3 import buildNetwork
 from utils.utils import InitializeVariables, CreatePath, interval_flag, GetFunction
 from utils.record import Record,SaveHyperparams
@@ -110,8 +109,8 @@ def GetAction(state):
         probs =np.full((1,nActions),p)
     else:
         probs =np.full((state.shape[0],nActions),p)
-        actions = np.array([np.random.choice(probs.shape[1], p=prob / sum(prob)) for prob in probs])
-        return actions
+    actions = np.array([np.random.choice(probs.shape[1], p=prob / sum(prob)) for prob in probs])
+    return actions
 if args.data == "":
     #Collecting samples
     s = []
