@@ -1,4 +1,4 @@
-{ "RunName":"MG4R_v3-actions1",
+{ "RunName":"MG4R_v3-actions9",
   "GPUCapacitty":0.95,
   "NetworkHPs":{"Optimizer":"Adadelta",
                 "Loss":"M4E",

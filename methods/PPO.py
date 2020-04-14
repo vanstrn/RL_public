@@ -125,7 +125,7 @@ class PPO(Method):
         actions = np.array([np.random.choice(probs.shape[1], p=prob / sum(prob)) for prob in probs])
         return actions, [v,log_logits]
 
-    def Update(self,HPs,episode=0):
+    def Update(self,episode=0):
         """
         Process the buffer and backpropagates the loses through the NN.
 

@@ -101,7 +101,7 @@ for i in range(settings["MAX_EP"]):
         if updating:   # update global and assign to local net
             net.Update(settings["NetworkHPs"],sess.run(global_step))
         if done or j == settings["MAX_EP_STEPS"]:
-            net.Update(settings["NetworkHPs"],sess.run(global_step))
+            net.Update(sess.run(global_step))
             break
 
     loggingDict = env.getLogging()

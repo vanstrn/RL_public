@@ -34,6 +34,8 @@ class OffPolicySF(Method):
         self.s_next = tf.placeholder(tf.float32, [None] + stateShape, 'S_next')
         self.reward = tf.placeholder(tf.float32, [None, ], 'R')
         self.td_target = tf.placeholder(tf.float32, [None,self.Model.data["DefaultParams"]["SFSize"]], 'TDtarget')
+        self.advantage_ = tf.placeholder(shape=[None], dtype=tf.float32, name='adv_hold')
+        self.old_log_logits_ = tf.placeholder(shape=[None, actionSize], dtype=tf.float32, name='old_logit_hold')
 
         input = {"state":self.s,
                  "action":self.a}
@@ -43,6 +45,8 @@ class OffPolicySF(Method):
         self.reward_pred = out["reward_pred"]
         self.phi = out["phi"]
         self.psi = out["psi"]
+        self.a_prob = out["actor"]
+        self.log_logits = out["log_logits"]
 
         self.buffer = [Trajectory(depth=7) for _ in range(nTrajs)]
 
@@ -62,7 +66,23 @@ class OffPolicySF(Method):
 
             self.r_loss = tf.losses.mean_squared_error(self.reward,tf.squeeze(self.reward_pred))
 
-            self.loss = self.s_loss + HPs["CriticBeta"]*self.c_loss + HPs["RewardBeta"]*self.r_loss
+            # Entropy
+            def _log(val):
+                return tf.log(tf.clip_by_value(val, 1e-10, 10.0))
+            entropy = self.entropy = -tf.reduce_mean(self.a_prob * _log(self.a_prob), name='entropy')
+            # Actor Loss
+            action_OH = tf.one_hot(self.a, actionSize, dtype=tf.float32)
+            log_prob = tf.reduce_sum(self.log_logits * action_OH, 1)
+            old_log_prob = tf.reduce_sum(self.old_log_logits_ * action_OH, 1)
+
+            # Clipped surrogate function
+            ratio = tf.exp(log_prob - old_log_prob)
+            surrogate = ratio * self.advantage_
+            clipped_surrogate = tf.clip_by_value(ratio, 1-HPs["eps"], 1+HPs["eps"]) * self.advantage_
+            surrogate_loss = tf.minimum(surrogate, clipped_surrogate, name='surrogate_loss')
+            self.actor_loss = -tf.reduce_mean(surrogate_loss, name='actor_loss')
+
+            self.loss = self.a_loss - entropy * HPs["EntropyBeta"] + self.s_loss + HPs["CriticBeta"]*self.c_loss + HPs["RewardBeta"]*self.r_loss
 
         if HPs["Optimizer"] == "Adam":
             self.optimizer = tf.keras.optimizers.Adam(HPs["LR"])
@@ -95,7 +115,7 @@ class OffPolicySF(Method):
 
         self.update_ops = [self.update_op]
         self.grads = [self.grads]
-        self.losses = [self.c_loss,self.s_loss,self.r_loss]
+        self.losses = [self.c_loss,self.s_loss,self.r_loss,self.a_loss]
 
         self.grad_MA = [MovingAverage(400) for i in range(len(self.grads))]
         self.loss_MA = [MovingAverage(400) for i in range(len(self.losses))]
@@ -104,24 +124,28 @@ class OffPolicySF(Method):
 
         self.clearBuffer = False
 
-    def GetAction(self, state,episode=0,step=0,deterministic=False,debug=False):
+    def GetAction(self, state, episode=1,step=0):
         """
-        Contains the code to run the network based on an input.
-        """
-        s = state[np.newaxis, :]
-        phi,psi = self.sess.run([self.phi, self.psi], {self.s: s})   # get probabilities for all actions
-        if self.probs is None:
-            p = 1/self.actionSize
-            if len(state.shape)==3:
-                probs =np.full((1,self.actionSize),p)
-            else:
-                probs =np.full((state.shape[0],self.actionSize),p)
-        else:
-            probs=self.probs
-        actions = np.array([np.random.choice(probs.shape[1], p=prob / sum(prob)) for prob in probs])
+        Method to run data through the neural network.
 
-        if debug: print(probs)
-        return actions ,[phi,psi]  # return a int and extra data that needs to be fed to buffer.
+        Parameters
+        ----------
+        state : np.array
+            Data with the shape of [N, self.stateShape] where N is number of smaples
+
+        Returns
+        -------
+        actions : list[int]
+            List of actions based on NN output.
+        extraData : list
+            List of data that is passed to the execution code to be bundled with state data.
+        """
+        try:
+            probs,log_logits,v,phi,psi = self.sess.run([self.a_prob,self.log_logits,self.value_pred,self.phi, self.psi], {self.s: state})
+        except ValueError:
+            probs,log_logits,v,phi,psi = self.sess.run([self.a_prob,self.log_logits,self.value_pred,self.phi, self.psi], {self.s: np.expand_dims(state,axis=0)})
+        actions = np.array([np.random.choice(probs.shape[1], p=prob / sum(prob)) for prob in probs])
+        return actions, [v,log_logits,phi,psi]
 
     def PredictValue(self,state):
         s = state
@@ -154,7 +178,7 @@ class OffPolicySF(Method):
         for traj in range(len(self.buffer)):
 
             clip = -1
-            td_diff = self.ProcessBuffer(traj,clip)
+            td_target, advantage_, psi_target_ = self.ProcessBuffer(traj)
 
             acts = np.zeros([np.asarray(self.buffer[traj][1][:clip]).size,self.actionSize])
             acts[np.arange(np.asarray(self.buffer[traj][1][:clip]).size),np.asarray(self.buffer[traj][1][:clip]).reshape(-1)] = 1
@@ -170,7 +194,9 @@ class OffPolicySF(Method):
             s = np.array_split(self.buffer[traj][0][:clip], batches)
             reward = np.array_split(np.asarray(self.buffer[traj][2][:clip]).reshape(-1),batches)
             actions = np.array_split(acts,batches)
-            psi_target = np.array_split(np.squeeze(td_diff),batches)
+            psi_target = np.array_split(np.squeeze(psi_target_),batches)
+            advantage = np.array_split(np.squeeze(advantage_),batches)
+            old_log_logits = np.array_split(self.buffer[traj][5][:clip], batches)
 
             for epoch in range(self.HPs["Epochs"]):
                 #Create a feedDict from the buffer
@@ -181,6 +207,8 @@ class OffPolicySF(Method):
                         self.reward: reward[i],
                         self.s_next: s_next[i],
                         self.td_target: psi_target[i],
+                        self.advantage_: advantage[i],
+                        self.old_log_logits_: old_log_logits[i]
                     }
 
                     if not statistics:
@@ -223,7 +251,7 @@ class OffPolicySF(Method):
         return dict
 
 
-    def ProcessBuffer(self,traj,clip):
+    def ProcessBuffer(self,traj):
         """
         Process the buffer to calculate td_target.
 
@@ -243,19 +271,22 @@ class OffPolicySF(Method):
         advantage : list
             List of advantages for particular actions.
         """
-        # print("Starting Processing Buffer\n")
-        # tracker.print_diff()
 
-        td_target, _ = gae(self.buffer[traj][5][:clip], self.buffer[traj][6][:clip], np.zeros_like(self.buffer[traj][5][0]),self.HPs["Gamma"],self.HPs["lambda"])
-        # tracker.print_diff()
-        return td_target
 
-    # def ClearTrajectory(self):
-    #     if self.clearBuffer:
-    #         for traj in self.buffer:
-    #             traj.clear()
-    #         self.clearBuffer=False
+        split_loc = [i+1 for i, x in enumerate(self.buffer[traj][4]) if x]
 
+        reward_lists = np.split(self.buffer[traj][2],split_loc)
+        value_lists = np.split(self.buffer[traj][5],split_loc)
+
+        phi_lists = np.split(self.buffer[traj][7],split_loc)
+        psi_lists = np.split(self.buffer[traj][8],split_loc)
+
+        td_target=[]; advantage=[]; psi_target=[]
+        for rew,value,phi,psi in zip(reward_lists,value_lists,phi_lists,psi_lists):
+            td_target_i, advantage_i = gae(rew,value.reshape(-1).tolist(),0,self.HPs["Gamma"],self.HPs["lambda"])
+            psi_target_i, _ = gae(phi,psi, np.zeros_like(phi),self.HPs["Gamma"],self.HPs["lambda"])
+            td_target.extend(td_target_i); advantage.extend( advantage_i); psi_target.extend( psi_target_i)
+        return td_target, advantage,psi_target
 
     @property
     def getVars(self):
