@@ -25,6 +25,9 @@ clean:
 	rm -r images/ logs/ models/
 env:
 	conda env create -f rl.yml
+tensorboard:
+	google-chrome http://localhost:6006
+	tensorboard --logdir=logs &> /dev/null
 
 #Ability to run unit tests
 # test:
