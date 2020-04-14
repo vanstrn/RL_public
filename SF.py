@@ -104,11 +104,14 @@ def GetAction(state):
     """
     Contains the code to run the network based on an input.
     """
-    p = 1/nActions
-    if len(state.shape)==3:
-        probs =np.full((1,nActions),p)
+    if "probs" in settings:
+        p = 1/nActions
+        if len(state.shape)==3:
+            probs =np.full((1,nActions),p)
+        else:
+            probs =np.full((state.shape[0],nActions),p)
     else:
-        probs =np.full((state.shape[0],nActions),p)
+        probs =settings["probs"]
     actions = np.array([np.random.choice(probs.shape[1], p=prob / sum(prob)) for prob in probs])
     return actions
 if args.data == "":
