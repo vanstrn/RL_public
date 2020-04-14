@@ -116,6 +116,7 @@ if args.data == "":
     s = []
     s_next = []
     r_store = []
+    label = []
     for i in range(settings["SampleEpisodes"]):
         s0 = env.reset()
 
@@ -128,6 +129,18 @@ if args.data == "":
             s.append(s0)
             s_next.append(s1)
             r_store.append(r)
+            loc = np.where(s0 == 10)
+            if loc[0]>=10 and loc[1]>=10:
+                label.append(1)
+            elif loc[0]<9 and loc[1]>=10:
+                label.append(2)
+            elif loc[0]>=10 and loc[1]<9:
+                label.append(3)
+            elif loc[0]<9 and loc[1]<9:
+                label.append(4)
+            else:
+                label.append(5)
+
 
             s0 = s1
             if done:
@@ -300,6 +313,7 @@ if args.psi:
 
 if args.analysis:
     psi = SF2.predict(np.stack(s)) # [X,SF Dim]
+    phi = SF3.predict(np.stack(s))
 
     ##-Repeat M times to evaluate the effect of sampling.
     M = 3
@@ -313,7 +327,7 @@ if args.analysis:
             sample = randint(1,psiSamples.shape[0])
             s_sampled.append(s[sample])
             psiSamples[i,:] = psi[sample,:]
-        PlotOccupancy(s_sample[sample],title="Replicate"+str(replicate))
+        PlotOccupancy(s_sampled,title="Replicate"+str(replicate))
 
         w_g,v_g = np.linalg.eig(psiSamples)
 
@@ -337,3 +351,76 @@ if args.analysis:
             plt.title("Replicate  "+str(replicate)+" Option "+str(sample)+" Value Estimate | Eigenvalue:" +str(w_g[sample+offset]))
             plt.savefig(LOG_PATH+"/option"+str(sample)+"replicate"+str(replicate)+".png")
             plt.close()
+
+
+
+
+    import pandas as pd
+    from sklearn.decomposition import PCA
+    from mpl_toolkits.mplot3d import Axes3D
+    import seaborn as sns
+
+
+    # mnist = fetch_mldata("MNIST original")
+    X = psi
+    y = np.stack(label)
+
+    feat_cols = [ 'pixel'+str(i) for i in range(X.shape[1]) ]
+    df = pd.DataFrame(X,columns=feat_cols)
+    df['y'] = y
+    df['label'] = df['y'].apply(lambda i: str(i))
+    X, y = None, None
+
+    np.random.seed(42)
+    rndperm = np.random.permutation(df.shape[0])
+
+    pca = PCA(n_components=3)
+    pca_result = pca.fit_transform(df[feat_cols].values)
+    df['pca-one'] = pca_result[:,0]
+    df['pca-two'] = pca_result[:,1]
+    df['pca-three'] = pca_result[:,2]
+
+
+    plt.figure(figsize=(16,10))
+    sns.scatterplot(
+        x="pca-one", y="pca-two",
+        hue="y",
+        palette=sns.color_palette("hls", 5),
+        data=df.loc[rndperm,:],
+        legend="full",
+        alpha=0.3
+    )
+    if settings["SaveFigure"]:
+        plt.savefig(LOG_PATH+"/PCA_2D_1.png")
+    else:
+        plt.show()
+    sns.scatterplot(
+        x="pca-two", y="pca-three",
+        hue="y",
+        palette=sns.color_palette("hls", 5),
+        data=df.loc[rndperm,:],
+        legend="full",
+        alpha=0.3
+    )
+
+    if settings["SaveFigure"]:
+        plt.savefig(LOG_PATH+"/PCA_2D_2.png")
+    else:
+        plt.show()
+
+    ax = plt.figure(figsize=(16,10)).gca(projection='3d')
+    ax.scatter(
+        xs=df.loc[rndperm,:]["pca-one"],
+        ys=df.loc[rndperm,:]["pca-two"],
+        zs=df.loc[rndperm,:]["pca-three"],
+        c=df.loc[rndperm,:]["y"],
+        cmap='tab10'
+    )
+    ax.set_xlabel('pca-one')
+    ax.set_ylabel('pca-two')
+    ax.set_zlabel('pca-three')
+
+    if settings["SaveFigure"]:
+        plt.savefig(LOG_PATH+"/PCA_3D.png")
+    else:
+        plt.show()
