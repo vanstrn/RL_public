@@ -98,9 +98,10 @@ def buildNetwork(configFile, actionSize, netConfigOverride={},debug=True, traini
                     else:
                         layerIn.append(layerOutputs[layerInput])
                 if debug: print("\tLayer Inputs",layerIn)
-                if layerType[layerName] == "Concatenate" or layerType[layerName] == "Multiply" or layerType[layerName] == "Add":
+                if layerDict["layerType"] == "Concatenate" or layerDict["layerType"] == "Multiply" or layerDict["layerType"] == "Add":
+                    print("Here")
                     output = layer(layerIn)
-                if layerType[layerName] == "GaussianNoise":
+                elif layerDict["layerType"] == "GaussianNoise":
                     output = layer(layerIn,training=training)
                 else:
                     output = layer(*layerIn)
@@ -129,6 +130,7 @@ def buildNetwork(configFile, actionSize, netConfigOverride={},debug=True, traini
         outputs=[]
         for output,layerName in dict.items():
             outputs.append(layerOutputs[layerName])
+        print(outputs)
         if debug: print("Network Outputs:",outputs)
         networks.append(tf.keras.models.Model(Inputs,outputs))
 
