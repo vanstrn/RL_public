@@ -67,7 +67,7 @@ def SquareVisualization():
     fig.colorbar(images[0], ax=axs, orientation='horizontal', fraction=.1)
     plt.show()
 
-def ObstacleVisualization(location=[7,7],plotting=True):
+def ObstacleVisualization(location=[7,7],reward=[1.0],plotting=True):
     grid = np.array([   [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
                         [1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1],
                         [1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1],
@@ -88,8 +88,8 @@ def ObstacleVisualization(location=[7,7],plotting=True):
                         [1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1],
                         [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
                         ])
-    TerminalLocations = [location]
-    Rewards = [2.0]
+    TerminalLocations = location
+    Rewards = reward
     gamma = 0.99
 
     obstacles = np.sum(grid)
@@ -171,7 +171,7 @@ def ObstacleVisualization(location=[7,7],plotting=True):
         plt.show()
     return valueGrid
 
-def ObstacleVisualization_v2(plotting=True):
+def ObstacleVisualization_v2(plotting=True, probs=[0.25,0.25,0.25,0.25]):
     grid = np.array([   [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
                         [1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1],
                         [1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1],
@@ -223,38 +223,45 @@ def ObstacleVisualization_v2(plotting=True):
                 tmp = np.zeros((states))
                 tmp[j] = Rewards[i]
                 w_i.append(tmp)
-
+    entropy=[]
     for i in range(len(states_)):
         [locx,locy] = states_[i]
         sum = 0
         if i in skips:
             continue
+        if probs == "Random":
+            probabilities=np.random.dirichlet(np.ones(4)*1,size=1)[0]
+        else:
+            probabilities=probs
+        entropy.append(-np.sum(probabilities * np.log2(probabilities)))
+        print(probabilities)
         for j in range(len(states_)):
             if states_[j] == [locx+1,locy]:
-                x[i,j] = 0.25
-                sum += 0.25
+                x[i,j] = probabilities[0]
+                sum += probabilities[0]
             if states_[j] == [locx-1,locy]:
-                x[i,j] = 0.25
-                sum += 0.25
+                x[i,j] = probabilities[1]
+                sum += probabilities[1]
             if states_[j] == [locx,locy+1]:
-                x[i,j] = 0.25
-                sum += 0.25
+                x[i,j] = probabilities[2]
+                sum += probabilities[2]
             if states_[j] == [locx,locy-1]:
-                x[i,j] = 0.25
-                sum += 0.25
+                x[i,j] = probabilities[3]
+                sum += probabilities[3]
         x[i,i]= 1.0-sum
+    print(np.average(entropy))
     I = np.identity(states)
     psi = np.linalg.inv(I-gamma*x)
 
     w_g,v_g = np.linalg.eig(psi)
 
-    valueGrid = np.zeros_like(grid,dtype=float)
 
     for i in range(5):
+        valueGrid = np.zeros_like(grid,dtype=float)
         value=np.matmul(x,np.expand_dims(v_g[:,i],1))
         for j in range(len(states_)):
             loc = states_[j]
-            valueGrid[loc[0],loc[1]] = value[j]
+            valueGrid[loc[0],loc[1]] = np.real(value[j])
 
         if plotting:
             images = []
@@ -274,9 +281,16 @@ def ObstacleVisualization_v2(plotting=True):
             for im in images:
                 im.set_norm(norm)
             fig.colorbar(images[0], ax=axs, orientation='vertical', fraction=.1)
-            plt.show()
+            # plt.show()
+            plt.savefig("Option"+str(i)+".png")
+            plt.close()
     return valueGrid
 
 if __name__ == "__main__":
-    ObstacleVisualization(location=[9,14])
-    ObstacleVisualization(location=[7,7])
+    # ObstacleVisualization(location=[[9,14]])
+    # ObstacleVisualization(location=[[7,7]])
+    # ObstacleVisualization(location=[[7,7],[9,14]],reward=[4.0,2.04])
+
+    # ObstacleVisualization_v2(probabilities=[0.25,0.25,0.25,0.25])
+    ObstacleVisualization_v2()
+    ObstacleVisualization_v2(probs="Random")

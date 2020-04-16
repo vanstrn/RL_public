@@ -105,13 +105,13 @@ def GetAction(state):
     Contains the code to run the network based on an input.
     """
     if "probs" in settings:
+        probs = np.asarray(settings["probs"])
+    else:
         p = 1/nActions
         if len(state.shape)==3:
             probs =np.full((1,nActions),p)
         else:
             probs =np.full((state.shape[0],nActions),p)
-    else:
-        probs =settings["probs"]
     actions = np.array([np.random.choice(probs.shape[1], p=prob / sum(prob)) for prob in probs])
     return actions
 if args.data == "":
@@ -132,18 +132,7 @@ if args.data == "":
             s.append(s0)
             s_next.append(s1)
             r_store.append(r)
-            loc = np.where(s0 == 10)
-            if loc[0]>=10 and loc[1]>=10:
-                label.append(1)
-            elif loc[0]<9 and loc[1]>=10:
-                label.append(2)
-            elif loc[0]>=10 and loc[1]<9:
-                label.append(3)
-            elif loc[0]<9 and loc[1]<9:
-                label.append(4)
-            else:
-                label.append(5)
-
+            label.append(1)
 
             s0 = s1
             if done:
@@ -154,6 +143,8 @@ else:
     s = loadedData["s"]
     s_next = loadedData["s_next"]
     r_store = loadedData["r_store"]
+    if "label" in loadedData:
+        label = loadedData["label"]
 
 def PlotOccupancy(states,title=""):
     #Taking average over the list of states.
@@ -355,6 +346,47 @@ if args.analysis:
             plt.savefig(LOG_PATH+"/option"+str(sample)+"replicate"+str(replicate)+".png")
             plt.close()
 
+        #Doing an uniform sampling option plots
+        s = [];label=[]
+        for i,j in itertools.product(range(dFeatures[0]),range(dFeatures[1])):
+            grid = ConstructSample(env,[i,j])
+            if grid is None: continue
+            s.append(grid)
+            label.append(1)
+        s.extend(s);label.extend(label)
+        s.extend(s);label.extend(label)
+        s.extend(s);label.extend(label)
+        s.extend(s);label.extend(label)
+        s.extend(s);label.extend(label)
+        psi_uniform = SF2.predict(np.stack(s))
+        psiSamples = np.zeros([dim,dim])
+        #Randomly collecting samples from the random space.
+        s_sampled=[]
+        for i in range(dim):
+            psiSamples[i,:] = psi_uniform[i,:]
+            s_sampled.append(s[i])
+        w_g,v_g = np.linalg.eig(psiSamples)
+
+        #Creating Eigenpurposes of the N highest Eigenvectors and saving images
+        N = 5
+        offset = 0
+        for sample in range(N):
+
+            v_option=np.zeros((dFeatures[0],dFeatures[1]))
+            for i,j in itertools.product(range(dFeatures[0]),range(dFeatures[1])):
+                grid = ConstructSample(env,[i,j])
+                if grid is None: continue
+                phi= SF3.predict(np.expand_dims(grid,0))
+                if sample+offset >= dim:
+                    continue
+                v_option[i,j]=np.matmul(phi,v_g[:,sample+offset])[0]
+                if np.iscomplex(w_g[sample+offset]):
+                    offset+=1
+
+            imgplot = plt.imshow(v_option)
+            plt.title("Uniform Sampling Option "+str(sample)+" Value Estimate | Eigenvalue:" +str(w_g[sample+offset]))
+            plt.savefig(LOG_PATH+"/option"+str(sample)+"uniform.png")
+            plt.close()
 
 
 
@@ -365,7 +397,7 @@ if args.analysis:
 
 
     # mnist = fetch_mldata("MNIST original")
-    X = psi
+    X = psi_uniform
     y = np.stack(label)
 
     feat_cols = [ 'pixel'+str(i) for i in range(X.shape[1]) ]
@@ -388,28 +420,24 @@ if args.analysis:
     sns.scatterplot(
         x="pca-one", y="pca-two",
         hue="y",
-        palette=sns.color_palette("hls", 5),
+        palette=sns.color_palette("hls", 1),
         data=df.loc[rndperm,:],
         legend="full",
         alpha=0.3
     )
-    if settings["SaveFigure"]:
-        plt.savefig(LOG_PATH+"/PCA_2D_1.png")
-    else:
-        plt.show()
+    plt.savefig(LOG_PATH+"/PCA_2D_1.png")
+    plt.close()
     sns.scatterplot(
         x="pca-two", y="pca-three",
         hue="y",
-        palette=sns.color_palette("hls", 5),
+        palette=sns.color_palette("hls", 1),
         data=df.loc[rndperm,:],
         legend="full",
         alpha=0.3
     )
 
-    if settings["SaveFigure"]:
-        plt.savefig(LOG_PATH+"/PCA_2D_2.png")
-    else:
-        plt.show()
+    plt.savefig(LOG_PATH+"/PCA_2D_2.png")
+    plt.close()
 
     ax = plt.figure(figsize=(16,10)).gca(projection='3d')
     ax.scatter(
@@ -423,7 +451,5 @@ if args.analysis:
     ax.set_ylabel('pca-two')
     ax.set_zlabel('pca-three')
 
-    if settings["SaveFigure"]:
-        plt.savefig(LOG_PATH+"/PCA_3D.png")
-    else:
-        plt.show()
+
+    plt.savefig(LOG_PATH+"/PCA_3D.png")

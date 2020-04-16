@@ -184,12 +184,14 @@ if args.load == "":
             s0 = s1
             if done:
                 break
-elif args.load == "Uniform":
+elif args.load == "Uniform" or args.load == "RUniform":
     s = []
     for i,j in itertools.product(range(dFeatures[0]),range(dFeatures[1])):
         grid = ConstructSample(env,[i,j])
         if grid is None: continue
         s.append(grid)
+    s.extend(s)
+    s.extend(s)
     s.extend(s)
     s.extend(s)
     s.extend(s)
@@ -202,7 +204,7 @@ psi = SF2.predict(np.stack(s)) # [X,SF Dim]
 
 dim = psi.shape[1]
 
-if args.load != "":
+if args.load != "" or args.load != "RUniform":
     psiSamples = np.zeros([dim,dim])
     #Randomly collecting samples from the random space.
     s_sampled=[]
@@ -237,8 +239,8 @@ for sample in range(N):
         if sample+offset >= dim:
             continue
         v_option[i,j]=np.matmul(phi,v_g[:,sample+offset])[0]
-        if np.iscomplex(w_g[sample+offset]):
-            offset+=1
+    if np.iscomplex(w_g[sample+offset]):
+        offset+=1
     v_option_ = SmoothOption(v_option)
     options.append(v_option_)
     imgplot = plt.imshow(v_option_)

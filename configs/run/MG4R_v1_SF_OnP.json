@@ -4,16 +4,16 @@
   "Optimizer":"Adam",
   "SampleEpisodes":200,
   "MAX_EP_STEPS":150,
-  "PhiEpochs":750,
-  "PsiEpochs":1000,
-  "FitIterations":20,
+  "PhiEpochs":1001,
+  "PsiEpochs":501,
+  "FitIterations":15,
   "BatchSize":2048,
   "Gamma":0.99,
   "LearningRate":0.001,
-  "SaveFreq":500,
-  "LogFreq":100,
+  "SaveFreq":250,
+  "LogFreq":50,
 
-  "probs":[0.2,0.4,0.3,0.1],
+  "probs":[[0.2,0.4,0.3,0.1]],
 
   "EnvConfig":"MG4R_v1.json",
   "NetworkConfig":"MG4R_v1_SF.json"

@@ -13,7 +13,7 @@
                 "MinibatchSize":32},
   "SampleEpisodes":50,
   "MAX_EP_STEPS":150,
-  "MAX_EP":5000,
+  "MAX_EP":1000,
   "UPDATE_GLOBAL_ITER":151,
   "SaveFreq":1000,
   "LogFreq":10,
