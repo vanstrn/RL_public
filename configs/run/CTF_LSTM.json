@@ -1,0 +1,24 @@
+{ "RunName":"CTF_LSTM3",
+  "GPUCapacitty":0.95,
+  "NetworkHPs":{"LearningRate": 1E-4,
+                "Gamma":0.98,
+                "lambda":0.98,
+                "EntropyBeta":0.05,
+                "CriticBeta":0.5,
+                "BatchSize":5000,
+                "MinibatchSize":256,
+                "Epochs":2,
+                "eps":0.2},
+
+  "MaxEpisodes":10000,
+  "MaxEpisodeSteps":150,
+  "Epochs":1000,
+  "SFSize":1024,
+  "LearningRate":0.001,
+  "LogFreq":20,
+  "SaveFreq":5000,
+
+  "EnvConfig":"CTF_1v0_FO.json",
+  "NetworkConfig":"CTF_LSTM_v1.json",
+  "Method":"methods.PPO_LSTM_v2.PPO"
+  }

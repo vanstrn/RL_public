@@ -11,7 +11,6 @@ from .AdvantageEstimator import gae
 import tensorflow as tf
 import numpy as np
 import scipy
-from utils.record import Record
 from utils.utils import MovingAverage
 
 
@@ -53,7 +52,10 @@ class PPO(Method):
         with self.sess.as_default(), self.sess.graph.as_default():
             with tf.name_scope(scope):
                 #Placeholders
-                self.s = tf.placeholder(tf.float32, [None]+stateShape, 'S')
+                if len(stateShape) == 4:
+                    self.s = tf.placeholder(tf.float32, [None]+stateShape[1:4], 'S')
+                else:
+                    self.s = tf.placeholder(tf.float32, [None]+stateShape, 'S')
                 self.a_his = tf.placeholder(tf.int32, [None, ], 'A')
                 self.td_target_ = tf.placeholder(tf.float32, [None], 'Vtarget')
                 self.advantage_ = tf.placeholder(shape=[None], dtype=tf.float32, name='adv_hold')
@@ -91,8 +93,28 @@ class PPO(Method):
                 loss = actor_loss + critic_loss * HPs["CriticBeta"]
 
                 # Build Trainer
-                self.optimizer = tf.keras.optimizers.Adam(HPs["Critic LR"])
+                if HPs["Optimizer"] == "Adam":
+                    self.optimizer = tf.keras.optimizers.Adam(HPs["LR"])
+                elif HPs["Optimizer"] == "RMS":
+                    self.optimizer = tf.keras.optimizers.RMSProp(HPs["LR"])
+                elif HPs["Optimizer"] == "Adagrad":
+                    self.optimizer = tf.keras.optimizers.Adagrad(HPs["LR"])
+                elif HPs["Optimizer"] == "Adadelta":
+                    self.optimizer = tf.keras.optimizers.Adadelta(HPs["LR"])
+                elif HPs["Optimizer"] == "Adamax":
+                    self.optimizer = tf.keras.optimizers.Adamax(HPs["LR"])
+                elif HPs["Optimizer"] == "Nadam":
+                    self.optimizer = tf.keras.optimizers.Nadam(HPs["LR"])
+                elif HPs["Optimizer"] == "SGD":
+                    self.optimizer = tf.keras.optimizers.SGD(HPs["LR"])
+                elif HPs["Optimizer"] == "Amsgrad":
+                    self.optimizer = tf.keras.optimizers.Nadam(HPs["LR"],amsgrad=True)
+                else:
+                    print("Not selected a proper Optimizer")
+                    exit()
+
                 self.gradients = self.optimizer.get_gradients(loss, tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope))
+                print(tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope))
                 self.update_ops = self.optimizer.apply_gradients(zip(self.gradients, tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope)))
 
         #Creating variables for logging.
@@ -165,11 +187,12 @@ class PPO(Method):
             for epoch in range(self.HPs["Epochs"]):
                 for i in range(batches):
 
-                    feed_dict = {self.s: s[i],
-                                 self.a_his: a_his[i],
-                                 self.td_target_:td_target_[i],
-                                 self.advantage_: advantage_[i],
-                                 self.old_log_logits_: old_log_logits_[i]}
+                    feed_dict = {self.s: np.squeeze(np.asarray(s[i])),
+                                 self.a_his: np.asarray(a_his[i]),
+                                 self.td_target_:np.asarray(td_target_[i]),
+                                 self.advantage_: np.asarray(advantage_[i]),
+                                 self.old_log_logits_: np.asarray(old_log_logits_[i])}
+                    aLoss= self.sess.run([self.actor_loss], feed_dict)
                     aLoss, cLoss, entropy,grads, _ = self.sess.run([self.actor_loss,self.critic_loss,self.entropy,self.gradients,self.update_ops], feed_dict)
 
                     self.EntropyMA.append(entropy)
@@ -223,7 +246,7 @@ class PPO(Method):
 
         td_target=[]; advantage=[]
         for rew,value in zip(reward_lists,value_lists):
-            td_target_i, advantage_i = gae(rew,value.reshape(-1).tolist(),0,self.HPs["Gamma"],self.HPs["lambda"])
+            td_target_i, advantage_i = gae(rew.reshape(-1),value.reshape(-1).tolist(),0,self.HPs["Gamma"],self.HPs["lambda"])
             td_target.extend(td_target_i); advantage.extend( advantage_i)
         return td_target, advantage
 

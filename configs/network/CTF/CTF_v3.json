@@ -1,0 +1,105 @@
+{ "NetworkName" : "MG_SF",
+  "NetworkBuilder":"network",
+  "DefaultParams":{ "SFSize":256,
+                    "InFilter":128,
+                    "FCUnits":256},
+  "Inputs":{"state":[19,19,2]},
+  "NetworkStructure":{
+    "Shared":[
+      { "layerType":"Conv2D",
+        "layerName":"Conv2D_1",
+        "layerInput":"input.state",
+        "Parameters":{"filters":"InFilter//4",
+                      "kernel_size":4,
+                      "strides":1,
+                      "activation":"relu"}},
+      { "layerType":"Conv2D",
+        "layerName":"Conv2D_2",
+        "layerInput":"Conv2D_1",
+        "Parameters":{"filters":"InFilter//2",
+                      "kernel_size":3,
+                      "strides":1,
+                      "activation":"relu"}},
+      { "layerType":"Conv2D",
+        "layerName":"Conv2D_3",
+        "layerInput":"Conv2D_2",
+        "Parameters":{"filters":"InFilter",
+                      "kernel_size":3,
+                      "strides":1,
+                      "activation":"relu"}},
+      { "layerType":"Conv2D",
+        "layerName":"Conv2D_4",
+        "layerInput":"Conv2D_3",
+        "Parameters":{"filters":"InFilter",
+                      "kernel_size":3,
+                      "strides":1,
+                      "activation":"relu"}},
+      { "layerType":"Flatten",
+        "layerName":"Flatten",
+        "layerInput":"Conv2D_4"},
+      { "layerType":"Dense",
+        "layerName":"Dense1",
+        "layerInput":"Flatten",
+        "Parameters":{"units":"FCUnits",
+                      "activation":"relu"}},
+      { "layerType":"Dense",
+        "layerName":"Phi",
+        "layerInput":"Dense1",
+        "Parameters":{"units":"SFSize",
+                      "activation":"relu"}}
+      ],
+
+    "Actor":[
+      { "layerType":"Dense",
+        "layerName":"Actor_FC1",
+        "layerInput":"Phi",
+        "Parameters":{"units":256,
+                      "activation":"relu"}},
+      { "layerType":"Dense",
+        "layerName":"Actor_FC2",
+        "layerInput":"Actor_FC1",
+        "Parameters":{"units":"actionSize",
+                      "activation":null}},
+      { "layerType":"SoftMax",
+        "layerName":"Logits",
+        "layerInput":"Actor_FC2"},
+      { "layerType":"LogSoftMax",
+        "layerName":"LogLogits",
+        "layerInput":"Actor_FC2"}
+
+      ],
+
+
+    "Critic":[
+      { "layerType":"Dense",
+        "layerName":"Critic_FC1",
+        "layerInput":"Phi",
+        "Parameters":{"units":"FCUnits",
+                      "activation":"relu"}},
+      { "layerType":"Dense",
+        "layerName":"Critic_FC2",
+        "layerInput":"Critic_FC1",
+        "Parameters":{"units":"FCUnits",
+                      "activation":"relu"}},
+      { "layerType":"Dense",
+        "layerName":"Critic_FC3",
+        "layerInput":"Critic_FC2",
+        "Parameters":{"units":1,
+                      "activation":null}}
+    ]
+  },
+
+  "NetworkOutputs":
+    {
+      "log_logits":"LogLogits",
+      "actor":"Logits",
+      "critic":"Critic_FC3"
+    },
+
+  "NetworkVariableGroups":{
+    "Actor":["Shared","Actor"],
+    "Critic":["Shared","Critic"]
+  },
+  "TestInput":{"state":[null,7,7,4]}
+
+  }

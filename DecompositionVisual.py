@@ -10,8 +10,6 @@ def SquareVisualization():
     TerminalLocations = [[0,6],[6,0],[6,6]]
     Rewards = [-1,1,2]
 
-
-
     skips = []
     w_i = []
     w = np.zeros((dimension**2))
@@ -286,11 +284,47 @@ def ObstacleVisualization_v2(plotting=True, probs=[0.25,0.25,0.25,0.25]):
             plt.close()
     return valueGrid
 
+def DiffusionTime(dimension=30):
+
+    x = np.zeros((dimension**2,dimension**2))
+
+
+    for i in range(dimension**2):
+        sum = 0
+        if i % dimension != dimension-1:
+            x[i,i+1] = 0.25
+            sum += 0.25
+        if i % dimension != 0:
+            x[i,i-1] = 0.25
+            sum += 0.25
+        if i >= dimension:
+            x[i,i-dimension] = 0.25
+            sum += 0.25
+        if i <= dimension**2-dimension-1:
+            x[i,i+dimension] = 0.25
+            sum += 0.25
+        x[i,i]= 1.0-sum
+    I = np.identity(dimension**2)
+    psi = np.linalg.inv(I-0.98*x)
+
+    occupancy = np.reshape(psi[465,:],(dimension,dimension))
+
+    fig=plt.figure(figsize=(5.5, 5.5))
+    fig.add_subplot(1,1,1)
+    plt.title("State Occupancy")
+    imgplot = plt.imshow(occupancy,)
+    plt.show()
+    plt.close()
+
+
+
 if __name__ == "__main__":
     # ObstacleVisualization(location=[[9,14]])
     # ObstacleVisualization(location=[[7,7]])
     # ObstacleVisualization(location=[[7,7],[9,14]],reward=[4.0,2.04])
 
     # ObstacleVisualization_v2(probabilities=[0.25,0.25,0.25,0.25])
-    ObstacleVisualization_v2()
-    ObstacleVisualization_v2(probs="Random")
+    # ObstacleVisualization_v2()
+    # ObstacleVisualization_v2(probs="Random")
+
+    DiffusionTime()

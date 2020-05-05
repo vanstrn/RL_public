@@ -18,7 +18,7 @@ import os
 from .common import *
 
 class Network(tf.keras.Model):
-    def __init__(self, configFile, actionSize, netConfigOverride={}, scope=None,debug=False, training=True):
+    def __init__(self, configFile, actionSize, netConfigOverride={}, scope=None,debug=True, training=True):
         """
         Reads a network config file and processes that into a netowrk with appropriate naming structure.
 
@@ -130,6 +130,7 @@ class Network(tf.keras.Model):
                     output = layer(layerInputs,training=training)
                 else:
                     output = layer(*layerInputs)
+
             else: # Single input layers
                 if self.layerType[layerName] == "InputNoise":
                     output = layer
@@ -143,11 +144,13 @@ class Network(tf.keras.Model):
 
             #If a layer has multiple outputs assign the outputs unique names. Otherwise just have output be the layername.
             if isinstance(self.multiOutput[layerName],list):
+                print("Here")
                 for i,output_i in enumerate(output):
                     self.layerOutputs[self.multiOutput[layerName][i]]=output_i
+                    if self.debug: print("\tLayer Output",self.layerOutputs[self.multiOutput[layerName][i]])
             else:
                 self.layerOutputs[layerName] = output
-            if self.debug: print("\tLayer Output",self.layerOutputs[layerName])
+                if self.debug: print("\tLayer Output",self.layerOutputs[layerName])
 
             #Collecting Trainable Variable Weights
             # if self.debug: print("\tLayer Details:",layer.trainable_weights)

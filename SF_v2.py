@@ -183,7 +183,7 @@ class SaveModel(tf.keras.callbacks.Callback):
                 SF5.save_weights(MODEL_PATH+"model.h5")
     def on_train_end(self, logs=None):
         if self.superEpochs is None:
-            return
+            SF5.save_weights(MODEL_PATH+"model.h5")
         else:
             if self.superEpochs%settings["SaveFreq"] == 0:
                 SF5.save_weights(MODEL_PATH+"model.h5")
@@ -210,7 +210,7 @@ class ValueTest(tf.keras.callbacks.Callback):
             for i,j in itertools.product(range(dFeatures[0]),range(dFeatures[1])):
                 grid = ConstructSample(env,[i,j])
                 if grid is None: continue
-                [value] = SF4.predict([np.stack([0,0,0,0]),np.expand_dims(grid,0)])
+                [value] = SF4.predict(np.expand_dims(grid,0))
                 rewardMap[i,j] = value
             fig=plt.figure(figsize=(5.5, 8))
             fig.add_subplot(2,1,1)
@@ -229,8 +229,8 @@ class ImageGenerator(tf.keras.callbacks.Callback):
             for i in range(5):
                 samp = i*100+randint(0,200)
                 state = s[samp]
-                action = a[samp]
-                [state_new,reward] = SF1.predict([np.expand_dims(action,0),np.expand_dims(state,0)])
+                act = action[samp]
+                [state_new,reward] = SF1.predict([np.expand_dims(act,0),np.expand_dims(state,0)])
                 fig=plt.figure(figsize=(5.5, 8))
                 fig.add_subplot(2,1,1)
                 plt.title("State")
@@ -253,7 +253,7 @@ class RewardTest(tf.keras.callbacks.Callback):
             for i,j in itertools.product(range(dFeatures[0]),range(dFeatures[1])):
                 grid = ConstructSample(env,[i,j])
                 if grid is None: continue
-                [state_new,reward] = SF1.predict([np.stack([0,0,0,0]),np.expand_dims(grid,0)])
+                [state_new,reward] = SF1.predict([np.stack([[0,0,0,0]]),np.expand_dims(grid,0)])
                 rewardMap[i,j] = reward
             fig=plt.figure(figsize=(5.5, 8))
             fig.add_subplot(2,1,1)
@@ -284,7 +284,7 @@ elif settings["Optimizer"] == "SGD":
 elif settings["Optimizer"] == "SGD-Nesterov":
     opt = tf.keras.optimizers.SGD(settings["LearningRate"],nesterov=True)
 elif settings["Optimizer"] == "Amsgrad":
-    opt = tf.keras.optimizers.Nadam(settings["LearningRate"],amsgrad=True)
+    opt = tf.keras.optimizers.Adam(settings["LearningRate"],amsgrad=True)
 
 if args.phi:
     PlotOccupancy(s,title="TrainingOccupancy")
@@ -297,17 +297,24 @@ if args.phi:
         shuffle=True,
         callbacks=[ImageGenerator(),SaveModel(),SaveModel_Phi(),RewardTest()])
 
+if "DefaultParams" not in netConfigOverride:
+    netConfigOverride["DefaultParams"] = {}
+netConfigOverride["DefaultParams"]["Trainable"]=False
+with tf.device(args.processor):
+    SF1,SF2,SF3,SF4,SF5 = buildNetwork(settings["NetworkConfig"],nActions,netConfigOverride,scope="Global")
+    SF5.load_weights(MODEL_PATH+"/model.h5")
+
 if args.psi:
     SF2.compile(optimizer=opt, loss="mse")
-    phi = SF3.predict([np.stack(action),np.stack(s)])
+    phi = SF3.predict([np.stack(s)])
     gamma=settings["Gamma"]
     for i in range(settings["PsiEpochs"]):
 
-        psi_next = SF2.predict([np.stack(action),np.stack(s_next)])
+        psi_next = SF2.predict([np.stack(s_next)])
 
         labels = phi+gamma*psi_next
         SF2.fit(
-            [np.stack(action),np.stack(s)],
+            [np.stack(s)],
             [np.stack(labels)],
             epochs=settings["FitIterations"],
             batch_size=settings["BatchSize"],
@@ -315,8 +322,8 @@ if args.psi:
             callbacks=[ValueTest(i),SaveModel(i),SaveModel_Psi(i)])
 
 if args.analysis:
-    psi = SF2.predict([np.stack(action),np.stack(s)]) # [X,SF Dim]
-    phi = SF3.predict([np.stack(action),np.stack(s)])
+    psi = SF2.predict([np.stack(s)]) # [X,SF Dim]
+    phi = SF3.predict([np.stack(s)])
 
     ##-Repeat M times to evaluate the effect of sampling.
     M = 3
@@ -343,7 +350,7 @@ if args.analysis:
             for i,j in itertools.product(range(dFeatures[0]),range(dFeatures[1])):
                 grid = ConstructSample(env,[i,j])
                 if grid is None: continue
-                phi= SF3.predict([np.stack([0,0,0,0]),np.expand_dims(grid,0)])
+                phi= SF3.predict([np.expand_dims(grid,0)])
                 if sample+offset >= dim:
                     continue
                 v_option[i,j]=np.matmul(phi,v_g[:,sample+offset])[0]
@@ -368,7 +375,7 @@ if args.analysis:
         s.extend(s);label.extend(label);a.extend(a)
         s.extend(s);label.extend(label);a.extend(a)
         s.extend(s);label.extend(label);a.extend(a)
-        psi_uniform = SF2.predict([np.stack(action),np.stack(s)])
+        psi_uniform = SF2.predict([np.stack(s)])
         psiSamples = np.zeros([dim,dim])
         #Randomly collecting samples from the random space.
         s_sampled=[]
@@ -386,7 +393,7 @@ if args.analysis:
             for i,j in itertools.product(range(dFeatures[0]),range(dFeatures[1])):
                 grid = ConstructSample(env,[i,j])
                 if grid is None: continue
-                phi= SF3.predict([np.stack([0,0,0,0]),np.expand_dims(grid,0)])
+                phi= SF3.predict([np.expand_dims(grid,0)])
                 if sample+offset >= dim:
                     continue
                 v_option[i,j]=np.matmul(phi,v_g[:,sample+offset])[0]

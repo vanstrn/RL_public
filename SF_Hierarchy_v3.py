@@ -60,9 +60,10 @@ with open("configs/environment/"+settings["EnvConfig"]) as json_file:
     envSettings.update(envConfigOverride)
 
 EXP_NAME = settings["RunName"]
-MODEL_PATH = './models/'+EXP_NAME+ '/'
-IMAGE_PATH = './images/SF/'+EXP_NAME
+LoadName = settings["LoadName"]
+MODEL_PATH = './models/'+LoadName+ '/'
 ts = str(time.time())
+IMAGE_PATH = './images/SF/'+EXP_NAME+"_"+ts+'/'
 MODEL_PATH_ = './models/'+EXP_NAME+"_"+ts+'/'
 LOG_PATH = './logs/'+EXP_NAME+"_"+ts
 CreatePath(LOG_PATH)
@@ -91,8 +92,8 @@ def GetAction(state):
         probs =np.full((1,nActions),p)
     else:
         probs =np.full((state.shape[0],nActions),p)
-        actions = np.array([np.random.choice(probs.shape[1], p=prob / sum(prob)) for prob in probs])
-        return actions
+    actions = np.array([np.random.choice(probs.shape[1], p=prob / sum(prob)) for prob in probs])
+    return actions
 s = []
 s_next = []
 r_store = []
@@ -112,6 +113,18 @@ for i in range(settings["SampleEpisodes"]):
         s0 = s1
         if done:
             break
+def PlotOccupancy(states,title=""):
+    #Taking average over the list of states.
+    state = np.stack(states)
+    occupancy = np.average(state,axis=0)
+    #plotting them
+    fig=plt.figure(figsize=(5.5, 5.5))
+    fig.add_subplot(1,1,1)
+    plt.title("State Occupancy")
+    imgplot = plt.imshow(occupancy[:,:,0], vmin=0,vmax=10)
+    # plt.savefig(IMAGE_PATH+"/StateOccupancy_"+title+".png")
+    plt.show()
+    plt.close()
 
 def ConstructSample(env,position):
     grid = env.grid.encode()
@@ -168,17 +181,71 @@ def SmoothOption(option, gamma =0.9):
 
     return smoothedOption
 
+#Selecting the samples:
+# PlotOccupancy(s)
 psi = SF2.predict(np.stack(s)) # [X,SF Dim]
 
-dim = psi.shape[1]
-#Taking Eigenvalues and Eigenvectors of the environment,
-psiSamples = np.zeros([dim,dim])
-#Randomly collecting samples from the random space.
-for i in range(dim):
-    psiSamples[i,:] = psi[randint(1,psiSamples.shape[0]),:]
+def arreq_in_list(myarr, list_arrays):
+    return next((True for elem in list_arrays if np.array_equal(elem, myarr)), False)
+#test for approximate equality (for floating point types)
+def arreqclose_in_list(myarr, list_arrays):
+    return next((True for elem in list_arrays if elem.size == myarr.size and np.allclose(elem, myarr,atol=1E-6)), False)
 
-w_g,v_g = np.linalg.eig(psiSamples)
+if settings["Selection"]=="First":
+    samples = [];points=[]
+    i =0
+    while len(samples) < settings["TotalSamples"]:
+        if not arreqclose_in_list(psi[i,:], samples):
+            samples.append(psi[i,:])
+            points.append(i)
+        i+=1
+elif settings["Selection"]=="Random":
+    samples = [];points=[]
+    while len(samples) < settings["TotalSamples"]:
+        idx = randint(1,psi.shape[0])
+        if not arreqclose_in_list(psi[idx,:], samples):
+            samples.append(psi[idx,:])
+            points.append(idx)
+elif settings["Selection"]=="Hull":
+    #PCA Decomp to dimension:
+    import pandas as pd
+    from sklearn.decomposition import PCA
+    feat_cols = [ 'pixel'+str(i) for i in range(psi.shape[1]) ]
+    df = pd.DataFrame(psi,columns=feat_cols)
+    np.random.seed(42)
+    rndperm = np.random.permutation(df.shape[0])
+    pca = PCA(n_components=2)
+    pca_result = pca.fit_transform(df[feat_cols].values)
 
+    from SampleSelection import SampleSelection_v2
+    points = SampleSelection_v2(pca_result,settings["TotalSamples"],returnIndicies=True)
+elif settings["Selection"]=="Hull_cluster":
+    #PCA Decomp to dimension:
+    import pandas as pd
+    from sklearn.decomposition import PCA
+    feat_cols = [ 'pixel'+str(i) for i in range(psi.shape[1]) ]
+    df = pd.DataFrame(psi,columns=feat_cols)
+    np.random.seed(42)
+    rndperm = np.random.permutation(df.shape[0])
+    pca = PCA(n_components=2)
+    pca_result = pca.fit_transform(df[feat_cols].values)
+
+    from SampleSelection import SampleSelection_v3
+    points = SampleSelection_v3(pca_result,settings["TotalSamples"],returnIndicies=True)
+
+psiSamples=[]
+for point in points:
+    psiSamples.append(psi[point,:])
+
+while len(psiSamples) < len(psiSamples[0]):
+    psiSamples.extend(psiSamples)
+
+samps = np.stack(psiSamples)
+samps2 = samps[0:samps.shape[1],:]
+w_g,v_g = np.linalg.eig(samps2)
+
+# print("here")
+dim = samps2.shape[1]
 #Creating Sub-policies
 N = settings["NumOptions"]
 offset = 0

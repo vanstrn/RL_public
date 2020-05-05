@@ -126,13 +126,20 @@ def buildNetwork(configFile, actionSize, netConfigOverride={},debug=True, traini
 
     #Creating the outputs for the model.
     networks = []
-    for dict in data["NetworkOutputs"]:
+    for i,dict in enumerate(data["NetworkOutputs"]):
         outputs=[]
         for output,layerName in dict.items():
             outputs.append(layerOutputs[layerName])
-        print(outputs)
         if debug: print("Network Outputs:",outputs)
-        networks.append(tf.keras.models.Model(Inputs,outputs))
+        if "NetworkInputs" in data:
+            Inputs_i = {}
+            for input in data["NetworkInputs"][i]:
+                Inputs_i[input] = Inputs[input]
+            if debug: print("Network Inputs_i:",Inputs_i)
+            networks.append(tf.keras.models.Model(Inputs_i,outputs))
+        else:
+            if debug: print("Network Inputs:",Inputs)
+            networks.append(tf.keras.models.Model(Inputs,outputs))
 
     return networks
 

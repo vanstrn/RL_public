@@ -100,7 +100,16 @@ class PPO_Hierarchy(Method):
 
 
     def InitiateEpisode(self):
-        pass
+        if self.method == "Greedy":
+            pass
+        elif self.method = "Fixed Step":
+            pass
+        elif self.method = "Confidence":
+            pass
+        elif self.method = "Probabilistic Confidence":
+            pass
+        else:
+            pass
     def GetAction(self, state, episode, step):
         """
         Method to run data through hierarchical network

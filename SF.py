@@ -176,7 +176,7 @@ class SaveModel(tf.keras.callbacks.Callback):
                 SF5.save_weights(MODEL_PATH+"model.h5")
     def on_train_end(self, logs=None):
         if self.superEpochs is None:
-            return
+            SF5.save_weights(MODEL_PATH+"model.h5")
         else:
             if self.superEpochs%settings["SaveFreq"] == 0:
                 SF5.save_weights(MODEL_PATH+"model.h5")
@@ -289,6 +289,13 @@ if args.phi:
         callbacks=[ImageGenerator(),SaveModel(),SaveModel_Phi(),RewardTest()])
 
 if args.psi:
+    if "DefaultParams" not in netConfigOverride:
+        netConfigOverride["DefaultParams"] = {}
+    netConfigOverride["DefaultParams"]["Trainable"]=False
+    with tf.device(args.processor):
+        SF1,SF2,SF3,SF4,SF5 = buildNetwork(settings["NetworkConfig"],nActions,netConfigOverride,scope="Global")
+        SF5.load_weights(MODEL_PATH+"/model.h5")
+
     SF2.compile(optimizer=opt, loss="mse")
     phi = SF3.predict(np.stack(s))
     gamma=settings["Gamma"]

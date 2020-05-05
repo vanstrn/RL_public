@@ -1,0 +1,18 @@
+{ "RunName":"CP_A3C3",
+  "GPUCapacitty":0.95,
+  "NetworkHPs":{"Critic LR": 1E-2,
+                "Actor LR": 1E-3,
+                "Gamma":0.98,
+                "lambda":0.98,
+                "EntropyBeta":0.001},
+
+  "MaxEpisodes":50000,
+  "MaxEpisodeSteps":500,
+  "LogFreq":10,
+  "SaveFreq":100000,
+  "EnvConfig":"CartPole_v2.json",
+  "NetworkConfig":"ppo.json",
+  "NumberENV":6,
+  "Method":"methods.A3C.A3C"
+
+  }

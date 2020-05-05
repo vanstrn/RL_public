@@ -36,7 +36,11 @@ class Method(object):
         Also handles any data that needs to be processed in the network.
         """
         try:
+
             target_shape = sample[0].shape[0]
+            if target_shape == 1:
+                self.buffer[0].append(sample)
+                return
             if target_shape != len(self.buffer):
                 raise ValueError
             for i in range(len(sample)-1):

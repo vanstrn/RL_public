@@ -29,7 +29,7 @@ def discount_rewards(rewards, gamma, normalized=False, mask_array=None):
 
         return disc_r
 
-def gae(reward_list, value_list, bootstrap, gamma:float, lambd:float, normalize=False):
+def gae(reward_list, value_list, bootstrap, gamma:float, lambd:float):
     """ gae
 
     Generalized Advantage Estimator
@@ -48,16 +48,11 @@ def gae(reward_list, value_list, bootstrap, gamma:float, lambd:float, normalize=
     td_target: list
     advantage: list
     """
-    
+
     reward_np = np.array(reward_list)
     value_ext = np.array(value_list+[bootstrap])
 
     td_target  = reward_np + gamma * value_ext[1:]
     advantages = reward_np + gamma * value_ext[1:] - value_ext[:-1]
     advantages = discount_rewards(advantages, gamma*lambd)
-
-    # This implementation causes np.std to create a memory leak. (Assumption is that np.std always causes memory leak.)
-    if normalize:
-        advantages = (advantages - np.mean(advantages))/(np.std(advantages) + 1e-6)
-
     return td_target.tolist(), advantages.tolist()

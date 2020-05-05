@@ -1,0 +1,24 @@
+{ "RunName":"CTF_PPO_10Maps_5E1",
+  "GPUCapacitty":0.95,
+  "NetworkHPs":{"LR": 5E-1,
+                "Optimizer":"Adadelta",
+                "Gamma":0.98,
+                "lambda":0.98,
+                "EntropyBeta":0.0005,
+                "CriticBeta":0.2,
+                "BatchSize":2048,
+                "MinibatchSize":256,
+                "Epochs":5,
+                "eps":0.2},
+
+  "MaxEpisodes":50000,
+  "MaxEpisodeSteps":200,
+  "Epochs":1000,
+  "SFSize":256,
+  "LogFreq":20,
+  "SaveFreq":5000,
+
+  "EnvConfig":"CTF_1v0_FO.json",
+  "NetworkConfig":"CTF_v4.json",
+  "Method":"methods.PPO.PPO"
+  }

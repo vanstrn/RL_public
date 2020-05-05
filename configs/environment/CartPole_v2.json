@@ -1,4 +1,5 @@
 { "EnvName":"CartPole-v0",
+  "EnvParams":{},
   "Seed":1,
   "Wrappers":[
     { "WrapperName":"environments.Common.FinalReward",

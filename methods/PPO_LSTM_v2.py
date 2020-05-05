@@ -7,10 +7,11 @@ To Do:
 """
 from .method import Method
 from .buffer import Trajectory
-from utils.dataProcessing import gae
+from .AdvantageEstimator import gae
 import tensorflow as tf
 import numpy as np
 import scipy
+from utils.utils import MovingAverage
 
 
 class PPO(Method):
@@ -44,6 +45,7 @@ class PPO(Method):
         self.actionSize = actionSize
         self.sess=sess
         self.Model = Model
+        self.HPs = HPs
 
         #Creating appropriate buffer for the method.
         self.buffer = [Trajectory(depth=8) for _ in range(nTrajs)]
@@ -51,7 +53,10 @@ class PPO(Method):
         with self.sess.as_default(), self.sess.graph.as_default():
             with tf.name_scope(scope):
                 #Placeholders
-                self.s = tf.placeholder(tf.float32, [None]+stateShape, 'S')
+                if len(stateShape) == 4:
+                    self.s = tf.placeholder(tf.float32, [None]+stateShape[1:4], 'S')
+                elif len(stateShape) == 3:
+                    self.s = tf.placeholder(tf.float32, [None]+stateShape, 'S')
                 self.a_his = tf.placeholder(tf.int32, [None, ], 'A')
                 self.td_target_ = tf.placeholder(tf.float32, [None], 'Vtarget')
                 self.advantage_ = tf.placeholder(shape=[None], dtype=tf.float32, name='adv_hold')
@@ -65,6 +70,7 @@ class PPO(Method):
                 inputs = {"state":self.s,
                             "hiddenState":[self.hidden_state_prev,self.hidden_cell_prev]}
                 out = self.Model(inputs)
+                print(out)
                 self.a_prob = out["actor"]
                 self.v = out["critic"]
                 self.log_logits = out["log_logits"]
@@ -97,11 +103,15 @@ class PPO(Method):
                 loss = actor_loss + critic_loss * HPs["CriticBeta"]
 
                 # Build Trainer
-                self.optimizer = tf.keras.optimizers.Adam(HPs["LR"])
+                self.optimizer = tf.keras.optimizers.Adam(HPs["LearningRate"])
                 self.gradients = self.optimizer.get_gradients(loss, tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope))
                 self.update_ops = self.optimizer.apply_gradients(zip(self.gradients, tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope)))
+                self.EntropyMA = MovingAverage(400)
+                self.CriticLossMA = MovingAverage(400)
+                self.ActorLossMA = MovingAverage(400)
+                self.GradMA = MovingAverage(400)
 
-    def GetAction(self, state, global_step, step=1):
+    def GetAction(self, state, episode=1, step=1):
         """
         Method to run data through the neural network.
 
@@ -121,26 +131,23 @@ class PPO(Method):
             #Initializing Hidden State of the LSTM
             hidden_state_prev =[np.zeros([1,256]),np.zeros([1,256])]
         else:
-            hidden_state_prev = self.store
+            hidden_state_prev = self.store.copy()
 
         try:
             probs,log_logits,v,hidden_state,hidden_cell = self.sess.run([self.a_prob,self.log_logits,self.v,self.hidden_state,self.cell_state], {self.s: state, self.hidden_state_prev:hidden_state_prev[0],self.hidden_cell_prev:hidden_state_prev[1]})
 
         except ValueError:
             probs,log_logits,v,hidden_state,hidden_cell = self.sess.run([self.a_prob,self.log_logits,self.v,self.hidden_state,self.cell_state], {self.s: np.expand_dims(state,axis=0), self.hidden_state_prev:hidden_state_prev[0],self.hidden_cell_prev:hidden_state_prev[1]})
-        probs[:,2] *= 2.0
-        probs[:,1] *= 0.75
-        probs[:,0] *= 0.75
-        probs=scipy.special.softmax(probs)
+
         actions = np.array([np.random.choice(probs.shape[1], p=prob / sum(prob)) for prob in probs])
 
         self.store = [hidden_state,hidden_cell]
-
         test = np.array(hidden_state_prev)
+
         # print(probs,actions)
         return actions, [v,log_logits,test]
 
-    def Update(self,HPs,log_net_stats,writer):
+    def Update(self,episode=1):
         """
         Process the buffer and backpropagates the loses through the NN.
 
@@ -153,70 +160,71 @@ class PPO(Method):
         -------
         N/A
         """
-        aloss_track=[]; closs_track=[]; entropy_track=[]; #Used to average the loss over different batches
-        total_counter = 0
-        vanish_counter = 0
+        samples=0
+        for i in range(len(self.buffer)):
+            samples +=len(self.buffer[i])
+        if samples < self.HPs["BatchSize"]:
+            return
+
         for traj in range(len(self.buffer)):
 
-            clip = -1
-            try:
-                for j in range(1):
-                    clip = self.buffer[traj][4].index(True, clip + 1)
-            except:
-                clip=len(self.buffer[traj][4])
 
-            td_target, advantage = self.ProcessBuffer(HPs,traj,clip)
+
+            td_target, advantage = self.ProcessBuffer(self.HPs,traj,-1)
             # print(td_target)
 
             #Create a dictionary with all of the samples?
             #Use a sampler to feed the update operation?
-
-            #Staging Buffer inputs into the entries to run through the network.
-            if len(self.buffer[traj][0][:clip]) == 0:
-                continue
             hidden_state_prev = []
             hidden_cell_prev = []
-            for element in self.buffer[traj][7][:clip]:
+            for element in self.buffer[traj][7]:
                 hidden_state_prev.append(element[0])
                 hidden_cell_prev.append(element[1])
-            feed_dict = {self.s: self.buffer[traj][0][:clip],
-                         self.hidden_state_prev:np.asarray(hidden_state_prev).reshape(-1,256),
-                         self.hidden_cell_prev:np.asarray(hidden_cell_prev).reshape(-1,256),
-                         self.a_his: np.asarray(self.buffer[traj][1][:clip]).reshape(-1),
-                         self.td_target_: td_target,
-                         self.advantage_: np.reshape(advantage, [-1]),
-                         self.old_log_logits_: np.reshape(self.buffer[traj][6][:clip], [-1,self.actionSize])}
-            self.sess.run(self.update_ops, feed_dict)
 
-            if log_net_stats:
-                ops = [self.actor_loss, self.critic_loss, self.entropy]
-                aloss, closs, entropy = self.sess.run(ops, feed_dict)
-                aloss_track.append(aloss); closs_track.append(closs); entropy_track.append(entropy)
+            #Staging Buffer inputs into the entries to run through the network.
+            batches = len(self.buffer[traj][0])//self.HPs["MinibatchSize"]+1
+            s= np.array_split(np.squeeze(self.buffer[traj][0]), batches)
+            a_his = np.array_split( np.asarray(self.buffer[traj][1]).reshape(-1), batches)
+            hidden_state_prev_ = np.array_split(np.asarray(hidden_state_prev).reshape(-1,256), batches)
+            hidden_cell_prev_ = np.array_split(np.asarray(hidden_cell_prev).reshape(-1,256), batches)
+            td_target_ = np.array_split(td_target, batches)
+            advantage_= np.array_split(np.reshape(advantage, [-1]), batches)
+            old_log_logits_ = np.array_split(np.reshape(self.buffer[traj][6], [-1,self.actionSize]), batches)
 
-                grads = self.sess.run(self.gradients, feed_dict)
-                for grad in grads:
-                    total_counter += np.prod(grad.shape)
-                    vanish_counter += (np.absolute(grad)<1e-8).sum()
+            for epoch in range(self.HPs["Epochs"]):
+                for i in range(batches):
+                    feed_dict = {self.s: s[i],
+                                 self.hidden_state_prev:hidden_state_prev_[i],
+                                 self.hidden_cell_prev:hidden_cell_prev_[i],
+                                 self.a_his: a_his[i],
+                                 self.td_target_: td_target_[i],
+                                 self.advantage_: advantage_[i],
+                                 self.old_log_logits_: old_log_logits_[i]}
 
-        if log_net_stats:
-            aloss = np.average(aloss_track)
-            closs = np.average(closs_track)
-            entropy = np.average(entropy_track)
-            summary = tf.Summary()
-            summary.value.add(tag='summary/actor_loss', simple_value=aloss)
-            summary.value.add(tag='summary/critic_loss', simple_value=closs)
-            summary.value.add(tag='summary/entropy', simple_value=entropy)
-            summary.value.add(tag='summary/grad_vanish_rate', simple_value=vanish_counter/total_counter)
+                    self.sess.run(self.update_ops, feed_dict)
 
-            global_step = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, "global_step")
-            writer.add_summary(summary,self.sess.run(global_step)[0])
+                    ops = [self.actor_loss, self.critic_loss, self.entropy]
+                    aLoss, cLoss, entropy = self.sess.run(ops, feed_dict)
+                    grads = self.sess.run(self.gradients, feed_dict)
+                    total_counter = 0
+                    vanish_counter = 0
+                    for grad in grads:
+                        total_counter += np.prod(grad.shape)
+                        vanish_counter += (np.absolute(grad)<1e-8).sum()
 
-            writer.flush()
+                    self.EntropyMA.append(entropy)
+                    self.CriticLossMA.append(cLoss)
+                    self.ActorLossMA.append(aLoss)
+                    self.GradMA.append(vanish_counter/total_counter)
+        self.ClearTrajectory()
 
-    def SaveStatistics(self,saver):
-        """
-        Contains the code to save internal information of the Neural Network.
-        """
+
+    def GetStatistics(self):
+        dict = {"Training Results/Entropy":self.EntropyMA(),
+        "Training Results/Loss Critic":self.CriticLossMA(),
+        "Training Results/Loss Actor":self.ActorLossMA(),
+        "Training Results/Vanishing Gradient":self.GradMA(),}
+        return dict
 
 
     def ProcessBuffer(self,HPs,traj,clip):
@@ -239,10 +247,15 @@ class PPO(Method):
         advantage : list
             List of advantages for particular actions.
         """
-        # print("Starting Processing Buffer\n")
-        # tracker.print_diff()
-        td_target, advantage = gae(self.buffer[traj][2][:clip],self.buffer[traj][5][:clip],0,HPs["Gamma"],HPs["lambda"])
-        # tracker.print_diff()
+        split_loc = [i+1 for i, x in enumerate(self.buffer[traj][4]) if x]
+
+        reward_lists = np.split(self.buffer[traj][2],split_loc)
+        value_lists = np.split(self.buffer[traj][5],split_loc)
+
+        td_target=[]; advantage=[]
+        for rew,value in zip(reward_lists,value_lists):
+            td_target_i, advantage_i = gae(rew.reshape(-1),value.reshape(-1).tolist(),0,self.HPs["Gamma"],self.HPs["lambda"])
+            td_target.extend(td_target_i); advantage.extend( advantage_i)
         return td_target, advantage
 
     @property

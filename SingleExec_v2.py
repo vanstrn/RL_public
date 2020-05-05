@@ -5,7 +5,7 @@ based on a runtime config file.
 
 import numpy as np
 import gym
-import gym_minigrid
+import gym_minigrid,gym_cap
 import tensorflow as tf
 import argparse
 from urllib.parse import unquote
@@ -30,6 +30,8 @@ parser.add_argument("-e", "--environment", required=False,
 parser.add_argument("-n", "--network", required=False,
                     help="JSON configuration string to override network parameters")
 parser.add_argument("-p", "--processor", required=False, default="/gpu:0",
+                    help="Processor identifier string. Ex. /cpu:0 /gpu:0")
+parser.add_argument("-r", "--render", required=False, default=False, action="store_true",
                     help="Processor identifier string. Ex. /cpu:0 /gpu:0")
 args = parser.parse_args()
 if args.config is not None: configOverride = json.loads(unquote(args.config))
@@ -64,6 +66,7 @@ with tf.device(args.processor):
     global_step = tf.Variable(0, trainable=False, name='global_step')
     global_step_next = tf.assign_add(global_step,1)
     network = Network(settings["NetworkConfig"],nActions,netConfigOverride)
+    print("-----------------------------")
     Method = GetFunction(settings["Method"])
     net = Method(network,sess,scope="net",stateShape=dFeatures,actionSize=nActions,HPs=settings["NetworkHPs"],nTrajs=nTrajs)
 
@@ -75,32 +78,30 @@ InitializeVariables(sess) #Included to catch if there are any uninitalized varia
 
 progbar = tf.keras.utils.Progbar(None, unit_name='Training',stateful_metrics=["Reward"])
 
-loggingFunctions=[]
-for loggingFunc in settings["LoggingFunctions"]:
-    func = GetFunction(loggingFunc)
-    loggingFunctions.append(func(env,net,IMAGE_PATH))
+if "LoggingFunctions" in settings:
+    loggingFunctions=[]
+    for loggingFunc in settings["LoggingFunctions"]:
+        func = GetFunction(loggingFunc)
+        loggingFunctions.append(func(env,net,IMAGE_PATH))
 
-for i in range(settings["MAX_EP"]):
+for i in range(settings["MaxEpisodes"]):
 
     sess.run(global_step_next)
-    logging = interval_flag(sess.run(global_step), settings["LOG_FREQ"], 'log')
-    saving = interval_flag(sess.run(global_step), settings["SAVE_FREQ"], 'save')
+    logging = interval_flag(sess.run(global_step), settings["LogFreq"], 'log')
+    saving = interval_flag(sess.run(global_step), settings["SaveFreq"], 'save')
 
     s0 = env.reset()
 
-    for j in range(settings["MAX_EP_STEPS"]+1):
-        updating = interval_flag(j, settings['UPDATE_GLOBAL_ITER'], 'update')
+    for j in range(settings["MaxEpisodeSteps"]+1):
 
         a, networkData = net.GetAction(state=s0,episode=sess.run(global_step),step=j)
 
         s1,r,done,_ = env.step(action=a)
-
         net.AddToTrajectory([s0,a,r,s1,done]+networkData)
-
+        if args.render:
+            env.render()
         s0 = s1
-        if updating:   # update global and assign to local net
-            net.Update(settings["NetworkHPs"],sess.run(global_step))
-        if done or j == settings["MAX_EP_STEPS"]:
+        if done or j == settings["MaxEpisodeSteps"]:
             net.Update(sess.run(global_step))
             break
 
@@ -109,8 +110,9 @@ for i in range(settings["MAX_EP"]):
         dict = net.GetStatistics()
         loggingDict.update(dict)
         Record(loggingDict, writer, sess.run(global_step))
-        for func in loggingFunctions:
-            func(sess.run(global_step))
+        if "LoggingFunctions" in settings:
+            for func in loggingFunctions:
+                func(sess.run(global_step))
 
     if saving:
         saver.save(sess, MODEL_PATH+'/ctf_policy.ckpt', global_step=sess.run(global_step))

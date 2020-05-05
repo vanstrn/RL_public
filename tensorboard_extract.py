@@ -37,82 +37,51 @@ def GetAverageSTD(dicts):
     std = 1.96*np.nanstd(np.stack(data),axis=0)/np.sqrt(len(dicts))
     return average,std
 
-if True:
-    mypath = "./logs"
-    dictsUniform = []
-    dicts = []
-    for (dirpath, dirnames, filenames) in walk(mypath):
-        if len(filenames) != 0:
-            if "MG4R_v1_SF_256_" in dirpath:
-                if "Uniform" in dirpath:
-                    dictsUniform.append(GetFileContents(dirpath+"/"+filenames[0]))
-                else:
-                    dicts.append(GetFileContents(dirpath+"/"+filenames[0]))
-    ave1,std1=GetAverageSTD(dicts)
-    ave2,std2=GetAverageSTD(dictsUniform)
-    x = dicts[0]["TotalReward"]["step"]
 
-    # plt.errorbar(y,average,yerr=std)
-    # plt.errorbar(y,average2,yerr=std2)
-    plt.plot(x,ave1,label="On Policy - Samples:"+str(len(dicts)))
-    plt.plot(x,ave2,label="Uniform Sampling - Samples:"+str(len(dictsUniform)))
-    plt.title("Effect of Sampling (N=256)")
-    plt.fill_between(x, ave1-std1, ave1+std1,alpha=0.5)
-    plt.fill_between(x, ave2-std2, ave2+std2,alpha=0.5)
+def PlotTensorflowData(dataName,dataSeparations,path="./logs",dataLabels=None,title="Effect of Sampling Methods"):
+    if dataLabels is None:
+        dataLabels = dataSeparations
+    dataFiles = {}
+    for name,label in zip(dataSeparations,dataLabels):
+        dataFiles[label]=[]
+        for (dirpath, dirnames, filenames) in walk(path):
+            if len(filenames) != 0:
+                if dataName in dirpath:
+                    if name in dirpath:
+                        dataFiles[label].append(GetFileContents(dirpath+"/"+filenames[0]))
+
+    for label,data in dataFiles.items():
+        ave,std=GetAverageSTD(data)
+        x = np.arange(0,10*ave.shape[0],10)
+        plt.plot(x,ave,label=label+" sampling - Trials:"+str(len(data)))
+        plt.fill_between(x, ave-std, ave+std,alpha=0.5)
+    plt.title(title)
     plt.legend()
     plt.show()
-
-if False:
-    mypath = "./logs"
-    dictsUniform = {"64":[],"128":[],"256":[],"512":[],"1024":[]}
-    dicts = {"64":[],"128":[],"256":[],"512":[],"1024":[]}
-    for (dirpath, dirnames, filenames) in walk(mypath):
-        if len(filenames) != 0:
-            if "MG4R_v1_SF_" in dirpath:
-                SFSize = dirpath.split("_")[3]
-                if "Uniform" in dirpath:
-                    dictsUniform[SFSize].append(GetFileContents(dirpath+"/"+filenames[0]))
-                else:
-                    dicts[SFSize].append(GetFileContents(dirpath+"/"+filenames[0]))
-
-    ave1,std1=GetAverageSTD(dicts["64"])
-    ave2,std2=GetAverageSTD(dicts["128"])
-    ave3,std3=GetAverageSTD(dicts["256"])
-    ave4,std4=GetAverageSTD(dicts["512"])
-    ave5,std5=GetAverageSTD(dicts["1024"])
-    x = dicts["1024"][0]["TotalReward"]["step"]
-
-    plt.title("Effect of N=[64,128,256,512,1024] ")
-    plt.plot(x,ave1,label="64 On Policy - Samples:"+str(len(dicts["64"])))
-    plt.fill_between(x, ave1-std1, ave1+std1,alpha=0.3)
-    plt.plot(x,ave2,label="128 On Policy - Samples:"+str(len(dicts["128"])))
-    plt.fill_between(x, ave2-std2, ave2+std2,alpha=0.3)
-    plt.plot(x,ave3,label="256 On Policy - Samples:"+str(len(dicts["256"])))
-    plt.fill_between(x, ave3-std3, ave3+std3,alpha=0.3)
-    plt.plot(x,ave4,label="512 On Policy - Samples:"+str(len(dicts["512"])))
-    plt.fill_between(x, ave4-std4, ave4+std4,alpha=0.3)
-    plt.plot(x,ave5,label="1024 On Policy - Samples:"+str(len(dicts["1024"])))
-    plt.fill_between(x, ave5-std5, ave5+std5,alpha=0.3)
-    plt.legend()
-    plt.show()
+    plt.clf()
 
 
-    ave1,std1=GetAverageSTD(dictsUniform["64"])
-    ave2,std2=GetAverageSTD(dictsUniform["128"])
-    ave3,std3=GetAverageSTD(dictsUniform["256"])
-    ave4,std4=GetAverageSTD(dictsUniform["512"])
-    ave5,std5=GetAverageSTD(dictsUniform["1024"])
-    x = dictsUniform["1024"][0]["TotalReward"]["step"]
-    plt.title("Effect of N=[64,128,256,512,1024] ")
-    plt.plot(x,ave1,label="64 Uniform - Samples:"+str(len(dictsUniform["64"])))
-    plt.fill_between(x, ave1-std1, ave1+std1,alpha=0.3)
-    plt.plot(x,ave2,label="128 Uniform - Samples:"+str(len(dictsUniform["128"])))
-    plt.fill_between(x, ave2-std2, ave2+std2,alpha=0.3)
-    plt.plot(x,ave3,label="256 Uniform - Samples:"+str(len(dictsUniform["256"])))
-    plt.fill_between(x, ave3-std3, ave3+std3,alpha=0.3)
-    plt.plot(x,ave4,label="512 Uniform - Samples:"+str(len(dictsUniform["512"])))
-    plt.fill_between(x, ave4-std4, ave4+std4,alpha=0.3)
-    plt.plot(x,ave5,label="1024 Uniform - Samples:"+str(len(dictsUniform["1024"])))
-    plt.fill_between(x, ave5-std5, ave5+std5,alpha=0.3)
-    plt.legend()
-    plt.show()
+if __name__ == "__main__":
+
+    title = "Convex Hull - Effect of Coverage Percentage"
+    dataName = "MG4R_SF_256_"
+    dataSeparations = ["HC_1588","H_1588","F_1588","R_1588"]
+    dataLabels = ["Clustering","Hull","First","Random"]
+    PlotTensorflowData(dataName,dataSeparations,dataLabels=dataLabels)
+
+    title = "Effect of Coverage Percentage- Convex Hull"
+    dataSeparations = ["_32H_1588","_48H_1588","_64H_1588"]
+    dataLabels = ["30% coverage","45% coverage","60% coverage"]
+    PlotTensorflowData(dataName,dataSeparations,dataLabels=dataLabels,title=title)
+    title = "Effect of Coverage Percentage- Clustering"
+    dataSeparations = ["_32HC","_48HC","_64HC"]
+    dataLabels = ["30% coverage","45% coverage","60% coverage"]
+    PlotTensorflowData(dataName,dataSeparations,dataLabels=dataLabels,title=title)
+    title = "Effect of Coverage Percentage- First"
+    dataSeparations = ["_32F","_48F","_64F"]
+    dataLabels = ["30% coverage","45% coverage","60% coverage"]
+    PlotTensorflowData(dataName,dataSeparations,dataLabels=dataLabels,title=title)
+    title = "Effect of Coverage Percentage- Random"
+    dataSeparations = ["_32R","_48R","_64R"]
+    dataLabels = ["30% coverage","45% coverage","60% coverage"]
+    PlotTensorflowData(dataName,dataSeparations,dataLabels=dataLabels,title=title)

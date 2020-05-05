@@ -1,5 +1,6 @@
 # Module contains any methods, class, parameters, etc that is related to logging the trainig
 
+import statistics
 import numpy as np
 import os
 import tensorflow as tf
@@ -101,6 +102,11 @@ class MovingAverage:
     def __call__(self):
         """__call__"""
         return self.average
+    def std(self):
+        """__call__"""
+        if len(self.queue) < 2:
+            return 1
+        return np.std(np.asarray(self.queue))
 
     def tolist(self):
         """tolist

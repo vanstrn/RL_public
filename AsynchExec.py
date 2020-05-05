@@ -31,6 +31,8 @@ parser.add_argument("-n", "--network", required=False,
                     help="JSON configuration string to override network parameters")
 parser.add_argument("-p", "--processor", required=False, default="/gpu:0",
                     help="Processor identifier string. Ex. /cpu:0 /gpu:0")
+parser.add_argument("-r", "--render", default=False, action="store_true",
+                    help="Processor identifier string. Ex. /cpu:0 /gpu:0")
 args = parser.parse_args()
 if args.config is not None: configOverride = json.loads(unquote(args.config))
 else: configOverride = {}
@@ -97,8 +99,11 @@ InitializeVariables(sess) #Included to catch if there are any uninitalized varia
 
 COORD = tf.train.Coordinator()
 worker_threads = []
-for worker in workers:
-    job = lambda: worker.work(COORD)
+for i,worker in enumerate(workers):
+    if i==0:
+        job = lambda: worker.work(COORD,render=args.render)
+    else:
+        job = lambda: worker.work(COORD)
     t = threading.Thread(target=job)
     t.start()
     worker_threads.append(t)

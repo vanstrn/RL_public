@@ -1,0 +1,18 @@
+{ "EnvName":"cap-v0",
+  "EnvParams":{ "map_size":20,
+    "config_path":"environments/1v0_partial.ini"},
+  "Seed":1337,
+  "Wrappers":[
+  { "WrapperName":"environments.CTF_v2.CTFCentering",
+    "WrapperParameters":{"centering":true}},
+  { "WrapperName":"environments.CTF_v2.RewardShape",
+    "WrapperParameters":{}},
+  { "WrapperName":"environments.Common.NPConverter",
+    "WrapperParameters":{}},
+  { "WrapperName":"environments.Common.RewardLogging",
+    "WrapperParameters":{}},
+  { "WrapperName":"environments.CTF_v2.Reset",
+    "WrapperParameters":{
+      "policy_red":"Roomba"}}
+    ]
+    }
