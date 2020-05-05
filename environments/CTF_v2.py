@@ -89,14 +89,14 @@ class CTFCentering(gym.core.ObservationWrapper):
             self.observation_space = spaces.Box(
                 low=0,
                 high=255,
-                shape=(nAgents, 2*self.map_size[0]-1, 2*self.map_size[1]-1, 6),  # number of cells
+                shape=( 2*self.map_size[0]-1, 2*self.map_size[1]-1, 6),  # number of cells
                 dtype='uint8'
             )
         else:
             self.observation_space = spaces.Box(
                 low=0,
                 high=255,
-                shape=(nAgents, self.map_size[0], self.map_size[1], 6),  # number of cells
+                shape=( self.map_size[0], self.map_size[1], 6),  # number of cells
                 dtype='uint8'
             )
 
@@ -142,7 +142,7 @@ class StateStacking(gym.core.ObservationWrapper):
         self.observation_space = spaces.Box(
             low=0,
             high=255,
-            shape=(nAgents, self.map_size[0], self.map_size[1], 6*nStates),  # number of cells
+            shape=( self.map_size[0], self.map_size[1], 6*nStates),  # number of cells
             dtype='uint8'
         )
 

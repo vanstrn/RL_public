@@ -56,3 +56,46 @@ def gae(reward_list, value_list, bootstrap, gamma:float, lambd:float):
     advantages = reward_np + gamma * value_ext[1:] - value_ext[:-1]
     advantages = discount_rewards(advantages, gamma*lambd)
     return td_target.tolist(), advantages.tolist()
+
+def MultiStepDiscountProcessing(reward_list, state_list, gamma:float, steps=40):
+    """ MultiStepDiscountProcessing
+
+    Used for calculating multi-step returns:
+    G = R_t + γR_t+1 + ... γ^n-1 R_t+n + q(S_t+n,a*,θ-)
+    loss = MSE(G,q(S_t,A_t,θ))
+
+    Also associates states for when episodes end early.
+
+    Parameters
+    ----------------
+    reward_list: list
+    value_list: list
+    bootstrap: float
+    gamma: float
+    normalize: boolean (True)
+
+    Returns
+    ----------------
+    td_target: list
+    advantage: list
+    """
+    rewards = np.append(np.asarray(reward_list),np.zeros(steps))
+    value_disc = np.zeros_like(np.asarray(reward_list))
+    for i in range(steps):
+        value_disc = value_disc+gamma**i*rewards[i:len(reward_list)+i]
+
+    states_n = state_list[steps:]
+    for i in range(steps):
+        states_n.append(state_list[-1])
+
+    return value_disc.tolist(), states_n
+
+
+if __name__ == "__main__":
+
+    reward_list = [1,2,3,4,5,6,7,8,9,10]
+    gamma = 0.9
+    steps = 2
+    state_list = [1,2,3,4,5,6,7,8,9,10]
+    val,states = MultiStepDiscountProcessing(reward_list,state_list,0,gamma,steps)
+    print(states)
