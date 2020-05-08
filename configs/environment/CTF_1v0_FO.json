@@ -10,7 +10,7 @@
   { "WrapperName":"environments.CTF_v2.UseMap",
     "WrapperParameters":{ "execute":true,
                           "unbiased":true,
-                          "mapPath":"/home/capturetheflag/RL/environments/fair_map_1v0"}},
+                          "mapPath":"fair_map_1v0"}},
   { "WrapperName":"environments.Common.NPConverter",
     "WrapperParameters":{}},
   { "WrapperName":"environments.Common.RewardLogging",
