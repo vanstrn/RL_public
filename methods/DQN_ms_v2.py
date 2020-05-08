@@ -60,7 +60,7 @@ class DQN_ms_v2(Method):
                 with tf.name_scope('td_error'):
                     loss = tf.keras.losses.MSE(td_target, curr_q)
                     softmax_q = tf.nn.softmax(curr_q)
-                    self.entropy = -tf.reduce_mean(softmax_q * tf.log(softmax_q))
+                    self.entropy = -tf.reduce_mean(softmax_q * tf.log(softmax_q+ 1e-5))
                     self.loss=total_loss = loss + HPs["EntropyBeta"] * self.entropy
 
                 optimizer = tf.keras.optimizers.Adam(HPs["LearningRate"])

@@ -84,11 +84,14 @@ def MultiStepDiscountProcessing(reward_list, state_list, gamma:float, steps=40):
     for i in range(steps):
         value_disc = value_disc+gamma**i*rewards[i:len(reward_list)+i]
 
-    states_n = state_list[steps:]
-    for i in range(steps):
-        states_n.append(state_list[-1])
+    if steps  < len(state_list):
+        states_n = state_list[steps:]
+        for i in range(steps):
+            states_n.append(state_list[-1])
+    else:
+        states_n = [state_list[-1]]*len(state_list)
 
-    return value_disc.tolist(), states_n
+    return value_disc, states_n
 
 
 if __name__ == "__main__":

@@ -68,14 +68,14 @@ class NPConverter(gym.core.Wrapper):
         return self.env.step(action=action)
 
 class RewardLogging(gym.core.Wrapper):
-    def __init__(self,env, **kwargs):
+    def __init__(self,env,loggingPeriod=100, **kwargs):
         super().__init__(env)
         if self.multiprocessing == 1:
-            self.GLOBAL_RUNNING_R = MovingAverage(400)
+            self.GLOBAL_RUNNING_R = MovingAverage(loggingPeriod)
         else:
             if 'GLOBAL_RUNNING_R' not in globals():
                 global GLOBAL_RUNNING_R
-                GLOBAL_RUNNING_R = MovingAverage(400)
+                GLOBAL_RUNNING_R = MovingAverage(loggingPeriod)
             self.GLOBAL_RUNNING_R = GLOBAL_RUNNING_R
 
     def reset(self, **kwargs):
