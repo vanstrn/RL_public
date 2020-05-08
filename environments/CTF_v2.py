@@ -39,7 +39,7 @@ class UseMap(gym.core.Wrapper):
         self.unbiased=unbiased
         self.episodes=0
         dir_path = os.path.dirname(os.path.realpath(__file__))
-        self.map_list = [os.path.join(mapPath, path) for path in os.listdir(os.path.join(dir_path,mapPath))]
+        self.map_list = [os.path.join(os.path.join(dir_path,mapPath), path) for path in os.listdir(os.path.join(dir_path,mapPath))]
         max_epsilon = 0.70;
 
     def use_this_map(self,x):
