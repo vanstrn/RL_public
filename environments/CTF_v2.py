@@ -32,11 +32,11 @@ class UseMap(gym.core.Wrapper):
     Fully observable gridworld using a compact grid encoding
     """
 
-    def __init__(self, env,biased=False,execute=True,mapPath="/home/capturetheflag/RL/environments/fair_map_1v0"):
+    def __init__(self, env,unbiased=False,execute=True,mapPath="/home/capturetheflag/RL/environments/fair_map_1v0"):
         super().__init__(env)
         self.first=True
         self.execute=execute
-        self.biased=biased
+        self.unbiased=unbiased
         self.episodes=0
         self.map_list = [os.path.join(mapPath, path) for path in os.listdir(mapPath)]
         max_epsilon = 0.70;
@@ -45,7 +45,7 @@ class UseMap(gym.core.Wrapper):
         if self.first:
             self.first=False
             return random.choice(self.map_list)
-        if self.biased:
+        if self.unbiased:
             return random.choice(self.map_list)
 
         def smoothstep(x, lowx=0.0, highx=1.0, lowy=0, highy=1):

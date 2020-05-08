@@ -5,7 +5,7 @@ from scipy.spatial import ConvexHull
 from random import randint
 import matplotlib.pyplot as plt
 
-def SampleSelection_v1(setOfPoints,nSamples,returnIndicies=False,nTrials=10):
+def SampleSelection_v1(setOfPoints,nSamples,returnIndicies=False,nTrials=200):
     """Randomly selecting samples to use for SF analysis. Checks for repetition in the sample space. """
     nPoints = len(setOfPoints)
     maxDist=0
@@ -173,35 +173,102 @@ def SampleSelection_v3(setOfPoints,nSamples,returnIndicies=False, nTrials=10, de
             return bestIndicies
         return bestPoints
 
-# def SampleSelection_v3(setOfPoints,nSamples,returnIndicies=False, nTrials=1):
-#     """Using Convex Hull to select boundary points. Calculating Lattice points for remaining stuff.  """
-#     maxSize = np.max(np.stack(setOfPoints),axis=0)
-#     minSize = np.min(np.stack(setOfPoints),axis=0)
-#
-#     #Calculating number of lattice points in each dimension.
-#     lpN = int(np.ceil(nSamples**(1/setOfPoints.shape[1])))
-#
-#     def split(min,max,N):
-#         size = (max-min)/(N-1.0)
-#         values = [min]
-#         for i in range(1,N):
-#             values.append(min+size*i)
-#         return values
-#     listOfLaticeDivisions = []
-#     for dim in range(len(maxSize)):
-#         listOfLaticeDivisions.append(split(minSize[dim],maxSize[dim],lpN))
-#     for i in range(maxSize.shape[0]-1):
-#         if i == 0:
-#             iterator = itertools.product(listOfLaticeDivisions[0],listOfLaticeDivisions[1])
-#         else:
-#             print(dir(iterator))
-#             iterator = itertools.product(iterator,listOfLaticeDivisions[i+1])
-#     for latticePoint in iterator:
-#         print (latticePoint)
-#
-#     # Trimming the lattice points if the number is too large
-#
-#     return []
+def SimulatedAnnealingSampling(setOfPoints,nSamples,returnIndicies=False, nIterations=500):
+    import random
+    """Simulated annealing method to select the set of point with the highest entropy in the syste,
+    """
+    nPoints = setOfPoints.shape[0]
+
+    points=[]
+    idx=[]
+    while len(points) < nSamples:
+        x = randint(0,nPoints-1)
+        if x in idx:
+            continue
+        if arreqclose_in_list(setOfPoints[x],points):
+            continue
+        idx.append(x)
+        points.append(setOfPoints[x])
+    dist = TotalAverageDistance(points)
+
+    for i in range(nIterations):
+        points_ = points.copy()
+        idx_ = idx.copy()
+        T = nIterations/(i+1)
+        # moving points based on entropy metric
+        for i in range(int(nSamples/8)):
+            x = randint(0,len(idx_)-1)
+            points_.pop(x)
+            idx_.pop(x)
+        while len(points_) < nSamples:
+            x = randint(0,nPoints-1)
+            if x in idx_:
+                continue
+            if arreqclose_in_list(setOfPoints[x],points_):
+                continue
+            idx_.append(x)
+            points_.append(setOfPoints[x])
+
+        #Compute the Entrpy Metric.
+        dist_ = TotalAverageDistance(points_)
+        #Compare if the entropy is within acceptable limits to switch
+        prob = np.exp(-(dist-dist_)/T)
+        # print(prob)
+        if  random.uniform(0, 1) < prob:
+            points = points_.copy()
+            idx = idx_.copy()
+            dist = dist_
+    if returnIndicies:
+        return idx
+    return points
+def SimulatedAnnealingSampling2(setOfPoints,nSamples,returnIndicies=False, nIterations=500):
+    import random
+    """Simulated annealing method to select the set of point with the highest entropy in the syste,
+    """
+    nPoints = setOfPoints.shape[0]
+
+    points=[]
+    idx=[]
+    while len(points) < nSamples:
+        x = randint(0,nPoints-1)
+        if x in idx:
+            continue
+        if arreqclose_in_list(setOfPoints[x],points):
+            continue
+        idx.append(x)
+        points.append(setOfPoints[x])
+    dist = TotalAverageDistance(points)
+
+    for i in range(nIterations):
+        points_ = points.copy()
+        idx_ = idx.copy()
+        T = nIterations/(i+1)
+        # moving points based on entropy metric
+        for i in range(int(nSamples/8)):
+            x = randint(0,len(idx_)-1)
+            points_.pop(x)
+            idx_.pop(x)
+        while len(points_) < nSamples:
+            x = randint(0,nPoints-1)
+            if x in idx_:
+                continue
+            if arreqclose_in_list(setOfPoints[x],points_):
+                continue
+            idx_.append(x)
+            points_.append(setOfPoints[x])
+
+        #Compute the Entrpy Metric.
+        dist_ = TotalAverageDistance(points_)
+        #Compare if the entropy is within acceptable limits to switch
+        prob = np.exp(-(dist-dist_)/T)
+        # print(prob)
+        if  1 < prob:
+            points = points_.copy()
+            idx = idx_.copy()
+            dist = dist_
+    if returnIndicies:
+        return idx
+    return points
 
 
 def CreateTestSet(nPoints,nDim):
@@ -210,14 +277,28 @@ def CreateTestSet(nPoints,nDim):
 
 if __name__ == "__main__":
     set = CreateTestSet(400,3)
-    points1 = SampleSelection_v1(set,50)
-    print(TotalAverageDistance(points1))
-    points2 = SampleSelection_v2(set,50)
-    print(TotalAverageDistance(points2))
-    points3 = SampleSelection_v3(set,50)
-    print(TotalAverageDistance(points3))
-    # points4 = SampleSelection_v4(set,50)
-    # print(TotalAverageDistance(points4))
+    # points1 = SampleSelection_v1(set,50)
+    # print(TotalAverageDistance(points1))
+    # points2 = SampleSelection_v2(set,50)
+    # print(TotalAverageDistance(points2))
+    # points3 = SampleSelection_v3(set,50)
+    # print(TotalAverageDistance(points3))
+    points4 = SimulatedAnnealingSampling(set,50)
+    print(TotalAverageDistance(points4))
+    points4 = SimulatedAnnealingSampling(set,50)
+    print(TotalAverageDistance(points4))
+    points4 = SimulatedAnnealingSampling(set,50)
+    print(TotalAverageDistance(points4))
+    points4 = SimulatedAnnealingSampling(set,50)
+    print(TotalAverageDistance(points4))
+    points4 = SimulatedAnnealingSampling2(set,50)
+    print(TotalAverageDistance(points4))
+    points4 = SimulatedAnnealingSampling2(set,50)
+    print(TotalAverageDistance(points4))
+    points4 = SimulatedAnnealingSampling2(set,50)
+    print(TotalAverageDistance(points4))
+    points4 = SimulatedAnnealingSampling2(set,50)
+    print(TotalAverageDistance(points4))
     #
     # plt.scatter(np.stack(set)[:,0],np.stack(set)[:,1],color='b')
     # plt.scatter(np.stack(points1)[:,0],np.stack(points1)[:,1],color='r')

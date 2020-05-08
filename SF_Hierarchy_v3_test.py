@@ -97,6 +97,8 @@ def GetAction(state):
 s = []
 s_next = []
 r_store = []
+loc=[]
+label=[]
 
 def arreq_in_list(myarr, list_arrays):
     return next((True for elem in list_arrays if np.array_equal(elem, myarr)), False)
@@ -112,6 +114,17 @@ for i in range(settings["SampleEpisodes"]):
         if arreq_in_list(s0,s):
             pass
         else:
+            loc.append(np.unravel_index(s0.argmax(), s0.shape)[:2])
+            if np.unravel_index(s0.argmax(), s0.shape)[0] <6 and np.unravel_index(s0.argmax(), s0.shape)[1]<6:
+                label.append("Upper Left")
+            elif np.unravel_index(s0.argmax(), s0.shape)[0] <6 and np.unravel_index(s0.argmax(), s0.shape)[1]>6:
+                label.append("Lower Left")
+            elif np.unravel_index(s0.argmax(), s0.shape)[0] >6 and np.unravel_index(s0.argmax(), s0.shape)[1]<7:
+                label.append("Upper Right")
+            elif np.unravel_index(s0.argmax(), s0.shape)[0] >6 and np.unravel_index(s0.argmax(), s0.shape)[1]>7:
+                label.append("Lower Right")
+            else:
+                label.append("Doors")
             s.append(s0)
             s_next.append(s1)
             r_store.append(r)
@@ -235,8 +248,51 @@ elif settings["Selection"]=="Hull_tsne":
     rndperm = np.random.permutation(df.shape[0])
     tsne = TSNE(n_components=2, verbose=1, perplexity=10, n_iter=5000)
     tsne_results = tsne.fit_transform(df[feat_cols].values)
+    import seaborn as sns
+    df["dim-one"] = tsne_results[:,0]
+    df["dim-two"] = tsne_results[:,1]
+    df["y"] = label
     plt.figure(figsize=(7,7))
-    plt.scatter(tsne_results[:,0],tsne_results[:,1])
+    sns.scatterplot(
+        x="dim-one", y="dim-two",
+        hue="y",
+        palette=sns.color_palette("hls", len(set(label))),
+        data=df.loc[rndperm,:],
+        legend="full",
+        alpha=0.3
+    )
+    plt.show()
+    tsne = TSNE(n_components=2, verbose=1, perplexity=25, n_iter=5000)
+    tsne_results = tsne.fit_transform(df[feat_cols].values)
+    import seaborn as sns
+    df["dim-one"] = tsne_results[:,0]
+    df["dim-two"] = tsne_results[:,1]
+    df["y"] = label
+    plt.figure(figsize=(7,7))
+    sns.scatterplot(
+        x="dim-one", y="dim-two",
+        hue="y",
+        palette=sns.color_palette("hls", len(set(label))),
+        data=df.loc[rndperm,:],
+        legend="full",
+        alpha=0.3
+    )
+    plt.show()
+    tsne = TSNE(n_components=2, verbose=1, perplexity=50, n_iter=5000)
+    tsne_results = tsne.fit_transform(df[feat_cols].values)
+    import seaborn as sns
+    df["dim-one"] = tsne_results[:,0]
+    df["dim-two"] = tsne_results[:,1]
+    df["y"] = label
+    plt.figure(figsize=(7,7))
+    sns.scatterplot(
+        x="dim-one", y="dim-two",
+        hue="y",
+        palette=sns.color_palette("hls", len(set(label))),
+        data=df.loc[rndperm,:],
+        legend="full",
+        alpha=0.3
+    )
     plt.show()
     exit()
 
@@ -252,6 +308,21 @@ elif settings["Selection"]=="Hull_cluster":
     rndperm = np.random.permutation(df.shape[0])
     pca = PCA(n_components=2)
     pca_result = pca.fit_transform(df[feat_cols].values)
+    import seaborn as sns
+    df["dim-one"] = pca_result[:,0]
+    df["dim-two"] = pca_result[:,1]
+    df["y"] = label
+    plt.figure(figsize=(7,7))
+    sns.scatterplot(
+        x="dim-one", y="dim-two",
+        hue="y",
+        palette=sns.color_palette("hls", len(set(label))),
+        data=df.loc[rndperm,:],
+        legend="full",
+        alpha=0.3
+        )
+    plt.show()
+    exit()
 
     from SampleSelection import SampleSelection_v3
     points = SampleSelection_v3(pca_result,settings["TotalSamples"],returnIndicies=True)

@@ -21,7 +21,7 @@
 
   "NumOptions":16,
   "TotalSamples":32,
-  "Selection":"Hull_cluster",
+  "Selection":"Hull_tsne",
 
   "EnvConfig":"MG4R_v1.json",
   "SFNetworkConfig":"MG4R_v1_SF.json",

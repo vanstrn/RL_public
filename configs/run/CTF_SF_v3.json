@@ -1,0 +1,19 @@
+{ "RunName":"CTF_SF_big_actions",
+  "GPUCapacitty":0.95,
+  "NetworkHPs":{},
+  "Optimizer":"Adadelta",
+  "SampleEpisodes":200,
+  "MAX_EP_STEPS":150,
+  "PhiEpochs":10001,
+  "PsiEpochs":751,
+  "FitIterations":10,
+  "BatchSize":512,
+  "Gamma":0.99,
+  "LearningRate":1.0,
+  "SaveFreq":250,
+  "LogFreq":25,
+
+  "EnvConfig":"CTF_1v0_FO.json",
+  "NetworkConfig":"CTF_SF_v2_actions.json"
+
+  }
