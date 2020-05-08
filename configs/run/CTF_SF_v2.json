@@ -12,6 +12,7 @@
   "LearningRate":0.2,
   "SaveFreq":250,
   "LogFreq":25,
+  "channelWeights":[1,1,1,1,5,1],
 
   "EnvConfig":"CTF_1v0_FO.json",
   "NetworkConfig":"CTF_SF_v2_actions.json"

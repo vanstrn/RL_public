@@ -99,6 +99,14 @@ with tf.device(args.processor):
 #Definition of misc. functions
 def M4E(y_true,y_pred):
     return K.mean(K.pow(y_pred-y_true,4))
+def CTF_Loss(y_true,y_pred):
+    weights = settings["channelWeights"]
+    nChannel = len(weights)
+    loss = 0
+    for i,weight in enumerate(weights):
+        loss += weight*K.mean(K.pow(y_pred[:,:,:,i]-y_true[:,:,:,i],4))
+    return
+
 def OneHot(a,length=nActions):
     aOH = [0]*length
     aOH[int(a)] = 1
