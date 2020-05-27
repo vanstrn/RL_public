@@ -18,5 +18,5 @@
   "LogFreq":20,
   "SaveFreq":5000,
 
-  "EnvConfig":"CTF_4v4.json"
+  "EnvConfig":"CTF_1v1_FO.json"
   }
