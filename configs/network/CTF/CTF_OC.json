@@ -1,5 +1,5 @@
-{ "NetworkName" : "DefaultCtF",
-  "Description":"Hierarchical Network where the feature encoder is shared by all sub-networks. Uses shared network structure to ",
+{ "NetworkName" : "CTF_OC",
+  "Description":"Hierarchical Network where the feature encoder is shared by all sub-networks. Separate networks exist for Actor/Critic/Termination stuff",
   "DefaultParams":{"NumOptions":3},
   "NetworkStructure":{
     "SharedNetworkStructure":{
@@ -8,49 +8,48 @@
         "layerName":"Conv2D_1",
         "layerInput":"input.state",
         "Parameters":{"filters":64,
-                      "kernel_size":3,
+                      "kernel_size":6,
                       "strides":2,
                       "activation":"relu"}},
       { "layerType":"Conv2D",
         "layerName":"Conv2D_2",
         "layerInput":"Conv2D_1",
-        "Parameters":{"filters":64,
+        "Parameters":{"filters":128,
+                      "kernel_size":6,
+                      "strides":1,
+                      "activation":"relu"}},
+      { "layerType":"Conv2D",
+        "layerName":"Conv2D_3",
+        "layerInput":"Conv2D_2",
+        "Parameters":{"filters":256,
                       "kernel_size":3,
-                      "strides":2,
+                      "strides":1,
                       "activation":"relu"}},
       { "layerType":"Flatten",
         "layerName":"Flatten",
-        "layerInput":"Conv2D_2",
+        "layerInput":"Conv2D_3",
         "Parameters":{}},
       { "layerType":"Dense",
         "layerName":"Dense1",
         "layerInput":"Flatten",
-        "Parameters":{"units":128,
+        "Parameters":{"units":512,
                       "activation":null}}
       ]
     },
 
   "MetaNetworkStructure":{
-    "Actor":[
+    "Terminations":[
       { "layerType":"Dense",
-        "layerName":"Meta_Actor_FC1",
+        "layerName":"metaTermination",
         "layerInput":"Dense1",
         "Parameters":{"units":"NumOptions",
-        "activation":null}},
-      { "layerType":"SoftMax",
-        "layerName":"Meta_Actor_logits",
-        "layerInput":"Meta_Actor_FC1",
-        "Parameters":{}},
-      { "layerType":"LogSoftMax",
-        "layerName":"Meta_Actor_LogLogits",
-        "layerInput":"Meta_Actor_logits",
-        "Parameters":{}}
+        "activation":"sigmoid"}}
     ],
     "Critic":[
       { "layerType":"Dense",
         "layerName":"MetaCritic",
         "layerInput":"Dense1",
-        "Parameters":{"units":1,
+        "Parameters":{"units":"NumOptions",
         "activation":null}}
     ]
   },
@@ -71,24 +70,14 @@
         "layerName":"Sub_Actor_LogLogits",
         "layerInput":"Sub_Actor_logits",
         "Parameters":{}}
-    ],
-
-    "Critic":[
-      { "layerType":"Dense",
-        "layerName":"SubCritic",
-        "layerInput":"Dense1",
-        "Parameters":{"units":1,
-        "activation":null}}
     ]
   }
   },
   "NetworkOutputs":{
-    "metaActor":"Meta_Actor_logits",
-    "metaLogLogits":"Meta_Actor_LogLogits",
+    "metaTermination":"metaTermination",
     "metaCritic":"MetaCritic",
     "subActor":"Sub_Actor_logits",
     "subLogLogits":"Sub_Actor_LogLogits",
-    "subCritic":"SubCritic"
   },
 
   "NetworkVariableGroups":{

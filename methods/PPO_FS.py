@@ -122,7 +122,7 @@ class PPO(Method):
             probs,log_logits,v = self.sess.run([self.a_prob,self.log_logits,self.v], {self.s: state})
         except ValueError:
             probs,log_logits,v = self.sess.run([self.a_prob,self.log_logits,self.v], {self.s: np.expand_dims(state,axis=0)})
-            actions = np.array([np.random.choice(probs.shape[1], p=prob / sum(prob)) for prob in probs])
+        actions = np.array([np.random.choice(probs.shape[1], p=prob / sum(prob)) for prob in probs])
 
         if step % self.HPs["FS"] == 0:
             self.store_actions = actions
@@ -164,7 +164,7 @@ class PPO(Method):
             for epoch in range(self.HPs["Epochs"]):
                 for i in range(batches):
                     #Staging Buffer inputs into the entries to run through the network.
-                    feed_dict = {self.s: s[i],
+                    feed_dict = {self.s: np.squeeze(s[i]),
                                  self.a_his: a_his[i],
                                  self.td_target_:td_target_[i],
                                  self.advantage_: advantage_[i],
@@ -220,7 +220,7 @@ class PPO(Method):
 
         td_target=[]; advantage=[]
         for rew,value in zip(reward_lists,value_lists):
-            td_target_i, advantage_i = gae(rew,value.reshape(-1).tolist(),0,self.HPs["Gamma"],self.HPs["lambda"])
+            td_target_i, advantage_i = gae(rew.reshape(-1).tolist(),value.reshape(-1).tolist(),0,self.HPs["Gamma"],self.HPs["lambda"])
             td_target.extend(td_target_i); advantage.extend( advantage_i)
         return td_target, advantage
 

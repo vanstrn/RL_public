@@ -28,6 +28,23 @@ Todo:
 
 """
 
+def BatchDivider(lst, n):
+    """Yield successive n-sized chunks from lst."""
+    for i in range(0, len(lst), n):
+        yield lst[i:i + n]
+def MultiBatchDivider(lsts, n):
+    """Yield successive n-sized chunks from lst."""
+    for i in range(0, len(lsts[0]), n):
+        res = []
+        if i+n > len(lsts[0]):
+            return
+        for lst in lsts:
+            res.append(lst[i:i + n])
+        yield res
+
+
+
+
 def random_batch_sampling(batch_size, epoch, *argv):
     """
     The number of batch is defined by the size // batch_size.

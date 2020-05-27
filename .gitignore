@@ -1,7 +1,7 @@
 # Generic Folders
 save/
 logs/
-log/
+log*/
 model/
 models/
 render/

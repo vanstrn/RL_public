@@ -34,7 +34,7 @@ def GetAverageSTD(dicts):
             for i in range(length-len(dict["TotalReward"]["data"])):
                 dict["TotalReward"]["data"].append(np.nan)
     average = np.nanmean(np.stack(data),axis=0)
-    std = 1.00*np.nanstd(np.stack(data),axis=0)/np.sqrt(len(dicts))
+    std = 1.96*np.nanstd(np.stack(data),axis=0)/np.sqrt(len(dicts))
     return average,std
 
 
@@ -64,37 +64,59 @@ def PlotTensorflowData(dataName,dataSeparations,path="./logs",dataLabels=None,ti
 if __name__ == "__main__":
 
     #
-    title = "Effect of Different Sample Methods (N=128,32 Samples)"
-    dataName = "MG4R_SF_128_48"
-    dataSeparations = ["HC_1588","H_1588","F_1588","R_1588"]
-    dataLabels = ["Cluster","Hull","First","Random"]
-    PlotTensorflowData(dataName,dataSeparations,dataLabels=dataLabels,title=title)
-    title = "Effect of Different Sample Methods (N=256,32 Samples)"
-    dataName = "MG4R_SF_256_48"
-    dataSeparations = ["HC_1588","H_1588","F_1588","R_1588"]
-    dataLabels = ["Cluster","Hull","First","Random"]
-    PlotTensorflowData(dataName,dataSeparations,dataLabels=dataLabels,title=title)
-    title = "Effect of Different Sample Methods (N=512,32 Samples)"
-    dataName = "MG4R_SF_512_48"
-    dataSeparations = ["HC_1588","H_1588","F_1588","R_1588"]
-    dataLabels = ["Cluster","Hull","First","Random"]
-    PlotTensorflowData(dataName,dataSeparations,dataLabels=dataLabels,title=title)
+    # title = "Effect of Different Sample Methods (N=128,32 Samples)"
+    # dataName = "MG4R_SF_128_48"
+    # dataSeparations = ["HC_1588","H_1588","F_1588","R_1588"]
+    # dataLabels = ["Cluster","Hull","First","Random"]
+    # PlotTensorflowData(dataName,dataSeparations,dataLabels=dataLabels,title=title)
+    # title = "Effect of Different Sample Methods (N=256,32 Samples)"
+    # dataName = "MG4R_SF_256_48"
+    # dataSeparations = ["HC_1588","H_1588","F_1588","R_1588"]
+    # dataLabels = ["Cluster","Hull","First","Random"]
+    # PlotTensorflowData(dataName,dataSeparations,dataLabels=dataLabels,title=title)
+    # title = "Effect of Different Sample Methods (N=512,32 Samples)"
+    # dataName = "MG4R_SF_512_48"
+    # dataSeparations = ["HC_1588","H_1588","F_1588","R_1588"]
+    # dataLabels = ["Cluster","Hull","First","Random"]
+    # PlotTensorflowData(dataName,dataSeparations,dataLabels=dataLabels,title=title)
+    #
+    # #Coverage percent effect on different sampling methods
+    # dataName = "MG4R_SF_"
+    # title = "Effect of Coverage Percentage on Convex Hull (All N)"
+    # dataSeparations = ["_32H_1588","_48H_1588","_64H_1588"]
+    # dataLabels = ["30% coverage","45% coverage","60% coverage"]
+    # PlotTensorflowData(dataName,dataSeparations,dataLabels=dataLabels,title=title)
+    # title = "Effect of Coverage Percentage on Clustering (All N)"
+    # dataSeparations = ["_32HC","_48HC","_64HC"]
+    # dataLabels = ["30% coverage","45% coverage","60% coverage"]
+    # PlotTensorflowData(dataName,dataSeparations,dataLabels=dataLabels,title=title)
+    # title = "Effect of Coverage Percentage on First (All N)"
+    # dataSeparations = ["_32F","_48F","_64F"]
+    # dataLabels = ["30% coverage","45% coverage","60% coverage"]
+    # PlotTensorflowData(dataName,dataSeparations,dataLabels=dataLabels,title=title)
+    # title = "Effect of Coverage Percentage on Random (All N)"
+    # dataSeparations = ["_32R","_48R","_64R"]
+    # dataLabels = ["30% coverage","45% coverage","60% coverage"]
+    # PlotTensorflowData(dataName,dataSeparations,dataLabels=dataLabels,title=title)
 
-    #Coverage percent effect on different sampling methods
-    dataName = "MG4R_SF_"
-    title = "Effect of Coverage Percentage on Convex Hull (All N)"
-    dataSeparations = ["_32H_1588","_48H_1588","_64H_1588"]
-    dataLabels = ["30% coverage","45% coverage","60% coverage"]
+
+    title = "Effect of Different Sample Methods (N=512,64 Samples) SF1"
+    dataName = "CTF_"
+    dataSeparations = ["64HC","64HP","64F","64R","64HT"]
+    dataLabels = ["Cluster","Hull","First","Random","Hull TSNE"]
     PlotTensorflowData(dataName,dataSeparations,dataLabels=dataLabels,title=title)
-    title = "Effect of Coverage Percentage on Clustering (All N)"
-    dataSeparations = ["_32HC","_48HC","_64HC"]
-    dataLabels = ["30% coverage","45% coverage","60% coverage"]
+    title = "Effect of Different Sample Methods (N=512,64 Samples) SF2"
+    dataName = "CTF_16_64"
+    dataSeparations = ["64HC_3","64HP_3","64F_3","64R_3","64HT_3"]
+    dataLabels = ["Cluster","Hull","First","Random","Hull TSNE"]
     PlotTensorflowData(dataName,dataSeparations,dataLabels=dataLabels,title=title)
-    title = "Effect of Coverage Percentage on First (All N)"
-    dataSeparations = ["_32F","_48F","_64F"]
-    dataLabels = ["30% coverage","45% coverage","60% coverage"]
+    title = "Effect of Different Sample Methods (N=512,64 Samples) SF3"
+    dataName = "CTF_16_64"
+    dataSeparations = ["64HC_2","64HP_2","64F_2","64R_2","64HT_2"]
+    dataLabels = ["Cluster","Hull","First","Random","Hull TSNE"]
     PlotTensorflowData(dataName,dataSeparations,dataLabels=dataLabels,title=title)
-    title = "Effect of Coverage Percentage on Random (All N)"
-    dataSeparations = ["_32R","_48R","_64R"]
-    dataLabels = ["30% coverage","45% coverage","60% coverage"]
+    title = "Effect of Different Sample Methods (N=512,64 Samples) All Trials"
+    dataName = "CTF_16_64"
+    dataSeparations = ["64HC","64HP","64F","64R","64HT"]
+    dataLabels = ["Cluster","Hull","First","Random","Hull TSNE"]
     PlotTensorflowData(dataName,dataSeparations,dataLabels=dataLabels,title=title)
