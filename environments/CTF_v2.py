@@ -109,6 +109,7 @@ class CTFCentering(gym.core.ObservationWrapper):
     def __init__(self, env,centering):
         super().__init__(env)
         nAgents = len(self.env.get_team_blue)
+        self.nTrajs=nAgents
         self.centering = centering
         self.map_size
         self.action_space = spaces.Discrete(len(self.ACTION))
@@ -275,11 +276,21 @@ class RewardLogging(gym.core.Wrapper):
         Processes the tracked data of the environment.
         In this case it sums the reward over the entire episode.
         """
-        if sum(self.tracking_r)> 0.0:
-            self.win_rate.append(1)
+        if isinstance(self.tracking_r[0],float):
+            if sum(self.tracking_r)> 0.0:
+                self.win_rate.append(1)
+            else:
+                self.win_rate.append(0)== 1== 1
+            self.GLOBAL_RUNNING_R.append(sum(self.tracking_r))
+            finalDict = {"Env Results/TotalReward":self.GLOBAL_RUNNING_R(),
+                         "Env Results/WinRate":self.win_rate()}
+            return finalDict
         else:
-            self.win_rate.append(0)
-        self.GLOBAL_RUNNING_R.append(sum(self.tracking_r))
-        finalDict = {"Env Results/TotalReward":self.GLOBAL_RUNNING_R(),
-                     "Env Results/WinRate":self.win_rate()}
-        return finalDict
+            if (sum(self.tracking_r)> 0.0).all():
+                self.win_rate.append(1)
+            else:
+                self.win_rate.append(0)
+            self.GLOBAL_RUNNING_R.append(sum(self.tracking_r)[0])
+            finalDict = {"Env Results/TotalReward":self.GLOBAL_RUNNING_R(),
+                         "Env Results/WinRate":self.win_rate()}
+            return finalDict

@@ -63,10 +63,7 @@ class PPO(Method):
 
                 #Initializing Netowrk I/O
                 inputs = {"state":self.s}
-                out = self.Model(inputs)
-                self.a_prob = out["actor"]
-                self.v = out["critic"]
-                self.log_logits = out["log_logits"]
+                self.a_prob,self.v,self.log_logits = self.Model(self.s)
 
                 # Entropy
                 def _log(val):
@@ -114,7 +111,6 @@ class PPO(Method):
                     exit()
 
                 self.gradients = self.optimizer.get_gradients(loss, tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope))
-                print(tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope))
                 self.update_ops = self.optimizer.apply_gradients(zip(self.gradients, tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope)))
 
         #Creating variables for logging.
@@ -236,8 +232,6 @@ class PPO(Method):
         advantage : list
             List of advantages for particular actions.
         """
-        # print("Starting Processing Buffer\n")
-        # tracker.print_diff()
 
         split_loc = [i+1 for i, x in enumerate(self.buffer[traj][4]) if x]
 
@@ -252,4 +246,4 @@ class PPO(Method):
 
     @property
     def getVars(self):
-        return self.Model.getVars("PPO_Training")
+        return self.Model.getVars

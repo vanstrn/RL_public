@@ -1,4 +1,4 @@
-{ "RunName":"CTF_A3C_10Maps_3",
+{ "RunName":"CTF_A2C",
   "GPUCapacitty":0.95,
   "NetworkHPs":{"Actor LR": 1E-3,
                 "Critic LR": 1E-2,
@@ -16,8 +16,5 @@
   "LogFreq":20,
   "SaveFreq":5000,
 
-  "EnvConfig":"CTF_1v0_FO.json",
-  "NetworkConfig":"CTF_v4.json",
-  "NumberENV":4,
-  "Method":"methods.A3C.A3C"
+  "EnvConfig":"CTF_1v1_FO.json"
   }

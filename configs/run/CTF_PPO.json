@@ -1,4 +1,4 @@
-{ "RunName":"CTF_PPO_10Maps_5E1",
+{ "RunName":"CTF_PPO_4v4",
   "GPUCapacitty":0.95,
   "NetworkHPs":{"LR": 5E-1,
                 "Optimizer":"Adadelta",
@@ -18,7 +18,5 @@
   "LogFreq":20,
   "SaveFreq":5000,
 
-  "EnvConfig":"CTF_1v0_FO.json",
-  "NetworkConfig":"CTF_v4.json",
-  "Method":"methods.PPO.PPO"
+  "EnvConfig":"CTF_4v4.json"
   }

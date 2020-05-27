@@ -14,16 +14,22 @@ Logging Dictionary Starting and Ending.
 """
 
 def CreateEnvironment(envSettings,multiprocessing=1):
+    """A function that will create an environment based on a config file and wraps
+    the environment in the specified wrappers. """
+
+    #Creating the basic environment
     env = gym.make(envSettings["EnvName"], **envSettings["EnvParams"])
     if "Seed" in envSettings:
         env.seed(envSettings["Seed"])
+
+    #Applying wrappers. See example wrappers below.
     env = TrajectoryWrapper(env,multiprocessing=multiprocessing)
     env = ApplyWrappers(env,envSettings["Wrappers"])
     numberFeatures = env.observation_space.shape
     numberActions = env.action_space.n
     nTrajs = env.nTrajs
 
-    return env,list(numberFeatures), numberActions, nTrajs
+    return env, list(numberFeatures), numberActions, nTrajs
 
 def ApplyWrappers(env,wrapperList):
     for wrapperDict in wrapperList:
