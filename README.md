@@ -22,13 +22,12 @@ Main execution files are located in root directory.
 
 `python SingleExec_v2.py -f CTF_PPO.json`
 
-Explanation
-`SingleExec_v2.py` is the main execution for a single environment. (AsynchExec.py is an example asynchronous environment execution but is not ported over to this branch.)
-`-f CTF_PPO.json` specifies the config file to use (Located in configs/run/) This file specifies execution parameters and hyperparameters for the network.
+Explanation:
 
+- `SingleExec_v2.py` is the main execution for a single environment. (`AsynchExec.py` is an example asynchronous environment execution but is currently not ported over to this branch. You can check this out for details.)
+- `-f CTF_PPO.json` specifies the config file to use (Located in configs/run/) This file specifies execution parameters and hyperparameters for the network.
 
-This will run the an experiment based on the json file.
-It will create logs in `log/` and save trained parameters to `model/`
+This will run the an experiment based on the json file, creating logs in `log/` and saving trained parameters to `model/`
 
 To see results:
 1. run `tensorboard --logdir=logs` in a terminal.
@@ -41,18 +40,21 @@ To run different Environments change the EnvConfig in config file.
 ### Instalation
 1. Clone repository
 
-2. Follow instructions here to setup computer for tensorflow GPU.
+2. Follow instructions [here](https://www.tensorflow.org/install/gpu) to setup computer for tensorflow GPU.
 
 3. Install Conda and run `conda env create -f rl.yml` to create environment.
 
 
-###Notes:
-- Buffers for training:
+### Notes:
+#### Buffers for training:
 I attach a buffer to the Training Class. This is a personal preference as these can be changed based on the method.
 The data in the buffer is storred as the following:
 
-buffer = [[tratrajectory 1], [trajectory 2]...] --> This allows for multiple units to be controlled at the same time.
+`buffer = [[tratrajectory 1], [trajectory 2]...] --> This allows for multiple units to be controlled at the same time.`
+
 where each trajectory is:
+
+```
 traj # = [
   [s1,s2,..sn,s1,s2,..sn....]  --> List of states from multiple episodes in order
   [a1,a2,..an,a1,a2,..an....]  --> List of states from multiple episodes in order
@@ -61,13 +63,13 @@ traj # = [
   [0, 0,.. 1, 0, 0,.. 1.... ]   --> List defining ends of episodes.
   [....]                       --> Other lists of useful data (Usually in form of network outputs.)
   ]
+ ```
 
 
-- Environment setup.
+#### Environment setup.
 Environments sometimes can be run with standard `gym.make("env_name")` but usually have small differences. Therefore I use wrappers to standardize the environments to the format I want to use. With this I can also add logging functions to the environment.
 
 These work on the principle that the environment is a basic class and that you inherit from it and can add/modify functions. See environmrnts/Commmon.py for some basic wrapper examples.
 
-
-- Right now code works for Single Agent tasks.
+#### Right now code works for Single Agent tasks.
 Currently working on getting multiple agents to work on same network.
