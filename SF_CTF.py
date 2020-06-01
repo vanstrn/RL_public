@@ -106,12 +106,15 @@ with tf.device(args.processor):
 def M4E(y_true,y_pred):
     return K.mean(K.pow(y_pred-y_true,4))
 def CTF_Loss(y_true,y_pred):
-    weights = settings["channelWeights"]
-    nChannel = len(weights)
-    loss = 0
-    for i,weight in enumerate(weights):
-        loss += weight*K.mean(K.pow(y_pred[:,:,:,i]-y_true[:,:,:,i],4))
-    return
+    loss=0.0
+    for i,weight in enumerate(settings["channelWeights"]):
+            loss += weight*K.mean(K.pow(y_pred[:,:,:,i]-y_true[:,:,:,i],4))
+    return loss
+
+def ModifySample(grid):
+    #Removing the agent
+    grid[:,:,:,4] = np.where(grid[:,:,:,4]==1,5,grid[:,:,:,4])
+    return grid
 
 def GetAction(state):
     """
@@ -142,15 +145,14 @@ if args.data == "":
 
             s1,r,done,_ = env.step(a)
 
-            s.append(s0)
-            s_next.append(s1)
+            s.append(ModifySample(s0))
+            s_next.append(ModifySample(s1))
             r_store.append(r)
             label.append(1)
 
             s0 = s1
             if done:
                 break
-
 else:
     loadedData = np.load('./data/'+args.data)
     s = loadedData["s"]
@@ -332,16 +334,16 @@ if args.psi:
         SF5.load_weights(MODEL_PATH+"/model.h5")
 
     SF2.compile(optimizer=opt, loss="mse")
-    phi = SF3.predict(np.stack(s))
+    phi = SF3.predict(np.vstack(s))
     gamma=settings["Gamma"]
     for i in range(settings["PsiEpochs"]):
 
-        psi_next = SF2.predict(np.stack(s_next))
+        psi_next = SF2.predict(np.vstack(s_next))
 
         labels = phi+gamma*psi_next
         SF2.fit(
-            np.stack(s),
-            [np.stack(labels)],
+            np.vstack(s),
+            [np.vstack(labels)],
             epochs=settings["FitIterations"],
             batch_size=settings["BatchSize"],
             shuffle=True,
@@ -349,7 +351,7 @@ if args.psi:
             # callbacks=[ValueTest(i),SaveModel(i),SaveModel_Psi(i)])
 
 if args.analysis:
-    psi = SF2.predict(np.stack(s)) # [X,SF Dim]
+    psi = SF2.predict(np.vstack(s)) # [X,SF Dim]
 
     import pandas as pd
     from sklearn.decomposition import PCA

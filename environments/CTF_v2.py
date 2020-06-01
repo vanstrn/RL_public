@@ -8,6 +8,7 @@ from gym import spaces
 from random import randint
 import random
 import os
+from utils.utils import MovingAverage
 
 
 def use_this_policy(policyName=None):
@@ -27,6 +28,29 @@ def use_this_policy(policyName=None):
     elif policyName == "Random":
         return policy.Random()
 
+class SampleConstructor(gym.core.Wrapper):
+    """
+    Fully observable gridworld using a compact grid encoding
+    """
+
+    def __init__(self, env):
+        super().__init__(env)
+        self.agents_repr = 1
+        self.flags_repr = 1
+    def ConstructSample(self,position):
+        grid = self.get_obs_blue
+        if grid[position[0],position[1],3] == 1:
+            return None
+        #Moving the agent
+        loc = self.get_team_blue[0].get_loc()
+        grid[loc[0],loc[1],4]=0
+        grid[:,:,4] = np.where(grid[:,:,4]==5,self.agents_repr,grid[:,:,4])
+        grid[:,:,4] = np.where(grid[:,:,4]==-1,-self.agents_repr,grid[:,:,4])
+        grid[:,:,2] = np.where(grid[:,:,2]==1,self.flags_repr,grid[:,:,2])
+        grid[:,:,2] = np.where(grid[:,:,2]==-1,-self.flags_repr,grid[:,:,2])
+        grid[position[0],position[1],4] = self.agents_repr
+        return grid
+
 class UseMap(gym.core.Wrapper):
     """
     Fully observable gridworld using a compact grid encoding
@@ -41,7 +65,11 @@ class UseMap(gym.core.Wrapper):
         dir_path = os.path.dirname(os.path.realpath(__file__))
         self.map_list = [os.path.join(os.path.join(dir_path,mapPath), path) for path in os.listdir(os.path.join(dir_path,mapPath))]
         max_epsilon = 0.70;
-
+    def GetLabel(self):
+        if self.execute:
+            return(self.map_list.index(self.map))
+        else:
+            return 1
     def use_this_map(self,x):
         if self.first:
             self.first=False
@@ -129,6 +157,26 @@ class CTFCentering(gym.core.ObservationWrapper):
                 states[idx,:,:,:] = s0
 
         return states
+
+class CTFObsModifier(gym.core.ObservationWrapper):
+    """
+    Fully observable gridworld using a compact grid encoding
+    """
+
+    def __init__(self, env,agents=5,flags=4):
+        super().__init__(env)
+        nAgents = len(self.env.get_team_blue)
+        self.agents_repr = agents
+        self.flags_repr = flags
+
+    def observation(self, s0):
+        s0[:,:,:,4] = np.where(s0[:,:,:,4]==1,self.agents_repr,s0[:,:,:,4])
+        s0[:,:,:,4] = np.where(s0[:,:,:,4]==-1,-self.agents_repr,s0[:,:,:,4])
+        s0[:,:,:,2] = np.where(s0[:,:,:,2]==1,self.flags_repr,s0[:,:,:,2])
+        s0[:,:,:,2] = np.where(s0[:,:,:,2]==-1,-self.flags_repr,s0[:,:,:,2])
+        return s0
+
+
 class StateStacking(gym.core.ObservationWrapper):
     """
     Fully observable gridworld using a compact grid encoding
@@ -167,8 +215,10 @@ class Reset(gym.core.Wrapper):
         self.config_path = config_path
         self.policy_red = policy_red
     def reset(self, **kwargs):
-        action = randint(0,self.action_space.n)
-        return self.env.reset(config_path=self.config_path, policy_red=use_this_policy(self.policy_red),**kwargs)
+        if self.config_path is None:
+            return self.env.reset(policy_red=use_this_policy(self.policy_red),**kwargs)
+        else:
+            return self.env.reset(config_path=self.config_path, policy_red=use_this_policy(self.policy_red),**kwargs)
 
 
 class RewardShape(gym.core.RewardWrapper):
@@ -182,9 +232,55 @@ class RewardShape(gym.core.RewardWrapper):
         return self.env.reset(**kwargs)
 
     def reward(self, reward_raw):
+        # reward for episode terminating without winner.
+        if (self.run_step > 150) and (self.red_win == self.blue_win):
+            reward_raw = -0.5
+        elif self.blue_win:
+            reward_raw = 1.0
+        elif self.red_win:
+            reward_raw = -1.0
+        #Somewhat removing time dependence in environment.
         if reward_raw == -0.001:
             reward_raw =0.0
+
         reward = np.ones([self.nAgents])*reward_raw
 
-        reward = reward.flatten() #* (1-np.array(self.was_done, dtype=int))
-        return reward
+        return reward.flatten() #* (1-np.array(self.was_done, dtype=int))
+
+
+
+class RewardLogging(gym.core.Wrapper):
+    def __init__(self,env, **kwargs):
+        super().__init__(env)
+        if self.multiprocessing == 1:
+            self.GLOBAL_RUNNING_R = MovingAverage(400)
+            self.win_rate = MovingAverage(400)
+        else:
+            if 'GLOBAL_RUNNING_R' not in globals():
+                global GLOBAL_RUNNING_R
+                GLOBAL_RUNNING_R = MovingAverage(400)
+            self.GLOBAL_RUNNING_R = GLOBAL_RUNNING_R
+            self.win_rate = MovingAverage(400)
+
+    def reset(self, **kwargs):
+        self.tracking_r = []
+        return self.env.reset(**kwargs)
+
+    def step(self, action):
+        observation, reward, done, info = self.env.step(action=action)
+        self.tracking_r.append(reward)
+        return observation, reward, done, info
+
+    def getLogging(self):
+        """
+        Processes the tracked data of the environment.
+        In this case it sums the reward over the entire episode.
+        """
+        if sum(self.tracking_r)> 0.0:
+            self.win_rate.append(1)
+        else:
+            self.win_rate.append(0)
+        self.GLOBAL_RUNNING_R.append(sum(self.tracking_r))
+        finalDict = {"Env Results/TotalReward":self.GLOBAL_RUNNING_R(),
+                     "Env Results/WinRate":self.win_rate()}
+        return finalDict

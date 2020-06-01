@@ -5,10 +5,11 @@ Sets up the basic Network Class which lays out all required functions of a Neura
 import tensorflow as tf
 import tensorflow.keras.layers as KL
 import json
-# from .layers.non_local import Non_local_nn
+
+from .common import *
 
 class HierarchicalNetwork(tf.keras.Model):
-    def __init__(self, configFile, actionSize, netConfigOverride={}, scope=None):
+    def __init__(self, configFile, actionSize, netConfigOverride={}, scope=None,debug=True):
         """
         Reads a network config file and processes that into a netowrk with appropriate naming structure.
 
@@ -29,11 +30,26 @@ class HierarchicalNetwork(tf.keras.Model):
         -------
         N/A
         """
+        self.debug =debug
         self.actionSize = actionSize
 
+        #Checking if JSON file is fully defined path or just a file name without path.
+        #If just a name, then it will search in default directory.
+        if "/" in configFile:
+            if ".json" in configFile:
+                pass
+            else:
+                configFile = configFile + ".json"
+        else:
+            for (dirpath, dirnames, filenames) in os.walk("configs/network"):
+                for filename in filenames:
+                    if configFile in filename:
+                        configFile = os.path.join(dirpath,filename)
+                        break
+            # raise
         with open(configFile) as json_file:
             config = json.load(json_file)
-        config.update(netConfigOverride)
+        config = UpdateNestedDictionary(config,netConfigOverride)
         if scope is None:
             namespace = config["NetworkName"]
         else:
@@ -41,31 +57,53 @@ class HierarchicalNetwork(tf.keras.Model):
         super(HierarchicalNetwork,self).__init__(name=namespace)
         # Reading in the configFile
 
+        self.networkOutputs = config["NetworkOutputs"]
+        self.networkVariableGroups = config["NetworkVariableGroups"]
+
         self.scope=namespace
+
+        #Creating Recursion sweep to go through dictionaries and lists in the networkConfig to insert user defined values.
+        if "DefaultParams" in config.keys():
+            config["NetworkStructure"] = UpdateStringValues(config["NetworkStructure"],config["DefaultParams"])
+        config["NetworkStructure"] = UpdateStringValues(config["NetworkStructure"],{"actionSize":self.actionSize})
+
 
         self.layerList = {}
         self.layerInputs = {}
-            #Creating all of the layers
+        self.layerGroupings = {}
+        #Creating all of the layers
         for groupName,groupDict in config["NetworkStructure"].items():
             if groupName == "SubNetworkStructure":
-                for option in range(config["NumOptions"]):
+                for option in range(config["DefaultParams"]["NumOptions"]):
+                    self.layerGroupings["SubNetworkStructure"+str(option)] = []
                     for sectionName,layerList in groupDict.items():
                         for layerDict in layerList:
-                            self.layerList[layerDict["layerName"]+"_option"+str(option)] = self.GetLayer(layerDict)
-                            if "Sub" in layerDict["layerInput"]:
-                                self.layerInputs[layerDict["layerName"]+"_option"+str(option)] = layerDict["layerInput"]+"_option"+str(option)
+                            dict = layerDict.copy()
+                            dict["layerName"]= dict["layerName"]+"_option"+str(option)
+                            if self.debug: print("Creating Layer: ", dict["layerName"])
+                            layer = GetLayer(dict)
+                            self.layerList[dict["layerName"]] = layer
+                            self.layerGroupings["SubNetworkStructure"+str(option)].append(layer)
+
+                            if self.debug: print("  Layer Output: ", layerDict["layerInput"])
+                            if "Sub" in dict["layerInput"]:
+                                self.layerInputs[dict["layerName"]] = dict["layerInput"]+"_option"+str(option)
                             else:
-                                self.layerInputs[layerDict["layerName"]+"_option"+str(option)] = layerDict["layerInput"]
+                                self.layerInputs[dict["layerName"]] = dict["layerInput"]
+                                # self.layerInputs[layerDict["layerName"]+"_option"+str(option)] = layerDict["layerInput"]
 
             else:
+                self.layerGroupings[groupName]=[]
                 for sectionName,layerList in groupDict.items():
                     for layerDict in layerList:
-                        self.layerList[layerDict["layerName"]] = self.GetLayer(layerDict)
+                        layer = GetLayer(layerDict)
+                        self.layerList[layerDict["layerName"]] = layer
                         self.layerInputs[layerDict["layerName"]] = layerDict["layerInput"]
+                        self.layerGroupings[groupName].append(layer)
 
         self.networkVariables=config["NetworkVariableGroups"]
         self.networkOutputs = config["NetworkOutputs"]
-        self.numOptions = config["NumOptions"]
+        self.numOptions = config["DefaultParams"]["NumOptions"]
 
     def call(self,inputs):
         """Defines how the layers are called with a forward pass of the network.
@@ -92,55 +130,12 @@ class HierarchicalNetwork(tf.keras.Model):
         results = {}
         for outputName,layerOutput in self.networkOutputs.items():
             if "sub" in outputName:
-                results[outputName] =[]
+                results[outputName] = []
                 for option in range(self.numOptions):
                     results[outputName].append(self.layerOutputs[layerOutput+"_option"+str(option)])
             else:
                 results[outputName] = self.layerOutputs[layerOutput]
         return results
-
-    def GetLayer(self, dict):
-        """Based on a dictionary input the function returns the appropriate layer for the NN."""
-        if "ReuseLayer" in dict:
-            layer = self.layerList[dict["ReuseLayer"]]
-        else:
-            if dict["layerType"] == "Dense":
-                if dict["outputSize"] == "actionSize":
-                    output = self.actionSize
-                else:
-                    output = dict["outputSize"]
-                layer = KL.Dense(   output,
-                                    activation=dict["activation"],
-                                    # kernel_initializer=dict["kernel_initializer"],  # weights
-                                    # bias_initializer=dict["bias_initializer"],  # biases
-                                    name=dict["layerName"])
-
-            elif dict["layerType"] == "Conv2D":
-                layer = KL.Conv2D( filters=dict["filters"],
-                                kernel_size=dict["kernel_size"],
-                                strides=dict["strides"],
-                                activation=dict["activation"],
-                                name=dict["layerName"])
-            elif dict["layerType"] == "SeparableConv":
-                layer = KL.SeparableConv2D( filters=dict["filters"],
-                                            kernel_size=dict["kernel_size"],
-                                            strides=dict["strides"],
-                                            padding=dict["padding"],
-                                            depth_multiplier=dict["depth_multiplier"],
-                                            name=dict["layerName"])
-
-            elif dict["layerType"] == "Flatten":
-                layer= KL.Flatten()
-            elif dict["layerType"] == "NonLocalNN":
-                layer= Non_local_nn(channels=dict["channels"])
-            elif dict["layerType"] == "LogSoftMax":
-                layer = tf.nn.log_softmax
-            elif dict["layerType"] == "SoftMax":
-                layer = KL.Activation('softmax')
-            elif dict["layerType"] == "Concatenate":
-                layer = KL.Concatenate(axis=dict["axis"])
-
-        return layer
 
     def getVars(self,scope=None):
         if scope is None:
@@ -148,11 +143,27 @@ class HierarchicalNetwork(tf.keras.Model):
         else:
             return tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=scope + "/" + self.scope)
 
-    def getVariables(self,name,scope):
+    def getHierarchyVariables(self):
         vars = []
-        for section in self.networkVariables[name]:
-            vars.append(tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=scope + "/" + self.scope + "/" + section))
+        for group in self.networkVariableGroups["Hierarchy"]:
+            for layer in self.layerGroupings[group]:
+                if hasattr(layer, 'variables'):
+                    vars.extend(layer.variables)
         return vars
+
+    def getSubpolicyVariables(self,option):
+        vars = []
+        for group in self.networkVariableGroups["SubPolicy"]:
+            if group == "SubNetworkStructure":
+                for layer in self.layerGroupings[group+str(option)]:
+                    if hasattr(layer, 'variables'):
+                        vars.extend(layer.variables)
+            else:
+                for layer in self.layerGroupings[group]:
+                    if hasattr(layer, 'variables'):
+                        vars.extend(layer.variables)
+        return vars
+
 
 if __name__ == "__main__":
     import numpy as np

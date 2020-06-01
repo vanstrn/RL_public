@@ -11,12 +11,12 @@ from .AdvantageEstimator import gae
 import tensorflow as tf
 import numpy as np
 from utils.utils import MovingAverage
-
+import random
 
 def _log(val):
     return tf.log(tf.clip_by_value(val, 1e-10, 10.0))
 
-class PPO_Hierarchy(Method):
+class OptionCritic(Method):
 
     def __init__(self,Model,sess,stateShape,actionSize,HPs,nTrajs=1,scope="PPO_Training",subReward=False):
         """
@@ -47,11 +47,11 @@ class PPO_Hierarchy(Method):
         self.actionSize = actionSize
         self.sess=sess
         self.Model = Model
+        self.method = "Confidence" #Create input for this.
         self.HPs=HPs
         self.subReward = subReward
         self.UpdateSubpolicies = True
         self.nTrajs = nTrajs
-        self.method = self.HPs["Method"]
 
         #Creating two buffers to separate information between the different levels of the network.
         if self.subReward:
@@ -68,35 +68,45 @@ class PPO_Hierarchy(Method):
                 self.a_his = tf.placeholder(tf.int32, [None, ], 'A')
                 self.td_target_ = tf.placeholder(tf.float32, [None], 'Vtarget')
                 self.advantage_ = tf.placeholder(shape=[None], dtype=tf.float32, name='adv_hold')
+                self.options_ = tf.placeholder(shape=[None], dtype=tf.int32, name="options")
 
                 #Initializing Netowrk I/O
                 inputs = {"state":self.s}
                 out = self.Model(inputs)
-                self.a_prob = out["metaActor"]
-                self.v = out["metaCritic"]
-                self.log_logits = out["metaLogLogits"]
+                self.term = out["mertaTermination"]
+                self.q = out["metaCritic"]
 
                 self.sub_a_prob = out["subActor"]
                 self.sub_log_logits = out["subLogLogits"]
-                self.sub_v = out["subCritic"]
 
                 self.nPolicies = len(self.sub_a_prob)
 
-                #Placeholder for the Hierarchical Policy
-                self.old_log_logits_ = tf.placeholder(shape=[None, self.nPolicies], dtype=tf.float32, name='old_logit_hold')
                 #Placeholder for the Sub-Policies
                 self.old_log_logits_sub_ = tf.placeholder(shape=[None, actionSize], dtype=tf.float32, name='old_logit_sub_hold')
 
                 # Creating the Loss and update calls for the Hierarchical policy
-                self.hierarchicalLoss = self.CreateLossPPO(self.a_prob,self.td_target_,self.v,self.a_his,self.log_logits,self.old_log_logits_,self.advantage_,self.nPolicies)
+                self.disconnected_q_vals = tf.stop_gradient(self.q)
+                self.deliberation_costs = 0
+                self.term_op = tf.gather_nd(params=self.term, indices=self.options_)
+                self.disconnected_q_vals_option = tf.gather_nd(params=self.disconnected_q_vals, indices=self.options_)
+                self.q_vals_option = tf.gather_nd(params=self.q, indices=self.options_)
+
+
+                loss_termination = tf.reduce_mean(self.term_op * ((self.disconnected_q_vals_option - disconnected_value) + self.deliberation_costs) )
+
+                loss_value = tf.reduce_mean(tf.square(td_target_ - self.q_vals_option), name='critic_loss')
+
+                self.hierarchical loss = loss_value+loss_termination
                 variables = self.Model.getHierarchyVariables()
                 self.hierarchyUpdater = self.CreateUpdater(self.hierarchicalLoss,variables)
 
                 # Creating the Losses updaters for the Sub-policies.
                 self.subpolicyLoss = []
                 self.subpolicyUpdater = []
+                #Stop_gradient for the value function
+
                 for i in range(self.nPolicies):
-                    loss = self.CreateLossPPO(self.sub_a_prob[i],self.td_target_,self.sub_v[i],self.a_his,self.sub_log_logits[i],self.old_log_logits_sub_,self.advantage_,self.actionSize)
+                    loss = self.CreateLossSubpolicy(self.sub_a_prob[i],self.td_target_,self.disconnected_q_vals,self.a_his,self.sub_log_logits[i],self.old_log_logits_sub_,self.advantage_,self.actionSize)
                     self.subpolicyLoss.append(loss)
                     variables = self.Model.getSubpolicyVariables(i)
                     self.subpolicyUpdater.append(self.CreateUpdater(loss,variables))
@@ -109,13 +119,12 @@ class PPO_Hierarchy(Method):
         gradients = optimizer.get_gradients(loss,variables)
         return optimizer.apply_gradients(zip(gradients,variables))
 
-    def CreateLossPPO(self,a_prob,td_target_,v,a_his,log_logits,old_log_logits_,advantage_,actionSize):
+    def CreateLossSubpolicy(self,a_prob,td_target_,v,a_his,log_logits,old_log_logits_,advantage_,actionSize):
         # Entropy
         entropy = -tf.reduce_mean(a_prob * _log(a_prob), name='entropy')
 
         # Critic Loss
         td_error = td_target_ - v
-        critic_loss = tf.reduce_mean(tf.square(td_error), name='critic_loss')
 
         # Actor Loss
         action_OH = tf.one_hot(a_his, actionSize, dtype=tf.float32)
@@ -129,28 +138,9 @@ class PPO_Hierarchy(Method):
         surrogate_loss = tf.minimum(surrogate, clipped_surrogate, name='surrogate_loss')
         actor_loss = -tf.reduce_mean(surrogate_loss, name='actor_loss')
 
-        actor_loss = actor_loss - entropy * self.HPs["EntropyBeta"]
-        loss = actor_loss + critic_loss * self.HPs["CriticBeta"]
+        loss = actor_loss - entropy * self.HPs["EntropyBeta"]
         return loss
 
-    def InitiateEpisode(self):
-        if self.method == "Greedy":
-            pass
-        elif self.method == "Fixed Step":
-            self.counter = 1
-            self.nStep = 4
-
-        elif self.method == "Constant":
-            pass
-
-        elif self.method == "Confidence":
-            self.pastActions = [None]*self.nTrajs
-
-        elif self.method == "Probabilistic Confidence":
-            pass
-
-        else:
-            pass
     def GetAction(self, state, step,episode=0):
         """
         Method to run data through hierarchical network
@@ -174,60 +164,33 @@ class PPO_Hierarchy(Method):
         """
         #Determine number of steps and whether to initiate confidence based on the length of the Buffer.
         if step == 0:
-            self.InitiateEpisode()
+            self.pastActions = [None]*self.nTrajs
 
         # Run the Meta and Sub-policy Networks
-        targets = [self.a_prob,self.log_logits,self.v]+self.sub_a_prob+self.sub_log_logits+self.sub_v
+        targets = [self.q,self.term]+self.sub_a_prob+self.sub_log_logits
         res = self.sess.run(targets, {self.s: state})
-        LL_probs=res[0]
-        HL_log_logits =res[1]
-        HL_v = res[2]
-        sub_probs = res[3:3+self.nPolicies]
-        sub_log_logits = res[3+self.nPolicies:3+2*self.nPolicies]
-        sub_v = res[3+2*self.nPolicies:]
+        q=res[0]
+        terminations =res[1]
+        sub_probs = res[2:3+self.nPolicies]
+        sub_log_logits = res[2+self.nPolicies:2+2*self.nPolicies]
 
-        if self.method == "Greedy":
-            HL_actions = np.array([np.random.choice(LL_probs.shape[1], p=prob / sum(prob)) for prob in LL_probs])
-            flag=[True]*state.shape[0]
-        elif self.method == "Fixed Step":
-            if self.counter == self.nStep:
-                #Reseting Step counter and selecting New option
-                self.counter = 1
-            if self.counter == 1:
-                HL_actions = np.array([np.random.choice(LL_probs.shape[1], p=prob / sum(prob)) for prob in LL_probs])
-                self.traj_action = HL_actions
-                flag=[True]*state.shape[0]
+        HL_actions = []
+        for i,term in enumerate(terminations):
+            if random.uniform(0,1) > term[self.pastActions[i]] or step==0:
+                action = np.argmax(q[i])
+                HL_actions.append(action)
+                self.pastActions[i] = action
+                flag.append(True)
             else:
-                HL_actions = self.traj_action
-                flag=[False]*state.shape[0]
-            self.counter +=1
-
-        elif self.method == "Confidence":
-            flag = []
-            HL_actions = []
-            confids = -np.mean(LL_probs * np.log(LL_probs), axis=1)
-            for i,confid in enumerate(confids):
-                if confid < 0.1 or step==0:
-                    action = np.random.choice(LL_probs.shape[1], p=LL_probs[i] / sum(LL_probs[i]))
-                    HL_actions.append(action)
-                    self.pastActions[i] = action
-                    flag.append(True)
-                else:
-                    HL_actions.append(self.pastActions[i])
-                    flag.append(True)
-            self.traj_action = HL_actions
-
-        elif self.method == "Probabilistic Confidence":
-            pass
-        else:
-            pass
+                HL_actions.append(self.pastActions[i])
+                flag.append(True)
+        self.traj_action = HL_actions
 
         # Run the Subpolicy Network
         actions = np.array([np.random.choice(self.actionSize, p=sub_probs[mod][idx] / sum(sub_probs[mod][idx])) for idx, mod in enumerate(HL_actions)])
-        critics = [sub_v[mod][idx] for idx, mod in enumerate(HL_actions)]
         logits = [sub_log_logits[mod][idx] for idx, mod in enumerate(HL_actions)]
 
-        return actions, [HL_actions, HL_log_logits, HL_v, flag, critics, logits]
+        return actions, [HL_actions,logits]
 
     def Update(self,HPs):
         """
@@ -300,10 +263,7 @@ class PPO_Hierarchy(Method):
     def GetStatistics(self):
         stats={}
         for i in range(self.nPolicies):
-            length = len(self.SubpolicyDistribution.tolist())
-            if length == 0:
-                length=1
-            stats["Subpolicy Use/"+str(i)] = self.SubpolicyDistribution.tolist().count(i)/length
+            stats["Subpolicy Use/"+str(i)] = self.SubpolicyDistribution.tolist().count(i)/len(self.SubpolicyDistribution.tolist())
         return stats
 
     def ProcessBuffer(self,HPs,traj):

@@ -1,41 +1,39 @@
 { "NetworkName" : "DefaultCtF",
   "Description":"Hierarchical Network where the feature encoder is shared by all sub-networks. Uses shared network structure to ",
-  "NetworkBuilder":"networkHierarchy",
-  "NumOptions":3,
+  "DefaultParams":{"NumOptions":3},
   "NetworkStructure":{
     "SharedNetworkStructure":{
       "FeatureEncoder":[
-      { "layerType":"SeparableConv",
-        "layerName":"SeparableConv",
-        "layerInput":"input.state",
-        "filters":32,
-        "kernel_size":4,
-        "strides":2,
-        "padding":"valid",
-        "depth_multiplier":4,
-        "activation":"relu"},
       { "layerType":"Conv2D",
         "layerName":"Conv2D_1",
-        "layerInput":"SeparableConv",
-        "filters":64,
-        "kernel_size":3,
-        "strides":2,
-        "activation":"relu"},
+        "layerInput":"input.state",
+        "Parameters":{"filters":64,
+                      "kernel_size":6,
+                      "strides":2,
+                      "activation":"relu"}},
       { "layerType":"Conv2D",
         "layerName":"Conv2D_2",
         "layerInput":"Conv2D_1",
-        "filters":64,
-        "kernel_size":3,
-        "strides":2,
-        "activation":"relu"},
+        "Parameters":{"filters":128,
+                      "kernel_size":6,
+                      "strides":1,
+                      "activation":"relu"}},
+      { "layerType":"Conv2D",
+        "layerName":"Conv2D_3",
+        "layerInput":"Conv2D_2",
+        "Parameters":{"filters":256,
+                      "kernel_size":3,
+                      "strides":1,
+                      "activation":"relu"}},
       { "layerType":"Flatten",
         "layerName":"Flatten",
-        "layerInput":"Conv2D_2"},
+        "layerInput":"Conv2D_3",
+        "Parameters":{}},
       { "layerType":"Dense",
         "layerName":"Dense1",
         "layerInput":"Flatten",
-        "units":128,
-        "activation":null}
+        "Parameters":{"units":512,
+                      "activation":null}}
       ]
     },
 
@@ -44,21 +42,23 @@
       { "layerType":"Dense",
         "layerName":"Meta_Actor_FC1",
         "layerInput":"Dense1",
-        "units":"actionSize",
-        "activation":null},
+        "Parameters":{"units":"NumOptions",
+        "activation":null}},
       { "layerType":"SoftMax",
         "layerName":"Meta_Actor_logits",
-        "layerInput":"Meta_Actor_FC1"},
+        "layerInput":"Meta_Actor_FC1",
+        "Parameters":{}},
       { "layerType":"LogSoftMax",
         "layerName":"Meta_Actor_LogLogits",
-        "layerInput":"Meta_Actor_logits"}
+        "layerInput":"Meta_Actor_logits",
+        "Parameters":{}}
     ],
     "Critic":[
       { "layerType":"Dense",
         "layerName":"MetaCritic",
         "layerInput":"Dense1",
-        "units":1,
-        "activation":null}
+        "Parameters":{"units":1,
+        "activation":null}}
     ]
   },
 
@@ -68,22 +68,24 @@
       { "layerType":"Dense",
         "layerName":"Sub_Actor_FC1",
         "layerInput":"Dense1",
-        "units":"actionSize",
-        "activation":null},
+        "Parameters":{"units":"actionSize",
+        "activation":null}},
       { "layerType":"SoftMax",
         "layerName":"Sub_Actor_logits",
-        "layerInput":"Sub_Actor_FC1"},
+        "layerInput":"Sub_Actor_FC1",
+        "Parameters":{}},
       { "layerType":"LogSoftMax",
         "layerName":"Sub_Actor_LogLogits",
-        "layerInput":"Sub_Actor_logits"}
+        "layerInput":"Sub_Actor_logits",
+        "Parameters":{}}
     ],
 
     "Critic":[
       { "layerType":"Dense",
         "layerName":"SubCritic",
         "layerInput":"Dense1",
-        "units":1,
-        "activation":null}
+        "Parameters":{"units":1,
+        "activation":null}}
     ]
   }
   },
@@ -95,10 +97,10 @@
     "subLogLogits":"Sub_Actor_LogLogits",
     "subCritic":"SubCritic"
   },
+
   "NetworkVariableGroups":{
-    "Actor":["Actor","Shared"],
-    "Critic":["Critic","Shared"]
-  },
-  "TestInput":{"state":[null,39,39,6]}
+    "Hierarchy":["SharedNetworkStructure","MetaNetworkStructure"],
+    "SubPolicy":["SharedNetworkStructure","SubNetworkStructure"]
+  }
 
   }

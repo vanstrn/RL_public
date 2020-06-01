@@ -106,12 +106,10 @@ with tf.device(args.processor):
 def M4E(y_true,y_pred):
     return K.mean(K.pow(y_pred-y_true,4))
 def CTF_Loss(y_true,y_pred):
-    weights = settings["channelWeights"]
-    nChannel = len(weights)
-    loss = 0
-    for i,weight in enumerate(weights):
-        loss += weight*K.mean(K.pow(y_pred[:,:,:,i]-y_true[:,:,:,i],4))
-    return
+    loss=0.0
+    for i,weight in enumerate(settings["channelWeights"]):
+            loss += weight*K.mean(K.pow(y_pred[:,:,:,i]-y_true[:,:,:,i],4))
+    return loss
 
 def OneHot(a,length=nActions):
     aOH = [0]*length
@@ -143,7 +141,6 @@ if args.data == "":
         s0 = env.reset()
 
         for j in range(settings["MAX_EP_STEPS"]+1):
-
             a = GetAction(state=s0)
 
             s1,r,done,_ = env.step(a)
@@ -152,7 +149,8 @@ if args.data == "":
             s_next.append(s1)
             r_store.append(r)
             action.append(OneHot(a))
-            label.append(1)
+            label.append(env.GetLabel())
+            # label.append(i)
 
             s0 = s1
             if done:
@@ -167,26 +165,6 @@ else:
     if "label" in loadedData:
         label = loadedData["label"]
 
-def PlotOccupancy(states,title=""):
-    #Taking average over the list of states.
-    state = np.vstack(states)
-    occupancy = np.amax(state,axis=0)
-    #plotting them
-    fig=plt.figure(figsize=(5.5, 5.5))
-    fig.add_subplot(1,1,1)
-    plt.title("State Occupancy")
-    imgplot = plt.imshow(occupancy[:,:,0], vmin=0,vmax=10)
-    plt.savefig(LOG_PATH+"/StateOccupancy_"+title+".png")
-    plt.close()
-
-def ConstructSample(env,position):
-    grid = env.get_obs_blue
-    #Removing the agent
-    grid[:,:,4] = np.where(grid[:,:,4]==1,0,grid[:,:,4])
-    if grid[position[0],position[1],3] == 1:
-        return None
-    grid[position[0],position[1],4] = 1
-    return grid
 #Defining Saving Functions for the models
 class SaveModel(tf.keras.callbacks.Callback):
     def __init__(self,superEpochs=None):
@@ -224,14 +202,14 @@ class ValueTest(tf.keras.callbacks.Callback):
             env.reset()
             rewardMap = np.zeros((dFeatures[0],dFeatures[1]))
             for i,j in itertools.product(range(dFeatures[0]),range(dFeatures[1])):
-                grid = ConstructSample(env,[i,j])
+                grid = env.ConstructSample([i,j])
                 if grid is None: continue
                 [value] = SF4.predict(np.expand_dims(grid,0))
                 rewardMap[i,j] = value
             fig=plt.figure(figsize=(5.5, 8))
             fig.add_subplot(2,1,1)
             plt.title("State")
-            imgplot = plt.imshow(env.grid.encode()[:,:,0], vmin=0, vmax=10)
+            imgplot = plt.imshow(env.get_obs_blue[:,:,2], vmin=-1, vmax=1)
             fig.add_subplot(2,1,2)
             plt.title("Value Prediction")
             imgplot = plt.imshow(rewardMap)
@@ -253,25 +231,25 @@ class ImageGenerator(tf.keras.callbacks.Callback):
                 imgplot = plt.imshow(state[0,:,:,1], vmin=-2, vmax=2)
                 fig.add_subplot(2,4,2)
                 plt.title("State Flags")
-                imgplot = plt.imshow(state[0,:,:,2], vmin=-2, vmax=2)
+                imgplot = plt.imshow(state[0,:,:,2], vmin=-10, vmax=10)
                 fig.add_subplot(2,4,3)
                 plt.title("State Obstacles")
                 imgplot = plt.imshow(state[0,:,:,3], vmin=-2, vmax=2)
                 fig.add_subplot(2,4,4)
                 plt.title("State Agents")
-                imgplot = plt.imshow(state[0,:,:,4],vmin=-2, vmax=2)
+                imgplot = plt.imshow(state[0,:,:,4],vmin=-10, vmax=10)
                 fig.add_subplot(2,4,5)
-                plt.title("Predicted Next State")
+                plt.title("Predicted Next State Territory")
                 imgplot = plt.imshow(state_new[0,:,:,1],vmin=-2, vmax=2)
                 fig.add_subplot(2,4,6)
-                plt.title("Predicted Next State")
-                imgplot = plt.imshow(state_new[0,:,:,2],vmin=-2, vmax=2)
+                plt.title("Predicted Next State Flags")
+                imgplot = plt.imshow(state_new[0,:,:,2],vmin=-10, vmax=10)
                 fig.add_subplot(2,4,7)
-                plt.title("Predicted Next State")
+                plt.title("Predicted Next State Obstacles")
                 imgplot = plt.imshow(state_new[0,:,:,3],vmin=-2, vmax=2)
                 fig.add_subplot(2,4,8)
-                plt.title("Predicted Next State")
-                imgplot = plt.imshow(state_new[0,:,:,4],vmin=-2, vmax=2)
+                plt.title("Predicted Next State Agents")
+                imgplot = plt.imshow(state_new[0,:,:,4],vmin=-10, vmax=10)
                 if i == 0:
                     plt.savefig(LOG_PATH+"/StatePredEpoch"+str(epoch)+".png")
                 else:
@@ -285,14 +263,14 @@ class RewardTest(tf.keras.callbacks.Callback):
             env.reset()
             rewardMap = np.zeros((dFeatures[0],dFeatures[1]))
             for i,j in itertools.product(range(dFeatures[0]),range(dFeatures[1])):
-                grid = ConstructSample(env,[i,j])
+                grid = env.ConstructSample([i,j])
                 if grid is None: continue
                 [state_new,reward] = SF1.predict([np.stack([[0,0,0,0,0]]),np.expand_dims(grid,0)])
                 rewardMap[i,j] = reward
             fig=plt.figure(figsize=(5.5, 8))
             fig.add_subplot(2,1,1)
             plt.title("State")
-            imgplot = plt.imshow(env.get_obs_blue[:,:,2], vmin=0, vmax=10)
+            imgplot = plt.imshow(env.get_obs_blue[:,:,2], vmin=-1, vmax=1)
             fig.add_subplot(2,1,2)
             plt.title("Reward Prediction Epoch "+str(epoch))
             imgplot = plt.imshow(rewardMap)
@@ -321,7 +299,6 @@ elif settings["Optimizer"] == "Amsgrad":
     opt = tf.keras.optimizers.Adam(settings["LearningRate"],amsgrad=True)
 
 if args.phi:
-    PlotOccupancy(s,title="TrainingOccupancy")
     SF1.compile(optimizer=opt, loss=[M4E,"mse"], loss_weights = [1.0,1.0])
     SF1.fit(
         [np.stack(action),np.vstack(s)],
@@ -345,7 +322,7 @@ if args.psi:
     gamma=settings["Gamma"]
     for i in range(settings["PsiEpochs"]):
 
-        psi_next = SF2.predict([np.stack(s_next)])
+        psi_next = SF2.predict([np.vstack(s_next)])
 
         labels = phi+gamma*psi_next
         SF2.fit(
@@ -354,8 +331,8 @@ if args.psi:
             epochs=settings["FitIterations"],
             batch_size=settings["BatchSize"],
             shuffle=True,
-            callbacks=[SaveModel(i),SaveModel_Psi(i)])
-            # callbacks=[ValueTest(i),SaveModel(i),SaveModel_Psi(i)])
+            # callbacks=[SaveModel(i),SaveModel_Psi(i)])
+            callbacks=[ValueTest(i),SaveModel(i),SaveModel_Psi(i)])
 
 if args.analysis:
     psi = SF2.predict([np.vstack(s)]) # [X,SF Dim]
@@ -369,8 +346,9 @@ if args.analysis:
 
 
     # mnist = fetch_mldata("MNIST original")
-    X = psi_uniform
+    X = psi
     y = np.stack(label)
+    numLabels = len(set(label))
 
     feat_cols = [ 'pixel'+str(i) for i in range(X.shape[1]) ]
     df = pd.DataFrame(X,columns=feat_cols)
@@ -392,17 +370,18 @@ if args.analysis:
     sns.scatterplot(
         x="pca-one", y="pca-two",
         hue="y",
-        palette=sns.color_palette("hls", 1),
+        palette=sns.color_palette("hls", numLabels),
         data=df.loc[rndperm,:],
         legend="full",
         alpha=0.3
     )
+    # plt.show()
     plt.savefig(LOG_PATH+"/PCA_2D_1.png")
     plt.close()
     sns.scatterplot(
         x="pca-two", y="pca-three",
         hue="y",
-        palette=sns.color_palette("hls", 1),
+        palette=sns.color_palette("hls", numLabels),
         data=df.loc[rndperm,:],
         legend="full",
         alpha=0.3
@@ -423,5 +402,5 @@ if args.analysis:
     ax.set_ylabel('pca-two')
     ax.set_zlabel('pca-three')
 
-
-    plt.savefig(LOG_PATH+"/PCA_3D.png")
+    plt.show()
+    # plt.savefig(LOG_PATH+"/PCA_3D.png")
