@@ -20,25 +20,25 @@ def GetFileContents(path):
 
     return dataDict
 
-def GetAverageSTD(dicts):
+def GetAverageSTD(dicts,metric):
     length=0
     #Finding the longest array
     for dict in dicts:
-        if len(dict["TotalReward"]["data"])>length:
-            length = len(dict["TotalReward"]["data"])
+        if len(dict[metric]["data"])>length:
+            length = len(dict[metric]["data"])
     data = []
     for dict in dicts:
-        if len(dict["TotalReward"]["data"])==length:
-            data.append(dict["TotalReward"]["data"])
+        if len(dict[metric]["data"])==length:
+            data.append(dict[metric]["data"])
         else:
-            for i in range(length-len(dict["TotalReward"]["data"])):
-                dict["TotalReward"]["data"].append(np.nan)
+            for i in range(length-len(dict[metric]["data"])):
+                dict[metric]["data"].append(np.nan)
     average = np.nanmean(np.stack(data),axis=0)
     std = 1.96*np.nanstd(np.stack(data),axis=0)/np.sqrt(len(dicts))
     return average,std
 
 
-def PlotTensorflowData(dataName,dataSeparations,path="./logs",dataLabels=None,title="Effect of Sampling Methods"):
+def PlotTensorflowData(dataName,dataSeparations,metric="TotalReward",path="./logs",dataLabels=None,title="Effect of Sampling Methods"):
     if dataLabels is None:
         dataLabels = dataSeparations
     dataFiles = {}
@@ -51,10 +51,10 @@ def PlotTensorflowData(dataName,dataSeparations,path="./logs",dataLabels=None,ti
                         dataFiles[label].append(GetFileContents(dirpath+"/"+filenames[0]))
 
     for label,data in dataFiles.items():
-        ave,std=GetAverageSTD(data)
+        ave,std=GetAverageSTD(data,metric)
         x = np.arange(0,10*ave.shape[0],10)
         plt.plot(x,ave,label=label+" sampling - Trials:"+str(len(data)))
-        plt.fill_between(x, ave-std, ave+std,alpha=0.5)
+        # plt.fill_between(x, ave-std, ave+std,alpha=0.5)
     plt.title(title)
     plt.legend()
     plt.show()
@@ -100,23 +100,32 @@ if __name__ == "__main__":
     # PlotTensorflowData(dataName,dataSeparations,dataLabels=dataLabels,title=title)
 
 
-    title = "Effect of Different Sample Methods (N=512,64 Samples) SF1"
-    dataName = "CTF_"
-    dataSeparations = ["64HC","64HP","64F","64R","64HT"]
-    dataLabels = ["Cluster","Hull","First","Random","Hull TSNE"]
-    PlotTensorflowData(dataName,dataSeparations,dataLabels=dataLabels,title=title)
-    title = "Effect of Different Sample Methods (N=512,64 Samples) SF2"
-    dataName = "CTF_16_64"
-    dataSeparations = ["64HC_3","64HP_3","64F_3","64R_3","64HT_3"]
-    dataLabels = ["Cluster","Hull","First","Random","Hull TSNE"]
-    PlotTensorflowData(dataName,dataSeparations,dataLabels=dataLabels,title=title)
-    title = "Effect of Different Sample Methods (N=512,64 Samples) SF3"
-    dataName = "CTF_16_64"
-    dataSeparations = ["64HC_2","64HP_2","64F_2","64R_2","64HT_2"]
-    dataLabels = ["Cluster","Hull","First","Random","Hull TSNE"]
-    PlotTensorflowData(dataName,dataSeparations,dataLabels=dataLabels,title=title)
+    # title = "Effect of Different Sample Methods (N=512,64 Samples) SF1"
+    # dataName = "CTF_"
+    # dataSeparations = ["64HC","64HP","64F","64R","64HT"]
+    # dataLabels = ["Cluster","Hull","First","Random","Hull TSNE"]
+    # PlotTensorflowData(dataName,dataSeparations,dataLabels=dataLabels,title=title)
+    # title = "Effect of Different Sample Methods (N=512,64 Samples) SF2"
+    # dataName = "CTF_16_64"
+    # dataSeparations = ["64HC_3","64HP_3","64F_3","64R_3","64HT_3"]
+    # dataLabels = ["Cluster","Hull","First","Random","Hull TSNE"]
+    # PlotTensorflowData(dataName,dataSeparations,dataLabels=dataLabels,title=title)
+    # title = "Effect of Different Sample Methods (N=512,64 Samples) SF3"
+    # dataName = "CTF_16_64"
+    # dataSeparations = ["64HC_2","64HP_2","64F_2","64R_2","64HT_2"]
+    # dataLabels = ["Cluster","Hull","First","Random","Hull TSNE"]
+    # PlotTensorflowData(dataName,dataSeparations,dataLabels=dataLabels,title=title)
+    # title = "Effect of Different Sample Methods (N=512,64 Samples) All Trials"
+    # dataName = "CTF_16_64"
+    # dataSeparations = ["64HC","64HP","64F","64R","64HT"]
+    # dataLabels = ["Cluster","Hull","First","Random","Hull TSNE"]
+    # PlotTensorflowData(dataName,dataSeparations,dataLabels=dataLabels,title=title)
+
+
+
     title = "Effect of Different Sample Methods (N=512,64 Samples) All Trials"
-    dataName = "CTF_16_64"
-    dataSeparations = ["64HC","64HP","64F","64R","64HT"]
-    dataLabels = ["Cluster","Hull","First","Random","Hull TSNE"]
-    PlotTensorflowData(dataName,dataSeparations,dataLabels=dataLabels,title=title)
+    dataName = "CTF_SFH_1v1"
+    dataSeparations = ["CTF_SFH_1v1_1590526524","CTF_SFH_1v1_159051"]
+    dataLabels = ["Hull","Random",]
+    metric = "Env Results/WinRate"
+    PlotTensorflowData(dataName,dataSeparations,metric=metric,dataLabels=dataLabels,title=title,path="./logs",)

@@ -293,7 +293,7 @@ elif settings["Optimizer"] == "Amsgrad":
     opt = tf.keras.optimizers.Adam(settings["LearningRate"],amsgrad=True)
 
 if args.phi:
-    SF1.compile(optimizer=opt, loss=[M4E,"mse"], loss_weights = [1.0,1.0])
+    SF1.compile(optimizer=opt, loss=[CTF_Loss,"mse"], loss_weights = [1.0,1.0])
     SF1.fit(
         [np.stack(action),np.vstack(s)],
         [np.vstack(s_next),np.stack(r_store)],

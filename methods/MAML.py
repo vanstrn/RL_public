@@ -14,9 +14,9 @@ import scipy
 from utils.utils import MovingAverage
 
 
-class PPO(Method):
+class MAML(Method):
 
-    def __init__(self,Model,sess,stateShape,actionSize,HPs,nTrajs=1,scope="PPO_Training"):
+    def __init__(self,Model,Model2,sess,stateShape,actionSize,HPs,nTrajs=1,scope="PPO_Training"):
         """
         Initializes a training method for a neural network.
 
@@ -45,6 +45,7 @@ class PPO(Method):
         self.actionSize = actionSize
         self.sess=sess
         self.Model = Model
+        self.Model2 = Model2
 
         #Creating appropriate buffer for the method.
         self.buffer = [Trajectory(depth=7) for _ in range(nTrajs)]
@@ -64,10 +65,10 @@ class PPO(Method):
                 #Initializing Netowrk I/O
                 inputs = {"state":self.s}
                 out = self.Model(inputs)
+                _ = self.Model2(inputs)
                 self.a_prob = out["actor"]
                 self.v = out["critic"]
                 self.log_logits = out["log_logits"]
-
                 # Entropy
                 def _log(val):
                     return tf.log(tf.clip_by_value(val, 1e-10, 10.0))
@@ -95,29 +96,42 @@ class PPO(Method):
                 # Build Trainer
                 if HPs["Optimizer"] == "Adam":
                     self.optimizer = tf.keras.optimizers.Adam(HPs["LR"])
+                    self.metaOptimizer = tf.keras.optimizers.Adam(HPs["Meta LR"])
                 elif HPs["Optimizer"] == "RMS":
                     self.optimizer = tf.keras.optimizers.RMSProp(HPs["LR"])
+                    self.metaOptimizer = tf.keras.optimizers.RMSProp(HPs["Meta LR"])
                 elif HPs["Optimizer"] == "Adagrad":
                     self.optimizer = tf.keras.optimizers.Adagrad(HPs["LR"])
+                    self.metaOptimizer = tf.keras.optimizers.Adagrad(HPs["Meta LR"])
                 elif HPs["Optimizer"] == "Adadelta":
                     self.optimizer = tf.keras.optimizers.Adadelta(HPs["LR"])
+                    self.metaOptimizer = tf.keras.optimizers.Adadelta(HPs["Meta LR"])
                 elif HPs["Optimizer"] == "Adamax":
                     self.optimizer = tf.keras.optimizers.Adamax(HPs["LR"])
+                    self.metaOptimizer = tf.keras.optimizers.Adamax(HPs["Meta LR"])
                 elif HPs["Optimizer"] == "Nadam":
                     self.optimizer = tf.keras.optimizers.Nadam(HPs["LR"])
+                    self.metaOptimizer = tf.keras.optimizers.Nadam(HPs["Meta LR"])
                 elif HPs["Optimizer"] == "SGD":
                     self.optimizer = tf.keras.optimizers.SGD(HPs["LR"])
+                    self.metaOptimizer = tf.keras.optimizers.SGD(HPs["Meta LR"])
                 elif HPs["Optimizer"] == "Amsgrad":
                     self.optimizer = tf.keras.optimizers.Nadam(HPs["LR"],amsgrad=True)
+                    self.metaOptimizer = tf.keras.optimizers.Nadam(HPs["Meta LR"],amsgrad=True)
                 else:
                     print("Not selected a proper Optimizer")
                     exit()
-                print(self.Model.trainable_variables)
-                self.gradients = self.optimizer.get_gradients(loss, self.Model.trainable_variables)
-                self.update_ops = self.optimizer.apply_gradients(zip(self.gradients, self.Model.trainable_variables))
-                # self.gradients = self.optimizer.get_gradients(loss, tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope))
-                # print(tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope))
-                # self.update_ops = self.optimizer.apply_gradients(zip(self.gradients, tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope)))
+
+                vars1 = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope+'/local')
+                self.gradients = self.optimizer.get_gradients(loss, vars1)
+                self.update_ops = self.optimizer.apply_gradients(zip(self.gradients, vars1))
+
+                with tf.name_scope("MetaUpdater"):
+                    vars2 = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope+'/global')
+                    self.meta_update_ops = self.metaOptimizer.apply_gradients(zip(self.gradients, vars2))
+
+                with tf.name_scope('sync'):
+                    self.pull_params_op = [l_p.assign(g_p) for l_p, g_p in zip(vars1,vars2)]
 
         #Creating variables for logging.
         self.EntropyMA = MovingAverage(400)
@@ -125,6 +139,17 @@ class PPO(Method):
         self.ActorLossMA = MovingAverage(400)
         self.GradMA = MovingAverage(400)
         self.HPs = HPs
+        self.counter = 0
+
+    def next_task(self):
+        if self.counter > 3:
+            self.counter = 0
+            # self.sess.run(self.update_op)
+            self.sess.run(self.pull_params_op)
+            return True
+        else:
+            return False
+
 
     def GetAction(self, state, episode=1,step=0):
         """
@@ -194,8 +219,11 @@ class PPO(Method):
                                  self.td_target_:np.asarray(td_target_[i]),
                                  self.advantage_: np.asarray(advantage_[i]),
                                  self.old_log_logits_: np.asarray(old_log_logits_[i])}
-                    aLoss= self.sess.run([self.actor_loss], feed_dict)
-                    aLoss, cLoss, entropy,grads, _ = self.sess.run([self.actor_loss,self.critic_loss,self.entropy,self.gradients,self.update_ops], feed_dict)
+                    # aLoss= self.sess.run([self.actor_loss], feed_dict)
+                    if self.counter == 3:
+                        aLoss, cLoss, entropy,grads, _ = self.sess.run([self.actor_loss,self.critic_loss,self.entropy,self.gradients,self.meta_update_ops], feed_dict)
+                    else:
+                        aLoss, cLoss, entropy,grads, _ = self.sess.run([self.actor_loss,self.critic_loss,self.entropy,self.gradients,self.update_ops], feed_dict)
 
                     self.EntropyMA.append(entropy)
                     self.CriticLossMA.append(cLoss)
@@ -206,7 +234,7 @@ class PPO(Method):
                         total_counter += np.prod(grad.shape)
                         vanish_counter += (np.absolute(grad)<1e-8).sum()
                     self.GradMA.append(vanish_counter/total_counter)
-
+        self.counter += 1
         self.ClearTrajectory()
 
 
@@ -238,8 +266,6 @@ class PPO(Method):
         advantage : list
             List of advantages for particular actions.
         """
-        # print("Starting Processing Buffer\n")
-        # tracker.print_diff()
 
         split_loc = [i+1 for i, x in enumerate(self.buffer[traj][4]) if x]
 

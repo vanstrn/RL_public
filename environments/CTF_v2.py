@@ -195,10 +195,9 @@ class StateStacking(gym.core.ObservationWrapper):
         )
 
     def reset(self, **kwargs):
-        s0 = self.env.reset(config_path=self.config_path, policy_red=use_this_policy(self.policy_red),**kwargs)
+        s0 = self.env.reset(**kwargs)
         self.stack = [s0] * self.nStates
-        self.observation()
-        return self.observation()
+        return np.concatenate(self.stack, axis=self.axis)
     def observation(self, s0):
         if s0 is None:
             return np.concatenate(self.stack, axis=self.axis)
@@ -207,17 +206,27 @@ class StateStacking(gym.core.ObservationWrapper):
         return np.concatenate(self.stack, axis=self.axis)
 
 
-
 class Reset(gym.core.Wrapper):
+    """Wrapper used to allow for changing """
     def __init__(self,env, config_path=None, policy_red=None, **kwargs):
         super().__init__(env)
         self.config_path = config_path
         self.policy_red = policy_red
-    def reset(self, **kwargs):
+        if isinstance(self.config_path,list):
+            self.cur_config = random.choice(self.config_path)
+    def reset(self, next_config=False, **kwargs):
         if self.config_path is None:
             return self.env.reset(policy_red=use_this_policy(self.policy_red),**kwargs)
+        elif isinstance(self.config_path,list):
+            if next_config:
+                self.cur_config = random.choice(self.config_path)
+            return self.env.reset(config_path=self.cur_config, policy_red=use_this_policy(self.policy_red),**kwargs)
         else:
             return self.env.reset(config_path=self.config_path, policy_red=use_this_policy(self.policy_red),**kwargs)
+    def GetEnemyPolicy(self):
+        pass
+    def GetCurrentConfig(self):
+        return self.cur_config
 
 
 class RewardShape(gym.core.RewardWrapper):
@@ -254,12 +263,14 @@ class RewardLogging(gym.core.Wrapper):
         if self.multiprocessing == 1:
             self.GLOBAL_RUNNING_R = MovingAverage(400)
             self.win_rate = MovingAverage(400)
+            self.red_killed = MovingAverage(400)
         else:
             if 'GLOBAL_RUNNING_R' not in globals():
                 global GLOBAL_RUNNING_R
                 GLOBAL_RUNNING_R = MovingAverage(400)
             self.GLOBAL_RUNNING_R = GLOBAL_RUNNING_R
             self.win_rate = MovingAverage(400)
+            self.red_killed = MovingAverage(400)
 
     def reset(self, **kwargs):
         self.tracking_r = []
@@ -275,11 +286,10 @@ class RewardLogging(gym.core.Wrapper):
         Processes the tracked data of the environment.
         In this case it sums the reward over the entire episode.
         """
-        if sum(self.tracking_r)> 0.0:
-            self.win_rate.append(1)
-        else:
-            self.win_rate.append(0)
+        self.win_rate.append(int(self.blue_win))
         self.GLOBAL_RUNNING_R.append(sum(self.tracking_r))
+        self.red_killed.append(int(self.red_eliminated))
         finalDict = {"Env Results/TotalReward":self.GLOBAL_RUNNING_R(),
-                     "Env Results/WinRate":self.win_rate()}
+                     "Env Results/WinRate":self.win_rate(),
+                     "Env Results/RedKilled":self.red_killed()}
         return finalDict

@@ -6,8 +6,8 @@
                 "lambda":0.98,
                 "EntropyBeta":0.001,
                 "CriticBeta":0.5,
-                "BatchSize":2048,
-                "MinibatchSize":256,
+                "BatchSize":1024,
+                "MinibatchSize":32,
                 "Epochs":2,
                 "eps":0.2},
 

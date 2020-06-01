@@ -9,10 +9,10 @@ import numpy as np
 from tensorflow.keras.regularizers import l2
 
 class Non_local_nn(tf.keras.layers.Layer):
-    def __init__(self, channels, pool=False, residual=True, train_gamma=False, name='non_local'):
+    def __init__(self, filters, pool=False, residual=True, train_gamma=False, name='non_local'):
         super(Non_local_nn, self).__init__(name=name)
 
-        self.channels = channels
+        self.channels = filters
         self.residual = residual
         self.pool = pool
         self.train_gamma = train_gamma

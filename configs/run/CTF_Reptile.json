@@ -1,10 +1,11 @@
-{ "RunName":"CTF_PPO",
+{ "RunName":"CTF_Reptile",
   "GPUCapacitty":0.95,
   "NetworkHPs":{"LR": 0.0002,
+                "Meta LR":0.0001,
                 "Optimizer":"Adam",
                 "Gamma":0.98,
                 "lambda":0.98,
-                "EntropyBeta":0.001,
+                "EntropyBeta":0.0005,
                 "CriticBeta":0.2,
                 "BatchSize":512,
                 "MinibatchSize":32,
@@ -18,7 +19,7 @@
   "LogFreq":100,
   "SaveFreq":5000,
 
-  "EnvConfig":"CTF_1v1_FO.json",
+  "EnvConfig":"CTF_1v1_FO_.json",
   "NetworkConfig":"CTF_v4.json",
-  "Method":"methods.PPO.PPO"
+  "Method":"methods.Reptile.Reptile"
   }

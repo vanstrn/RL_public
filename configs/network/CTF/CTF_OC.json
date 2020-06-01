@@ -77,7 +77,7 @@
     "metaTermination":"metaTermination",
     "metaCritic":"MetaCritic",
     "subActor":"Sub_Actor_logits",
-    "subLogLogits":"Sub_Actor_LogLogits",
+    "subLogLogits":"Sub_Actor_LogLogits"
   },
 
   "NetworkVariableGroups":{

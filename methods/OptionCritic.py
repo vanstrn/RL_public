@@ -53,27 +53,26 @@ class OptionCritic(Method):
         self.UpdateSubpolicies = True
         self.nTrajs = nTrajs
 
-        #Creating two buffers to separate information between the different levels of the network.
-        if self.subReward:
-            self.buffer = [Trajectory(depth=12) for _ in range(nTrajs)]
-            #[s0,a,r,r_sub,s1,done]+[HL_actions, HL_log_logits, HL_v, flag, critics, logits]
-        else:
-            self.buffer = [Trajectory(depth=11) for _ in range(nTrajs)]
-            #[s0,a,r,s1,done]+[HL_action, HL_log_logits, HL_v, flag, critics, logits]
+        #Creating buffer
+        self.buffer = [Trajectory(depth=7) for _ in range(nTrajs)]
+        #[s0,a,r,s1,done]+[HL_action]
 
         with self.sess.as_default(), self.sess.graph.as_default():
             with tf.name_scope(scope):
                 #Generic placeholders
+                self.batch_size = tf.placeholder(tf.int32, 1, 'BS')
                 self.s = tf.placeholder(tf.float32, [None]+stateShape, 'S')
-                self.a_his = tf.placeholder(tf.int32, [None, ], 'A')
-                self.td_target_ = tf.placeholder(tf.float32, [None], 'Vtarget')
-                self.advantage_ = tf.placeholder(shape=[None], dtype=tf.float32, name='adv_hold')
-                self.options_ = tf.placeholder(shape=[None], dtype=tf.int32, name="options")
+                self.actions = tf.placeholder(tf.int32, [None, ], 'A')
+                self.rewards = tf.placeholder(tf.float32, [None], 'R')
+                # self.advantage_ = tf.placeholder(shape=[None], dtype=tf.float32, name='adv_hold')
+                self.options = tf.placeholder(shape=[None], dtype=tf.int32, name="options")
+
+                batch_indexer = tf.range(tf.reshape(self.batch_size, []))
 
                 #Initializing Netowrk I/O
                 inputs = {"state":self.s}
                 out = self.Model(inputs)
-                self.term = out["mertaTermination"]
+                self.term = out["metaTermination"]
                 self.q = out["metaCritic"]
 
                 self.sub_a_prob = out["subActor"]
@@ -81,65 +80,54 @@ class OptionCritic(Method):
 
                 self.nPolicies = len(self.sub_a_prob)
 
-                #Placeholder for the Sub-Policies
-                self.old_log_logits_sub_ = tf.placeholder(shape=[None, actionSize], dtype=tf.float32, name='old_logit_sub_hold')
-
                 # Creating the Loss and update calls for the Hierarchical policy
+                # Indexers
+                self.responsible_options = tf.stack([batch_indexer, self.options], axis=1)
+                self.responsible_actions = tf.stack([batch_indexer, self.actions], axis=1)
+                self.network_indexer = tf.stack([self.options, batch_indexer], axis=1)
+
+                # Q Values OVER options
                 self.disconnected_q_vals = tf.stop_gradient(self.q)
-                self.deliberation_costs = 0
-                self.term_op = tf.gather_nd(params=self.term, indices=self.options_)
-                self.disconnected_q_vals_option = tf.gather_nd(params=self.disconnected_q_vals, indices=self.options_)
-                self.q_vals_option = tf.gather_nd(params=self.q, indices=self.options_)
 
+                # Q values of each option that was taken
+                self.responsible_opt_q_vals = tf.gather_nd(params=self.q, indices=self.responsible_options) # Extract q values for each option
+                self.disconnected_q_vals_option = tf.gather_nd(params=self.disconnected_q_vals, indices=self.responsible_options)
 
-                loss_termination = tf.reduce_mean(self.term_op * ((self.disconnected_q_vals_option - disconnected_value) + self.deliberation_costs) )
+                # Termination probability of each option that was taken
+                self.terminations = tf.gather_nd(params=self.term, indices=self.responsible_options)
 
-                loss_value = tf.reduce_mean(tf.square(td_target_ - self.q_vals_option), name='critic_loss')
+                # Q values for each action that was taken
+                relevant_networks = tf.gather_nd(params=self.sub_a_prob, indices=self.network_indexer)
+                relevant_networks = tf.nn.softmax(relevant_networks, dim=1)
 
-                self.hierarchical loss = loss_value+loss_termination
-                variables = self.Model.getHierarchyVariables()
-                self.hierarchyUpdater = self.CreateUpdater(self.hierarchicalLoss,variables)
+                self.action_values = tf.gather_nd(params=relevant_networks, indices=self.responsible_actions)
 
-                # Creating the Losses updaters for the Sub-policies.
-                self.subpolicyLoss = []
-                self.subpolicyUpdater = []
-                #Stop_gradient for the value function
+                # Weighted average value
+                option_eps = 0.001
+                self.value = tf.reduce_max(self.q) * (1 - option_eps) + (option_eps * tf.reduce_mean(self.q))
+                disconnected_value = tf.stop_gradient(self.value)
 
-                for i in range(self.nPolicies):
-                    loss = self.CreateLossSubpolicy(self.sub_a_prob[i],self.td_target_,self.disconnected_q_vals,self.a_his,self.sub_log_logits[i],self.old_log_logits_sub_,self.advantage_,self.actionSize)
-                    self.subpolicyLoss.append(loss)
-                    variables = self.Model.getSubpolicyVariables(i)
-                    self.subpolicyUpdater.append(self.CreateUpdater(loss,variables))
+                # Losses; TODO: Why reduce sum vs reduce mean?
+                vf_coef = 0.5
+                self.value_loss = vf_coef * tf.reduce_mean(vf_coef * 0.5 * tf.square(self.rewards - self.responsible_opt_q_vals))
+                self.policy_loss = tf.reduce_mean(_log(self.action_values) * (self.rewards - self.disconnected_q_vals_option))
+                self.deliberation_costs=0.020
+                self.termination_loss = tf.reduce_mean(self.terminations * ((self.disconnected_q_vals_option - disconnected_value) + self.deliberation_costs) )
+
+                ent_coef = 0.01
+                action_probabilities = self.sub_a_prob
+                self.entropy = ent_coef * tf.reduce_mean(action_probabilities * _log(action_probabilities))
+
+                self.loss = -self.policy_loss - self.entropy - self.value_loss - self.termination_loss
+
+                variables = self.Model.getVars()
+                variables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope)
+                optimizer = tf.keras.optimizers.Adam(self.HPs["LR"])
+                gradients = optimizer.get_gradients(self.loss,variables)
+                self.update_op = optimizer.apply_gradients(zip(gradients,variables))
 
             #Creating Variables for teh purpose of logging.
             self.SubpolicyDistribution = MovingAverage(1000)
-
-    def CreateUpdater(self,loss,variables):
-        optimizer = tf.keras.optimizers.Adam(self.HPs["LR"])
-        gradients = optimizer.get_gradients(loss,variables)
-        return optimizer.apply_gradients(zip(gradients,variables))
-
-    def CreateLossSubpolicy(self,a_prob,td_target_,v,a_his,log_logits,old_log_logits_,advantage_,actionSize):
-        # Entropy
-        entropy = -tf.reduce_mean(a_prob * _log(a_prob), name='entropy')
-
-        # Critic Loss
-        td_error = td_target_ - v
-
-        # Actor Loss
-        action_OH = tf.one_hot(a_his, actionSize, dtype=tf.float32)
-        log_prob = tf.reduce_sum(log_logits * action_OH, 1)
-        old_log_prob = tf.reduce_sum(old_log_logits_ * action_OH, 1)
-
-        # Clipped surrogate function
-        ratio = tf.exp(log_prob - old_log_prob)
-        surrogate = ratio * advantage_
-        clipped_surrogate = tf.clip_by_value(ratio, 1-self.HPs["eps"], 1+self.HPs["eps"]) * advantage_
-        surrogate_loss = tf.minimum(surrogate, clipped_surrogate, name='surrogate_loss')
-        actor_loss = -tf.reduce_mean(surrogate_loss, name='actor_loss')
-
-        loss = actor_loss - entropy * self.HPs["EntropyBeta"]
-        return loss
 
     def GetAction(self, state, step,episode=0):
         """
@@ -173,24 +161,29 @@ class OptionCritic(Method):
         terminations =res[1]
         sub_probs = res[2:3+self.nPolicies]
         sub_log_logits = res[2+self.nPolicies:2+2*self.nPolicies]
-
         HL_actions = []
         for i,term in enumerate(terminations):
-            if random.uniform(0,1) > term[self.pastActions[i]] or step==0:
+            if step==0:
                 action = np.argmax(q[i])
                 HL_actions.append(action)
                 self.pastActions[i] = action
-                flag.append(True)
+            elif random.uniform(0,1) < term[self.pastActions[i]]:
+                # action = np.argmax(q[i])
+                action = random.randint(0,2)
+                HL_actions.append(action)
+                self.pastActions[i] = action
             else:
-                HL_actions.append(self.pastActions[i])
-                flag.append(True)
+                action = random.randint(0,2)
+                HL_actions.append(action)
+                # HL_actions.append(self.pastActions[i])
         self.traj_action = HL_actions
+        print(q,HL_actions)
 
         # Run the Subpolicy Network
         actions = np.array([np.random.choice(self.actionSize, p=sub_probs[mod][idx] / sum(sub_probs[mod][idx])) for idx, mod in enumerate(HL_actions)])
         logits = [sub_log_logits[mod][idx] for idx, mod in enumerate(HL_actions)]
 
-        return actions, [HL_actions,logits]
+        return actions, [HL_actions,q]
 
     def Update(self,HPs):
         """
@@ -212,61 +205,30 @@ class OptionCritic(Method):
             return
 
         for traj in range(len(self.buffer)):
-
-            td_target, advantage, td_target_hier, advantage_hier,actions_hier,ll_hier,s_hier = self.ProcessBuffer(HPs,traj)
+            advantage = self.ProcessBuffer(traj)
             # Updating the Hierarchical Controller
             for epoch in range(self.HPs["Epochs"]):
-                for batch in MultiBatchDivider([s_hier,actions_hier,td_target_hier,advantage_hier,ll_hier],self.HPs["MinibatchSize"]):
+                for batch in MultiBatchDivider([self.buffer[traj][0],self.buffer[traj][1],advantage,self.buffer[traj][5]],self.HPs["MinibatchSize"]):
 
-                    feed_dict = {self.s: np.asarray(batch[0]).squeeze(),
-                                 self.a_his: np.asarray(batch[1]).squeeze(),
-                                 self.td_target_: np.asarray(batch[2]).squeeze(),
-                                 self.advantage_: np.reshape(batch[3], [-1]),
-                                 self.old_log_logits_: np.asarray(batch[4]).squeeze()}
-                    self.sess.run(self.hierarchyUpdater, feed_dict)
-
-            if self.UpdateSubpolicies:
-                #Collecting the data into different sub-Policies
-                if self.subReward:
-                    tmp, l1, l2, l3, l4, l5 = (list(t) for t in zip(*sorted(zip(self.buffer[traj][6], self.buffer[traj][0], self.buffer[traj][1], td_target, advantage, self.buffer[traj][10]),key=lambda x: x[0]))) #Sorting by the value in the actions_hier
-                    #dividing at the splits
-                    for subpolicyNum,data in SubpolicyIterator(tmp,[l1, l2, l3, l4, l5]):
-                        #Updating each of the sub-policies.
-                        for epoch in range(self.HPs["Epochs"]):
-                            for batch in MultiBatchDivider(data,self.HPs["MinibatchSize"]):
-
-                                feed_dict = {self.s: np.asarray(batch[0]).squeeze(),
-                                            self.a_his: np.asarray(batch[1]).squeeze(),
-                                            self.td_target_: np.asarray(batch[2]).squeeze(),
-                                            self.advantage_: np.reshape(batch[3], [-1]),
-                                            self.old_log_logits_sub_: np.asarray(batch[4]).squeeze()}
-                                self.sess.run(self.subpolicyUpdater[subpolicyNum], feed_dict)
-                    self.SubpolicyDistribution.extend(np.asarray(self.buffer[traj][6]))
-                else:
-                    tmp, l1, l2, l3, l4, l5 = (list(t) for t in zip(*sorted(zip(self.buffer[traj][5], self.buffer[traj][0], self.buffer[traj][1], td_target, advantage, self.buffer[traj][10]),key=lambda x: x[0]))) #Sorting by the value in the actions_hier
-                    #dividing at the splits
-                    for subpolicyNum,data in SubpolicyIterator(tmp,[l1, l2, l3, l4, l5]):
-                    #Updating each of the sub-policies.
-                        for epoch in range(self.HPs["Epochs"]):
-                            for batch in MultiBatchDivider(data,self.HPs["MinibatchSize"]):
-
-                                feed_dict = {self.s: np.asarray(batch[0]).squeeze(),
-                                             self.a_his: np.asarray(batch[1]).squeeze(),
-                                             self.td_target_: np.asarray(batch[2]).squeeze(),
-                                             self.advantage_: np.reshape(batch[3], [-1]),
-                                             self.old_log_logits_sub_: np.asarray(batch[4]).squeeze()}
-                                self.sess.run(self.subpolicyUpdater[subpolicyNum], feed_dict)
-                    self.SubpolicyDistribution.extend(np.asarray(self.buffer[traj][5]))
-
+                    feed_dict = {self.batch_size: [np.asarray(batch[0]).squeeze().shape[0]],
+                                 self.s: np.asarray(batch[0]).squeeze(),
+                                 self.actions: np.asarray(batch[1]).squeeze(),
+                                 self.rewards: np.asarray(batch[2]).squeeze(),
+                                 self.options: np.reshape(batch[3], [-1])}
+                    self.sess.run(self.update_op, feed_dict)
+            self.SubpolicyDistribution.extend(np.asarray(self.buffer[traj][5]))
             self.ClearTrajectory()
 
     def GetStatistics(self):
         stats={}
         for i in range(self.nPolicies):
-            stats["Subpolicy Use/"+str(i)] = self.SubpolicyDistribution.tolist().count(i)/len(self.SubpolicyDistribution.tolist())
+            length = len(self.SubpolicyDistribution.tolist())
+            if length == 0:
+                length=1
+            stats["Subpolicy Use/"+str(i)] = self.SubpolicyDistribution.tolist().count(i)/length
         return stats
 
-    def ProcessBuffer(self,HPs,traj):
+    def ProcessBuffer(self,traj):
         """
         Process the buffer and backpropagates the loses through the NN.
 
@@ -288,71 +250,25 @@ class OptionCritic(Method):
         """
         #Splitting the buffer into different episodes based on the done tag.
         split_loc = [i+1 for i, x in enumerate(self.buffer[traj][4]) if x]
-        if self.subReward:
-            #Stuff need to be processed for the Low Level Controllers
-            reward_lists = np.split(self.buffer[traj][2],split_loc[:-1])
-            sub_reward_lists = np.split(self.buffer[traj][3],split_loc[:-1])
-            value_lists = np.split(self.buffer[traj][10],split_loc[:-1])
+        #Stuff need to be processed for the Low Level Controllers
+        reward_lists = np.split(self.buffer[traj][2],split_loc[:-1])
+        value_lists = np.split(self.buffer[traj][6],split_loc[:-1])
 
-            #Stuff needed for the
-            HL_Critic_lists = np.split(self.buffer[traj][8],split_loc[:-1])
-            HL_Logits_lists = np.split(self.buffer[traj][7],split_loc[:-1])
-            HL_action_lists = np.split(self.buffer[traj][6],split_loc[:-1])
-            HL_flag_lists = np.split(self.buffer[traj][9],split_loc[:-1])
+        HL_action_lists = np.split(self.buffer[traj][5],split_loc[:-1])
 
-            td_target=[]; advantage=[]
-            td_target_hier=[]; advantage_hier=[]
-            ll=[];actions=[]
+        td_target=[]; advantage=[]
 
-            for rew,s_rew,value,HL_critic,HL_ll,HL_a,HL_flag,HL_s in zip(reward_lists,sub_reward_lists,value_lists,HL_Critic_lists,HL_Logits_lists,HL_action_lists,HL_flag_lists,HL_S_lists):
-                # Calculating the per step advantage of each of the different sections
-                td_target_i, advantage_i = gae(s_rew.reshape(-1).tolist(),value.reshape(-1).tolist(),0,self.HPs["Gamma"],self.HPs["lambda"])
-                td_target.extend(td_target_i); advantage.extend( advantage_i)
-                #Colapsing different trajectory lengths for the hierarchical controller
-                split_loc_ = [i+1 for i, x in enumerate(HL_flag[:-1]) if x]
-                rew_hier = [np.sum(l) for l in np.split(rew,split_loc_)]
-                value_hier = [l[0] for l in np.split(HL_critic,split_loc_)]
-                actions.extend([l[0] for l in np.split(HL_a,split_loc_)])
-                ll.extend([l[0] for l in np.split(HL_ll,split_loc_)])
-                s.extend([l[0] for l in np.split(HL_s,split_loc_)])
-                #Calculating the td_target and advantage for the hierarchical controller.
-                td_target_i_, advantage_i_ = gae(np.asarray(rew_hier).reshape(-1).tolist(),np.asarray(value_hier).reshape(-1).tolist(),0,self.HPs["Gamma"],self.HPs["lambda"])
-                td_target_hier.extend(td_target_i_); advantage_hier.extend( advantage_i_)
+        for rew,value,options in zip(reward_lists,value_lists,HL_action_lists):
+            # Calculating the per step advantage of each of the different sections
+            val = []
+            for i,option in enumerate(options):
+                val.append(value[i,0,option])
+            td_target_i, advantage_i = gae(rew.reshape(-1).tolist(),np.asarray(val).reshape(-1).tolist(),0,self.HPs["Gamma"],self.HPs["lambda"])
+            td_target.extend(td_target_i); advantage.extend( advantage_i)
 
-            return td_target, advantage, td_target_hier, advantage_hier,actions,ll
-        else:
 
-            #Stuff need to be processed for the Low Level Controllers
-            reward_lists = np.split(self.buffer[traj][2],split_loc[:-1])
-            value_lists = np.split(self.buffer[traj][9],split_loc[:-1])
+        return advantage
 
-            #Stuff needed for the
-            HL_S_lists = np.split(self.buffer[traj][0],split_loc[:-1])
-            HL_Critic_lists = np.split(self.buffer[traj][7],split_loc[:-1])
-            HL_Logits_lists = np.split(self.buffer[traj][6],split_loc[:-1])
-            HL_action_lists = np.split(self.buffer[traj][5],split_loc[:-1])
-            HL_flag_lists = np.split(self.buffer[traj][8],split_loc[:-1])
-
-            td_target=[]; advantage=[]
-            td_target_hier=[]; advantage_hier=[]
-            ll=[];actions=[];s=[]
-
-            for rew,value,HL_critic,HL_ll,HL_a,HL_flag,HL_s in zip(reward_lists,value_lists,HL_Critic_lists,HL_Logits_lists,HL_action_lists,HL_flag_lists,HL_S_lists):
-                # Calculating the per step advantage of each of the different sections
-                td_target_i, advantage_i = gae(rew.reshape(-1).tolist(),value.reshape(-1).tolist(),0,self.HPs["Gamma"],self.HPs["lambda"])
-                td_target.extend(td_target_i); advantage.extend( advantage_i)
-                #Colapsing different trajectory lengths for the hierarchical controller
-                split_loc_ = [i+1 for i, x in enumerate(HL_flag[:-1]) if x]
-                rew_hier = [np.sum(l) for l in np.split(rew,split_loc_)]
-                value_hier = [l[0] for l in np.split(HL_critic,split_loc_)]
-                actions.extend([l[0] for l in np.split(HL_a,split_loc_)])
-                ll.extend([l[0] for l in np.split(HL_ll,split_loc_)])
-                s.extend([l[0] for l in np.split(HL_s,split_loc_)])
-                #Calculating the td_target and advantage for the hierarchical controller.
-                td_target_i_, advantage_i_ = gae(np.asarray(rew_hier).reshape(-1).tolist(),np.asarray(value_hier).reshape(-1).tolist(),0,self.HPs["Gamma"],self.HPs["lambda"])
-                td_target_hier.extend(td_target_i_); advantage_hier.extend( advantage_i_)
-
-            return td_target, advantage, td_target_hier, advantage_hier,actions,ll,s
 
     @property
     def getVars(self):

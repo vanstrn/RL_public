@@ -10,7 +10,6 @@ import tensorflow as tf
 import argparse
 from urllib.parse import unquote
 
-from networks.network import Network
 from utils.utils import InitializeVariables, CreatePath, interval_flag, GetFunction
 from utils.record import Record,SaveHyperparams
 import json
@@ -69,9 +68,8 @@ sess = tf.Session(config=config)
 with tf.device(args.processor):
     global_step = tf.Variable(0, trainable=False, name='global_step')
     global_step_next = tf.assign_add(global_step,1)
-    network = Network(settings["NetworkConfig"],nActions,netConfigOverride)
     Method = GetFunction(settings["Method"])
-    net = Method(network,sess,scope="net",stateShape=dFeatures,actionSize=nActions,HPs=settings["NetworkHPs"],nTrajs=nTrajs)
+    net = Method(settings["NetworkConfig"],nActions,netConfigOverride,sess,scope="net",stateShape=dFeatures,actionSize=nActions,HPs=settings["NetworkHPs"],nTrajs=nTrajs)
 
 #Creating Auxilary Functions for logging and saving.
 writer = tf.summary.FileWriter(LOG_PATH,graph=sess.graph)

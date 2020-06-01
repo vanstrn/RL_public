@@ -1,4 +1,4 @@
-{ "RunName":"CTF_PPO",
+{ "RunName":"CTF_PPO_v2",
   "GPUCapacitty":0.95,
   "NetworkHPs":{"LR": 0.0002,
                 "Optimizer":"Adam",
@@ -19,6 +19,6 @@
   "SaveFreq":5000,
 
   "EnvConfig":"CTF_1v1_FO.json",
-  "NetworkConfig":"CTF_v4.json",
+  "NetworkConfig":"CTF_PPO_v2.json",
   "Method":"methods.PPO.PPO"
   }

@@ -4,9 +4,12 @@ channels:
 dependencies:
   - pip=19.2.2
   - python=3.6.8
+  - numpy
+  - pandas
   - pip:
     - cloudpickle==1.2.1
     - gym==0.14.0
     - tensorflow-gpu==1.14.0
     - gym_cap
     - gym_minigrid
+    - sklearn

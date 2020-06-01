@@ -1,6 +1,7 @@
-{ "RunName":"CTF_PPO",
+{ "RunName":"CTF_MAML",
   "GPUCapacitty":0.95,
   "NetworkHPs":{"LR": 0.0002,
+                "Meta LR":0.0001,
                 "Optimizer":"Adam",
                 "Gamma":0.98,
                 "lambda":0.98,
@@ -17,8 +18,9 @@
   "SFSize":256,
   "LogFreq":100,
   "SaveFreq":5000,
+  "Reload":false,
 
-  "EnvConfig":"CTF_1v1_FO.json",
+  "EnvConfig":"CTF_1v1_FO_.json",
   "NetworkConfig":"CTF_v4.json",
-  "Method":"methods.PPO.PPO"
+  "Method":"methods.MAML.MAML"
   }

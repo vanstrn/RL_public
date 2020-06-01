@@ -13,10 +13,11 @@ import numpy as np
 import scipy
 from utils.utils import MovingAverage
 
+from networks.network import Network
 
 class PPO(Method):
 
-    def __init__(self,Model,sess,stateShape,actionSize,HPs,nTrajs=1,scope="PPO_Training"):
+    def __init__(self,networkConfig,nActions,netConfigOverride,sess,stateShape,actionSize,HPs,nTrajs=1,scope="PPO_Training"):
         """
         Initializes a training method for a neural network.
 
@@ -44,7 +45,9 @@ class PPO(Method):
         #Processing inputs
         self.actionSize = actionSize
         self.sess=sess
-        self.Model = Model
+
+        #Building the network.
+        self.Model = Network(networkConfig,nActions,netConfigOverride)
 
         #Creating appropriate buffer for the method.
         self.buffer = [Trajectory(depth=7) for _ in range(nTrajs)]
