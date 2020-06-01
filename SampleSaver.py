@@ -9,6 +9,7 @@ import numpy as np
 import tensorflow as tf
 import argparse
 from urllib.parse import unquote
+import os
 
 from utils.utils import CreatePath
 import json

@@ -8,6 +8,7 @@ import gym_minigrid,gym_cap
 import tensorflow as tf
 import argparse
 from urllib.parse import unquote
+import os
 
 from networks.network import Network
 from utils.utils import InitializeVariables, CreatePath, interval_flag, GetFunction
@@ -49,9 +50,14 @@ def Update(defaultSettings,overrides):
     return defaultSettings
 
 #Defining parameters and Hyperparameters for the run.
-with open("configs/run/"+args.file) as json_file:
+for (dirpath, dirnames, filenames) in os.walk("configs/run"):
+    for filename in filenames:
+        if args.file in filename:
+            runConfigFile = os.path.join(dirpath,filename)
+            break
+with open(runConfigFile) as json_file:
     settings = json.load(json_file)
-    settings = Update(settings,configOverride)
+    settings.update(configOverride)
 with open("configs/environment/"+settings["EnvConfig"]) as json_file:
     envSettings = json.load(json_file)
     envSettings = Update(envSettings,envConfigOverride)
@@ -62,9 +68,8 @@ config = tf.ConfigProto(gpu_options=gpu_options, log_device_placement=False, all
 sess = tf.Session(config=config)
 
 with tf.device(args.processor):
-
-    from methods.ApeX import BuildWorkers
-    workers = BuildWorkers(sess=sess,networkBuilder=Network,settings=settings,envSettings=envSettings,netConfigOverride=netConfigOverride)
+    Method = GetFunction(settings["Method"])
+    workers = Method(sess=sess,networkBuilder=Network,settings=settings,envSettings=envSettings,netConfigOverride=netConfigOverride)
 
 InitializeVariables(sess) #Included to catch if there are any uninitalized variables.
 

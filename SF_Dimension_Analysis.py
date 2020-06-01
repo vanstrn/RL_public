@@ -15,6 +15,7 @@ import gym_minigrid,gym_cap
 import tensorflow as tf
 import argparse
 from urllib.parse import unquote
+import os
 
 from networks.networkAE import *
 from networks.network_v3 import buildNetwork
