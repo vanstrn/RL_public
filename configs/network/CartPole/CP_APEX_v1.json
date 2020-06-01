@@ -1,0 +1,48 @@
+{ "NetworkName" : "CP_APEX",
+  "NetworkBuilder":"network",
+  "DefaultParams":{ "SFSize":64,
+                    "FCUnits":64},
+  "NetworkStructure":{
+    "Shared":[
+      { "layerType":"Dense",
+        "layerName":"Shared_FC1",
+        "layerInput":"input.state",
+        "Parameters":{"units":"FCUnits",
+                      "activation":"relu"}},
+      { "layerType":"Dense",
+        "layerName":"Phi",
+        "layerInput":"Shared_FC1",
+        "Parameters":{"units":"FCUnits",
+                      "activation":"relu"}}
+    ],
+    "Q":[
+      { "layerType":"Dense",
+        "layerName":"Critic_FC1",
+        "layerInput":"Phi",
+        "Parameters":{"units":"FCUnits",
+                      "activation":"relu"}},
+      { "layerType":"Dense",
+        "layerName":"Critic_FC2",
+        "layerInput":"Critic_FC1",
+        "Parameters":{"units":"FCUnits",
+                      "activation":"relu"}},
+      { "layerType":"Dense",
+        "layerName":"Critic_FC3",
+        "layerInput":"Critic_FC2",
+        "Parameters":{"units":"actionSize",
+                      "activation":null}}
+    ]
+  },
+
+  "NetworkOutputs":
+    {
+      "Q":"Critic_FC3"
+    },
+
+  "NetworkVariableGroups":{
+    "Critic":["Shared","Q"]
+  },
+
+  "TestInput":{"state":[null,20]}
+
+  }

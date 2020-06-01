@@ -1,0 +1,26 @@
+{ "RunName":"CP_Apex12",
+  "GPUCapacitty":0.95,
+  "NetworkHPs":{"LearningRate": 1E-3,
+                "Gamma":0.95,
+                "lambda":0.98,
+                "EntropyBeta":0.001,
+                "CriticBeta":0.5,
+                "BatchSize":2048,
+                "MinibatchSize":256,
+                "MultiStep":40,
+                "Epochs":2,
+                "Exploration":"EGreedy",
+                "ExplorationDecay":30000,
+                "ExploreSS":0.10},
+
+  "MaxEpisodes":120000,
+  "MaxEpisodeSteps":500,
+  "Epochs":1000,
+  "LogFreq":20,
+  "SaveFreq":5000,
+
+  "EnvConfig":"CartPole_v2.json",
+  "NetworkConfig":"CP_APEX_v1.json",
+  "NumberENV":1,
+  "Method":"methods.ApeX.BuildWorkers"
+  }

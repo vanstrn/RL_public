@@ -14,7 +14,6 @@ from networks.network import Network
 from utils.utils import InitializeVariables, CreatePath, interval_flag, GetFunction
 from utils.record import Record,SaveHyperparams
 import json
-from utils.worker import Worker as Worker
 from utils.utils import MovingAverage
 import threading
 import collections.abc
@@ -63,43 +62,14 @@ with open("configs/environment/"+settings["EnvConfig"]) as json_file:
     envSettings = json.load(json_file)
     envSettings = Update(envSettings,envConfigOverride)
 
-EXP_NAME = settings["RunName"]
-MODEL_PATH = './models/'+EXP_NAME
-LOG_PATH = './logs/'+EXP_NAME
-CreatePath(LOG_PATH)
-CreatePath(MODEL_PATH)
-
-#Creating the Environment
-
-_,dFeatures,nActions,nTrajs = CreateEnvironment(envSettings,multiprocessing=1)
-
 #Creating the Networks and Methods of the Run.
 gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=settings["GPUCapacitty"], allow_growth=True)
 config = tf.ConfigProto(gpu_options=gpu_options, log_device_placement=False, allow_soft_placement=True)
 sess = tf.Session(config=config)
+
 with tf.device(args.processor):
-    global_step = tf.Variable(0, trainable=False, name='global_step')
-    global_step_next = tf.assign_add(global_step,1)
-    network = Network(settings["NetworkConfig"],nActions,netConfigOverride,scope="Global")
     Method = GetFunction(settings["Method"])
-    GLOBAL_AC = Method(network,sess,stateShape=dFeatures,actionSize=nActions,scope="Global",HPs=settings["NetworkHPs"])
-    GLOBAL_AC.Model.summary()
-    saver = tf.train.Saver(max_to_keep=3, var_list=GLOBAL_AC.getVars+[global_step])
-    GLOBAL_AC.InitializeVariablesFromFile(saver,MODEL_PATH)
-
-    progbar = tf.keras.utils.Progbar(None, unit_name='Training',stateful_metrics=["Reward"])
-    writer = tf.summary.FileWriter(LOG_PATH,graph=sess.graph)
-
-    # Create workers
-    workers = []
-    for i in range(settings["NumberENV"]):
-        i_name = 'W_%i' % i   # worker name
-        network = Network(settings["NetworkConfig"],nActions,netConfigOverride,scope=i_name)
-        Method = GetFunction(settings["Method"])
-        localNetwork = Method(network,sess,stateShape=dFeatures,actionSize=nActions,scope=i_name,HPs=settings["NetworkHPs"],globalAC=GLOBAL_AC,nTrajs=nTrajs)
-        localNetwork.InitializeVariablesFromFile(saver,MODEL_PATH)
-        env,_,_,_ = CreateEnvironment(envSettings,multiprocessing=1)
-        workers.append(Worker(localNetwork,env,sess,global_step,global_step_next,settings,progbar,writer,MODEL_PATH,saver))
+    workers = Method(sess=sess,networkBuilder=Network,settings=settings,envSettings=envSettings,netConfigOverride=netConfigOverride)
 
 InitializeVariables(sess) #Included to catch if there are any uninitalized variables.
 

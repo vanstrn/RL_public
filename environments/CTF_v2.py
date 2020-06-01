@@ -56,13 +56,14 @@ class UseMap(gym.core.Wrapper):
     Fully observable gridworld using a compact grid encoding
     """
 
-    def __init__(self, env,unbiased=False,execute=True,mapPath="/home/capturetheflag/RL/environments/fair_map_1v0"):
+    def __init__(self, env,unbiased=False,execute=True,mapPath="fair_map_1v0"):
         super().__init__(env)
         self.first=True
         self.execute=execute
         self.unbiased=unbiased
         self.episodes=0
-        self.map_list = [os.path.join(mapPath, path) for path in os.listdir(mapPath)]
+        dir_path = os.path.dirname(os.path.realpath(__file__))
+        self.map_list = [os.path.join(os.path.join(dir_path,mapPath), path) for path in os.listdir(os.path.join(dir_path,mapPath))]
         max_epsilon = 0.70;
     def GetLabel(self):
         if self.execute:
