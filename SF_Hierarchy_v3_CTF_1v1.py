@@ -53,7 +53,12 @@ if args.sfnetwork is not None: SFnetConfigOverride = json.loads(unquote(args.sfn
 else: SFnetConfigOverride = {}
 
 #Reading in Config Files
-with open("configs/run/"+args.file) as json_file:
+for (dirpath, dirnames, filenames) in os.walk("configs/run"):
+    for filename in filenames:
+        if args.file in filename:
+            runConfigFile = os.path.join(dirpath,filename)
+            break
+with open(runConfigFile) as json_file:
     settings = json.load(json_file)
     settings.update(configOverride)
 with open("configs/environment/"+settings["EnvConfig"]) as json_file:

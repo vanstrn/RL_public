@@ -14,6 +14,37 @@ import tensorflow.keras.backend as K
 import collections.abc
 import os
 
+
+def NetworkBuilder(networkConfig,netConfigOverride,**kwargs):
+    """ Central function for building different networks. """
+    # reading the network networkConfig. and selecting which network builder to use.
+    if "/" in networkConfig:
+        if ".json" in networkConfig:
+            pass
+        else:
+            networkConfig = networkConfig + ".json"
+    else:
+        for (dirpath, dirnames, filenames) in os.walk("configs/network"):
+            for filename in filenames:
+                if networkConfig in filename:
+                    networkConfig = os.path.join(dirpath,filename)
+                    break
+        # raise
+    with open(networkConfig) as json_file:
+        data = json.load(json_file)
+
+    networkBuilder = data["NetworkBuilder"]
+    if networkBuilder == "network":
+        from .network import Network
+        net = Network(networkConfig,netConfigOverride=netConfigOverride,**kwargs)
+    elif networkBuilder == "networkHierarchical":
+        from .networkHierary import HierarchicalNetwork
+        net = HierarchicalNetwork(networkConfig,netConfigOverride=netConfigOverride,**kwargs)
+    else:
+        print("No valid network builder was specified. Please make sure networkConfig File is properly created.")
+        exit()
+    return net
+
 def UpdateStringValues(d, u):
     """
     Updates values of a nested dictionary/list structure. The method searches

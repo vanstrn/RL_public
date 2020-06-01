@@ -20,5 +20,5 @@
 
   "EnvConfig":"CTF_1v1_FO.json",
   "NetworkConfig":"CTF_PPO_v2.json",
-  "Method":"methods.PPO_v2.PPO"
+  "Method":"methods.PPO_v3.PPO"
   }

@@ -9,12 +9,13 @@ import gym_minigrid,gym_cap
 import tensorflow as tf
 import argparse
 from urllib.parse import unquote
+import os
+import json
+import time
 
 from utils.utils import InitializeVariables, CreatePath, interval_flag, GetFunction
 from utils.record import Record,SaveHyperparams
-import json
 from environments.Common import CreateEnvironment
-import time
 
 #Input arguments to override the default Config Files
 parser = argparse.ArgumentParser()
@@ -29,7 +30,9 @@ parser.add_argument("-n", "--network", required=False,
 parser.add_argument("-p", "--processor", required=False, default="/gpu:0",
                     help="Processor identifier string. Ex. /cpu:0 /gpu:0")
 parser.add_argument("-r", "--render", required=False, default=False, action="store_true",
-                    help="Processor identifier string. Ex. /cpu:0 /gpu:0")
+                    help="Whether or not to render the environment")
+parser.add_argument("-t", "--continu", required=False, default=False, action="store_true",
+                    help="Defining if this a continuation of training")
 args = parser.parse_args()
 if args.config is not None: configOverride = json.loads(unquote(args.config))
 else: configOverride = {}
@@ -39,7 +42,12 @@ if args.network is not None: netConfigOverride = json.loads(unquote(args.network
 else: netConfigOverride = {}
 
 #Defining parameters and Hyperparameters for the run.
-with open("configs/run/"+args.file) as json_file:
+for (dirpath, dirnames, filenames) in os.walk("configs/run"):
+    for filename in filenames:
+        if args.file in filename:
+            runConfigFile = os.path.join(dirpath,filename)
+            break
+with open(runConfigFile) as json_file:
     settings = json.load(json_file)
     settings.update(configOverride)
 with open("configs/environment/"+settings["EnvConfig"]) as json_file:
@@ -69,16 +77,17 @@ with tf.device(args.processor):
     global_step = tf.Variable(0, trainable=False, name='global_step')
     global_step_next = tf.assign_add(global_step,1)
     Method = GetFunction(settings["Method"])
-    net = Method(settings["NetworkConfig"],nActions,netConfigOverride,sess,scope="net",stateShape=dFeatures,actionSize=nActions,HPs=settings["NetworkHPs"],nTrajs=nTrajs)
+    net = Method(settings["NetworkConfig"],netConfigOverride,sess,scope="net",stateShape=dFeatures,actionSize=nActions,HPs=settings["NetworkHPs"],nTrajs=nTrajs)
 
 #Creating Auxilary Functions for logging and saving.
 writer = tf.summary.FileWriter(LOG_PATH,graph=sess.graph)
 saver = tf.train.Saver(max_to_keep=3, var_list=net.getVars+[global_step])
 net.InitializeVariablesFromFile(saver,LOAD_PATH)
 
-if "LoadName" in settings:
-    global_step = tf.Variable(0, trainable=False, name='global_step')
-    global_step_next = tf.assign_add(global_step,1)
+#If not continuing training reset step counter to 0.
+if args.continu:
+    global_step_next = tf.assign(global_step,0)
+
 InitializeVariables(sess) #Included to catch if there are any uninitalized variables.
 
 progbar = tf.keras.utils.Progbar(None, unit_name='Training',stateful_metrics=["Reward"])
@@ -88,6 +97,7 @@ if "LoggingFunctions" in settings:
     for loggingFunc in settings["LoggingFunctions"]:
         func = GetFunction(loggingFunc)
         loggingFunctions.append(func(env,net,IMAGE_PATH))
+
 for i in range(settings["MaxEpisodes"]):
 
     sess.run(global_step_next)
