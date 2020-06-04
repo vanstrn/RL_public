@@ -14,10 +14,11 @@ import scipy
 from utils.record import Record
 from utils.utils import MovingAverage
 
+from networks.common import NetworkBuilder
 
 class PPO(Method):
 
-    def __init__(self,Model,sess,stateShape,actionSize,HPs,nTrajs=1,scope="PPO_Training"):
+    def __init__(self,sess,settings,netConfigOverride,stateShape,actionSize,nTrajs=1,**kwargs):
         """
         Initializes a training method for a neural network.
 
@@ -45,7 +46,9 @@ class PPO(Method):
         #Processing inputs
         self.actionSize = actionSize
         self.sess=sess
-        self.Model = Model
+        self.HPs = settings["NetworkHPs"]
+        self.Model = NetworkBuilder(networkConfig=settings["NetworkConfig"],netConfigOverride=netConfigOverride,actionSize=actionSize)
+        scope="PPO"
 
         #Creating appropriate buffer for the method.
         self.buffer = [Trajectory(depth=7) for _ in range(nTrajs)]
@@ -83,15 +86,15 @@ class PPO(Method):
                 # Clipped surrogate function
                 ratio = tf.exp(log_prob - old_log_prob)
                 surrogate = ratio * self.advantage_
-                clipped_surrogate = tf.clip_by_value(ratio, 1-HPs["eps"], 1+HPs["eps"]) * self.advantage_
+                clipped_surrogate = tf.clip_by_value(ratio, 1-self.HPs["eps"], 1+self.HPs["eps"]) * self.advantage_
                 surrogate_loss = tf.minimum(surrogate, clipped_surrogate, name='surrogate_loss')
                 actor_loss = self.actor_loss = -tf.reduce_mean(surrogate_loss, name='actor_loss')
 
-                actor_loss = actor_loss - entropy * HPs["EntropyBeta"]
-                loss = actor_loss + critic_loss * HPs["CriticBeta"]
+                actor_loss = actor_loss - entropy * self.HPs["EntropyBeta"]
+                loss = actor_loss + critic_loss * self.HPs["CriticBeta"]
 
                 # Build Trainer
-                self.optimizer = tf.keras.optimizers.Adam(HPs["Critic LR"])
+                self.optimizer = tf.keras.optimizers.Adam(self.HPs["Critic LR"])
                 self.gradients = self.optimizer.get_gradients(loss, tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope))
                 self.update_ops = self.optimizer.apply_gradients(zip(self.gradients, tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope)))
 
@@ -100,7 +103,6 @@ class PPO(Method):
         self.CriticLossMA = MovingAverage(400)
         self.ActorLossMA = MovingAverage(400)
         self.GradMA = MovingAverage(400)
-        self.HPs = HPs
 
     def GetAction(self, state, episode=1,step=0):
         """
@@ -130,7 +132,7 @@ class PPO(Method):
         else:
             return self.store_actions, [v,log_logits]
 
-    def Update(self,HPs,episode=0):
+    def Update(self,episode=0):
         """
         Process the buffer and backpropagates the loses through the NN.
 

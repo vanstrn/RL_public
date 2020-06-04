@@ -9,7 +9,9 @@
                 "MinibatchSize":256,
                 "Epochs":5,
                 "Exploration":"EGreedy",
+                "ExploreSS":0.2,
                 "ExplorationDecay":5000,
+                "MultiStep":40,
                 "eps":0.2},
 
   "MaxEpisodes":50000,
@@ -21,5 +23,5 @@
 
   "EnvConfig":"CTF_1v0_FO.json",
   "NetworkConfig":"CTF_Q_v2.json",
-  "Method":"methods.DQN.DQN"
+  "Method":"methods.DQN_ms.DQN_ms"
   }

@@ -25,8 +25,6 @@ parser.add_argument("-f", "--file", required=True,
                     help="File for specific run. Located in ./configs/run")
 parser.add_argument("-c", "--config", required=False,
                     help="JSON configuration string to override runtime configs of the script.")
-parser.add_argument("-e", "--environment", required=False,
-                    help="JSON configuration string to override environment parameters")
 parser.add_argument("-n", "--network", required=False,
                     help="JSON configuration string to override network parameters")
 parser.add_argument("-p", "--processor", required=False, default="/gpu:0",
@@ -36,8 +34,6 @@ parser.add_argument("-r", "--render", default=False, action="store_true",
 args = parser.parse_args()
 if args.config is not None: configOverride = json.loads(unquote(args.config))
 else: configOverride = {}
-if args.environment is not None: envConfigOverride = json.loads(unquote(args.environment))
-else: envConfigOverride = {}
 if args.network is not None: netConfigOverride = json.loads(unquote(args.network))
 else: netConfigOverride = {}
 
@@ -58,9 +54,6 @@ for (dirpath, dirnames, filenames) in os.walk("configs/run"):
 with open(runConfigFile) as json_file:
     settings = json.load(json_file)
     settings.update(configOverride)
-with open("configs/environment/"+settings["EnvConfig"]) as json_file:
-    envSettings = json.load(json_file)
-    envSettings = Update(envSettings,envConfigOverride)
 
 #Creating the Networks and Methods of the Run.
 gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=settings["GPUCapacitty"], allow_growth=True)
@@ -69,7 +62,7 @@ sess = tf.Session(config=config)
 
 with tf.device(args.processor):
     Method = GetFunction(settings["Method"])
-    workers = Method(sess=sess,networkBuilder=Network,settings=settings,envSettings=envSettings,netConfigOverride=netConfigOverride)
+    workers = Method(sess=sess,settings=settings,netConfigOverride=netConfigOverride)
 
 InitializeVariables(sess) #Included to catch if there are any uninitalized variables.
 

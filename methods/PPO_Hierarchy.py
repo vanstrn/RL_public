@@ -18,7 +18,7 @@ def _log(val):
 
 class PPO_Hierarchy(Method):
 
-    def __init__(self,Model,sess,stateShape,actionSize,HPs,nTrajs=1,scope="PPO_Training",subReward=False):
+    def __init__(self,sess,settings,netConfigOverride,stateShape,actionSize,nTrajs=1,**kwargs):
         """
         Initializes a training method for a neural network.
 
@@ -46,9 +46,9 @@ class PPO_Hierarchy(Method):
         #Processing inputs
         self.actionSize = actionSize
         self.sess=sess
-        self.Model = Model
-        self.HPs=HPs
-        self.subReward = subReward
+        self.Model = NetworkBuilder(networkConfig=settings["NetworkConfig"],netConfigOverride=netConfigOverride,actionSize=actionSize)
+        self.HPs=settings["HPs"]
+        self.subReward = False
         self.UpdateSubpolicies = True
         self.nTrajs = nTrajs
         self.method = self.HPs["Method"]

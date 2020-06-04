@@ -1,6 +1,7 @@
 { "NetworkName" : "CTF_OC",
   "Description":"Hierarchical Network where the feature encoder is shared by all sub-networks. Separate networks exist for Actor/Critic/Termination stuff",
   "DefaultParams":{"NumOptions":3},
+  "NetworkBuilder":"networkHierarchical",
   "NetworkStructure":{
     "SharedNetworkStructure":{
       "FeatureEncoder":[

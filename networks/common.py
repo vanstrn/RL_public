@@ -38,7 +38,7 @@ def NetworkBuilder(networkConfig,netConfigOverride,**kwargs):
         from .network import Network
         net = Network(networkConfig,netConfigOverride=netConfigOverride,**kwargs)
     elif networkBuilder == "networkHierarchical":
-        from .networkHierary import HierarchicalNetwork
+        from .networkHierarchy import HierarchicalNetwork
         net = HierarchicalNetwork(networkConfig,netConfigOverride=netConfigOverride,**kwargs)
     else:
         print("No valid network builder was specified. Please make sure networkConfig File is properly created.")

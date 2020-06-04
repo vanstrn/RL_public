@@ -10,14 +10,12 @@ import gym_minigrid,gym_cap
 import tensorflow as tf
 import argparse
 from urllib.parse import unquote
+import os
 
 from networks.network_v3 import buildNetwork
 from utils.utils import InitializeVariables, CreatePath, interval_flag, GetFunction
 from utils.record import Record,SaveHyperparams
 import json
-from utils.worker import Worker as Worker
-from utils.utils import MovingAverage
-import threading
 import itertools
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
@@ -267,7 +265,7 @@ else:
         df = pd.DataFrame(psi,columns=feat_cols)
         np.random.seed(42)
         rndperm = np.random.permutation(df.shape[0])
-        tsne = TSNE(n_components=4, verbose=1, perplexity=10, n_iter=1000)
+        tsne = TSNE(n_components=3, verbose=1, perplexity=10, n_iter=1000)
         tsne_results = tsne.fit_transform(df[feat_cols].values)
 
         from SampleSelection import SampleSelection_v2
@@ -280,7 +278,7 @@ else:
         df = pd.DataFrame(psi,columns=feat_cols)
         np.random.seed(42)
         rndperm = np.random.permutation(df.shape[0])
-        pca = PCA(n_components=3)
+        pca = PCA(n_components=4)
         pca_result = pca.fit_transform(df[feat_cols].values)
 
         from SampleSelection import SampleSelection_v3
@@ -392,9 +390,9 @@ from networks.network import Network
 with tf.device(args.processor):
     global_step = tf.Variable(0, trainable=False, name='global_step')
     global_step_next = tf.assign_add(global_step,1)
-    network = Network(settings["NetworkConfig"],N,netConfigOverride)
+    # network = Network(settings["NetworkConfig"],N,netConfigOverride)
     Method = GetFunction(settings["Method"])
-    net = Method(network,sess,scope="net",stateShape=dFeatures,actionSize=N,HPs=settings["NetworkHPs"],nTrajs=nTrajs)
+    net = Method(sess,settings,netConfigOverride,stateShape=dFeatures,actionSize=N,nTrajs=nTrajs)
 
 #Creating Auxilary Functions for logging and saving.
 writer = tf.summary.FileWriter(LOG_PATH,graph=sess.graph)

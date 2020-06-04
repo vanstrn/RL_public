@@ -1,6 +1,7 @@
 { "NetworkName" : "DefaultCtF",
   "Description":"Hierarchical Network where the feature encoder is shared by all sub-networks. Uses shared network structure to ",
   "DefaultParams":{"NumOptions":3},
+  "NetworkBuilder":"networkHierarchical",
   "NetworkStructure":{
     "SharedNetworkStructure":{
       "FeatureEncoder":[

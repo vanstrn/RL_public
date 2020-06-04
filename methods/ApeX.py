@@ -16,6 +16,8 @@ import time
 import random
 from environments import CreateEnvironment
 import math
+from networks.common import NetworkBuilder
+import json
 
 class ApeX(Method):
 
@@ -144,25 +146,21 @@ class ApeX(Method):
         """
         #Process the data from the buffer
         samples,num = self.sharedBuffer.Sample()
+        # print(num)
         if num < self.HPs["BatchSize"]:
             return
-        batches = len(samples[0])//self.HPs["MinibatchSize"]+1
-        s = np.array_split(samples[0], batches)
-        a_his = np.array_split( samples[1], batches)
-        r = np.array_split( np.asarray(samples[2]), batches)
-        s_next = np.array_split( samples[3], batches)
-        done = np.array_split( samples[4], batches)
+        # print("Training")
         for epoch in range(self.HPs["Epochs"]):
-            for i in range(batches):
+            for traj in samples:
             #Create a feedDict from the buffer
-                if len(np.squeeze(np.asarray(s[i])).shape)==3 or len(np.squeeze(np.asarray(s[i])).shape)==1:
-                    continue
+                # if len(np.squeeze(np.asarray(s[i])).shape)==3 or len(np.squeeze(np.asarray(s[i])).shape)==1:
+                #     continue
                 feedDict = {
-                    self.states_ : np.squeeze(np.asarray(s[i])),
-                    self.next_states_ : np.squeeze(np.asarray(s_next[i])),
-                    self.actions_ : a_his[i],
-                    self.rewards_ : r[i],
-                    self.done_ : np.squeeze(np.asarray(done[i],dtype=float))
+                    self.states_ : np.squeeze(np.asarray(traj[0])),
+                    self.next_states_ : np.squeeze(np.asarray(traj[3])),
+                    self.actions_ : np.squeeze(np.asarray(traj[1])),
+                    self.rewards_ : np.squeeze(np.asarray(traj[2])),
+                    self.done_ : np.squeeze(np.asarray(traj[4],dtype=float))
 
                 }
                 out = self.sess.run(self.update_ops+self.losses+self.grads, feedDict)   # local grads applied to global net.
@@ -189,8 +187,9 @@ class ApeX(Method):
 
     def PushToBuffer(self):
         #Packaging samples in manner that requires modification on the learner end.
-
+        # print("Updating Buffer")
         #Estimating TD Difference to give priority to the data.
+        self.sess.run(self.pull_ops)
 
         for traj in range(len(self.buffer)):
             g,s_n=MultiStepDiscountProcessing(np.asarray(self.buffer[traj][2]),self.buffer[traj][3],self.HPs["Gamma"],self.HPs["MultiStep"])
@@ -213,18 +212,24 @@ class ApeX(Method):
                 }
                 priority = self.sess.run(self.td_error, feedDict)   # local grads applied to global net.
 
-                self.sharedBuffer.AddTrajectory([s,a_his,g,s_n,done],priority)
+                self.sharedBuffer.AddTrajectory([s[i],a_his[i],r[i],s_next[i],done[i]],priority)
+        # print("Here")
+        # self.sharedBuffer.PrioritizeandPruneSamples(2048)
         self.ClearTrajectory()
-        self.sess.run(self.pull_ops)
 
     def PrioritizeBuffer(self):
         #Updating the network weights before calculating new priorities
         self.sess.run(self.pull_ops)
-
         #Getting the data that needs to be assigned a new priority.
         trajs = self.sharedBuffer.GetReprioritySamples()
         priority=[]
         for traj in trajs:
+            # print("Prioritizing Buffer Buffer")
+            # print(traj[0].shape)
+            # print(traj[1].shape)
+            # print(traj[2].shape)
+            # print(traj[3].shape)
+            # print(traj[4].shape)
             feedDict = {
                 self.states_ : np.squeeze(np.asarray(traj[0])),
                 self.next_states_ : np.squeeze(np.asarray(traj[3])),
@@ -234,6 +239,7 @@ class ApeX(Method):
             }
             priority.append( self.sess.run(self.td_error, feedDict))
         #Calculating the priority.
+        self.sharedBuffer.UpdatePriorities(priority)
 
         #Pushing the priorities back to the buffer
         self.sharedBuffer.PrioritizeandPruneSamples(2048)
@@ -278,6 +284,8 @@ class ApexBuffer():
         self.buffer.append(sample)
         self.priorities.append(priority)
         self.trajLengths.append(len(sample[0]))
+        # print("Sample Length",len(sample[0]))
+        # print("Sample Shape",np.asarray(sample[0]).shape)
         self.reprioritize.append(False)
 
     def Sample(self):
@@ -295,6 +303,7 @@ class ApexBuffer():
             )
 
         #Pruning the least favorable samples
+        # print(sum(self.trajLengths))
         while sum(self.trajLengths) >= self.maxSamples:
             self.priorities.pop(-1)
             self.buffer.pop(-1)
@@ -308,28 +317,18 @@ class ApexBuffer():
             samps += self.trajLengths[slice]
             slice +=1
 
-        #packing all of the data together for the next update:
-        data1=[]
-        data2=[]
-        data3=[]
-        data4=[]
-        data5=[]
-        for traj in self.buffer[0:slice]:
-            data1.extend(traj[0])
-            data2.extend(traj[1])
-            data3.extend(traj[2])
-            data4.extend(traj[3])
-            data5.extend(traj[4])
-
-        self.data_next = [data1,data2,data3,data4,data5]
+        #packing all of the data together for the next update
+        self.data_next = self.buffer[0:slice]
         self.data_stats= samps
         self.slices = slice
-        #performing shuffling operation
 
     def UpdatePriorities(self,priorities):
-        self.priorities[0:self.slice] = priorities
+        self.priorities[0:self.slices] = priorities
         self.flag = True
         return self.buffer
+
+    def GetReprioritySamples(self):
+        return self.data_next
 
 class WorkerActor(object):
     def __init__(self,localNetwork,env,sess,global_step,global_step_next,settings,
@@ -442,13 +441,16 @@ class WorkerPrioritizer(object):
         while not COORD.should_stop() and self.sess.run(self.global_step) < self.settings["MaxEpisodes"]:
             self.net.PrioritizeBuffer()
 
-def BuildWorkers(sess,networkBuilder,settings,envSettings,netConfigOverride):
+def ApeXWorkers(sess,settings,netConfigOverride):
 
     EXP_NAME = settings["RunName"]
     MODEL_PATH = './models/'+EXP_NAME
     LOG_PATH = './logs/'+EXP_NAME
     CreatePath(LOG_PATH)
     CreatePath(MODEL_PATH)
+
+    with open("configs/environment/"+settings["EnvConfig"]) as json_file:
+        envSettings = json.load(json_file)
 
     progbar = tf.keras.utils.Progbar(None, unit_name='Training',stateful_metrics=["Reward"])
     writer = tf.summary.FileWriter(LOG_PATH,graph=sess.graph)
@@ -460,8 +462,8 @@ def BuildWorkers(sess,networkBuilder,settings,envSettings,netConfigOverride):
     sharedBuffer = ApexBuffer()
     _,dFeatures,nActions,nTrajs = CreateEnvironment(envSettings,multiprocessing=1)
 
-    network = networkBuilder(settings["NetworkConfig"],nActions,netConfigOverride,scope="Global")
-    targetNetwork = networkBuilder(settings["NetworkConfig"],nActions,netConfigOverride,scope="Global")
+    network = NetworkBuilder(settings["NetworkConfig"],netConfigOverride,scope="Global",actionSize=nActions)
+    targetNetwork = NetworkBuilder(settings["NetworkConfig"],netConfigOverride,scope= "target",actionSize=nActions)
     Updater = ApeX(network,sess,stateShape=dFeatures,actionSize=nActions,scope="Global",HPs=settings["NetworkHPs"],sharedBuffer=sharedBuffer,targetNetwork=targetNetwork)
     Updater.Model.summary()
     saver = tf.train.Saver(max_to_keep=3, var_list=Updater.getVars+[global_step])
@@ -469,7 +471,7 @@ def BuildWorkers(sess,networkBuilder,settings,envSettings,netConfigOverride):
     workers.append(WorkerLearner(Updater,sess,global_step,global_step_next,settings,progbar,writer,MODEL_PATH,saver))
 
     i_name = "prioritizer"
-    network = networkBuilder(settings["NetworkConfig"],nActions,netConfigOverride,scope=i_name)
+    network = NetworkBuilder(settings["NetworkConfig"],netConfigOverride,scope=i_name,actionSize=nActions)
     localNetwork = ApeX(network,sess,stateShape=dFeatures,actionSize=nActions,scope=i_name,HPs=settings["NetworkHPs"],globalAC=Updater,nTrajs=nTrajs,sharedBuffer=sharedBuffer)
     localNetwork.InitializeVariablesFromFile(saver,MODEL_PATH)
     workers.append(WorkerPrioritizer(localNetwork,sess,global_step,settings))
@@ -477,7 +479,7 @@ def BuildWorkers(sess,networkBuilder,settings,envSettings,netConfigOverride):
     # Create workers
     for i in range(settings["NumberENV"]):
         i_name = 'W_%i' % i   # worker name
-        network = networkBuilder(settings["NetworkConfig"],nActions,netConfigOverride,scope=i_name)
+        network = NetworkBuilder(settings["NetworkConfig"],netConfigOverride,scope=i_name,actionSize=nActions)
         localNetwork = ApeX(network,sess,stateShape=dFeatures,actionSize=nActions,scope=i_name,HPs=settings["NetworkHPs"],globalAC=Updater,nTrajs=nTrajs,sharedBuffer=sharedBuffer)
         localNetwork.InitializeVariablesFromFile(saver,MODEL_PATH)
         env,_,_,_ = CreateEnvironment(envSettings,multiprocessing=1)

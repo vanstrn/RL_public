@@ -22,5 +22,5 @@
   "EnvConfig":"CartPole_v2.json",
   "NetworkConfig":"CP_APEX_v1.json",
   "NumberENV":1,
-  "Method":"methods.ApeX.BuildWorkers"
+  "Method":"methods.ApeX.ApeXWorkers"
   }

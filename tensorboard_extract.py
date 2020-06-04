@@ -33,6 +33,7 @@ def GetAverageSTD(dicts,metric):
         else:
             for i in range(length-len(dict[metric]["data"])):
                 dict[metric]["data"].append(np.nan)
+            data.append(dict[metric]["data"])
     average = np.nanmean(np.stack(data),axis=0)
     std = 1.96*np.nanstd(np.stack(data),axis=0)/np.sqrt(len(dicts))
     return average,std
@@ -54,7 +55,7 @@ def PlotTensorflowData(dataName,dataSeparations,metric="TotalReward",path="./log
         ave,std=GetAverageSTD(data,metric)
         x = np.arange(0,10*ave.shape[0],10)
         plt.plot(x,ave,label=label+" sampling - Trials:"+str(len(data)))
-        # plt.fill_between(x, ave-std, ave+std,alpha=0.5)
+        plt.fill_between(x, ave-std, ave+std,alpha=0.5)
     plt.title(title)
     plt.legend()
     plt.show()

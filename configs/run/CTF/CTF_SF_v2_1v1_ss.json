@@ -17,12 +17,9 @@
   "EnvConfig":"CTF_1v1_FO_ss.json",
   "NetworkConfig":"CTF_SF_v2_actions_ss.json",
 
-  "PhiLogging":["SF_Utils.ImageGenerator_CTF",
-                "SF_Utils.SaveModel",
-                "SF_Utils.SaveModel_Phi",
-                "SF_Utils.RewardTest_CTF"],
-  "PsiLogging":["SF_Utils.ValueTest_CTF",
-                "SF_Utils.SaveModel",
+  "PhiLogging":["SF_Utils.SaveModel",
+                "SF_Utils.SaveModel_Phi"],
+  "PsiLogging":["SF_Utils.SaveModel",
                 "SF_Utils.SaveModel_Psi"]
 
   }

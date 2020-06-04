@@ -11,7 +11,7 @@ import argparse
 from urllib.parse import unquote
 import os
 
-from networks.network import Network
+from networks.networkHierarchy import HierarchicalNetwork
 from utils.utils import InitializeVariables, CreatePath, interval_flag, GetFunction
 from utils.record import Record,SaveHyperparams
 import json
@@ -71,10 +71,8 @@ sess = tf.Session(config=config)
 with tf.device(args.processor):
     global_step = tf.Variable(0, trainable=False, name='global_step')
     global_step_next = tf.assign_add(global_step,1)
-    network = Network(settings["NetworkConfig"],nActions,netConfigOverride)
-    targetNetwork = Network(settings["NetworkConfig"],nActions,netConfigOverride)
     Method = GetFunction(settings["Method"])
-    net = Method(network,targetNetwork,sess,stateShape=dFeatures,actionSize=nActions,HPs=settings["NetworkHPs"],nTrajs=nTrajs)
+    net = Method(settings["NetworkConfig"],netConfigOverride,sess,scope="net",stateShape=dFeatures,actionSize=nActions,HPs=settings["NetworkHPs"],nTrajs=nTrajs)
 
 #Creating Auxilary Functions for logging and saving.
 writer = tf.summary.FileWriter(LOG_PATH,graph=sess.graph)
@@ -103,7 +101,8 @@ for i in range(settings["MaxEpisodes"]):
         a, networkData = net.GetAction(state=s0,episode=sess.run(global_step),step=j)
 
         s1,r,done,_ = env.step(action=a)
-        net.AddToTrajectory([s0,a,r,s1,done]+networkData)
+        r_sub = r
+        net.AddToTrajectory([s0,a,r,r_sub,s1,done]+networkData)
         if args.render:
             env.render()
         s0 = s1

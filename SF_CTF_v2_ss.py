@@ -15,6 +15,7 @@ import gym_minigrid,gym_cap
 import tensorflow as tf
 import argparse
 from urllib.parse import unquote
+import os
 
 from networks.network_v3 import buildNetwork
 from utils.utils import InitializeVariables, CreatePath, interval_flag, GetFunction
@@ -145,6 +146,7 @@ if args.data == "":
             s1,r,done,_ = env.step(a)
 
             s.append(s0)
+            # print(s0.shape)
             s_next.append(s1)
             r_store.append(r)
             action.append(OneHot(a))
@@ -203,7 +205,8 @@ class ValueTest(tf.keras.callbacks.Callback):
             for i,j in itertools.product(range(dFeatures[0]),range(dFeatures[1])):
                 grid = env.ConstructSample([i,j])
                 if grid is None: continue
-                [value] = SF4.predict(np.expand_dims(grid,0))
+                tmp = np.concatenate([grid] * 4, axis=2)
+                [value] = SF4.predict(np.expand_dims(tmp,0))
                 rewardMap[i,j] = value
             fig=plt.figure(figsize=(5.5, 8))
             fig.add_subplot(2,1,1)
@@ -264,7 +267,8 @@ class RewardTest(tf.keras.callbacks.Callback):
             for i,j in itertools.product(range(dFeatures[0]),range(dFeatures[1])):
                 grid = env.ConstructSample([i,j])
                 if grid is None: continue
-                [state_new,reward] = SF1.predict([np.stack([[0,0,0,0,0]]),np.expand_dims(grid,0)])
+                tmp = np.concatenate([grid] * 4, axis=2)
+                [state_new,reward] = SF1.predict([np.stack([[1,1,1,1,1]]),np.expand_dims(tmp,0)])
                 rewardMap[i,j] = reward
             fig=plt.figure(figsize=(5.5, 8))
             fig.add_subplot(2,1,1)

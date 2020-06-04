@@ -12,11 +12,12 @@ import tensorflow as tf
 import numpy as np
 import scipy
 from utils.utils import MovingAverage
+from networks.common import NetworkBuilder
 
 
 class MAML(Method):
 
-    def __init__(self,Model,Model2,sess,stateShape,actionSize,HPs,nTrajs=1,scope="PPO_Training"):
+    def __init__(self,sess,settings,netConfigOverride,stateShape,actionSize,nTrajs=1,**kwargs):
         """
         Initializes a training method for a neural network.
 
@@ -30,8 +31,6 @@ class MAML(Method):
             List of integers of the inputs shape size. Ex [39,39,6]
         actionSize : int
             Output size of the network.
-        HPs : dict
-            Dictionary that contains all hyperparameters to be used in the methods training
         nTrajs : int (Optional)
             Number that specifies the number of trajectories to be created for collecting training data.
         scope : str (Optional)
@@ -44,14 +43,15 @@ class MAML(Method):
         #Processing inputs
         self.actionSize = actionSize
         self.sess=sess
-        self.Model = Model
-        self.Model2 = Model2
-
+        self.HPs = settings["NetworkHPs"]
+        self.Model = NetworkBuilder(networkConfig=settings["NetworkConfig"],netConfigOverride=netConfigOverride,actionSize=actionSize,scope="local")
+        self.Model2 = NetworkBuilder(networkConfig=settings["NetworkConfig"],netConfigOverride=netConfigOverride,actionSize=actionSize,scope="global")
+        self.scope =scope ="MAML"
         #Creating appropriate buffer for the method.
         self.buffer = [Trajectory(depth=7) for _ in range(nTrajs)]
 
         with self.sess.as_default(), self.sess.graph.as_default():
-            with tf.name_scope(scope):
+            with tf.name_scope("MAML"):
                 #Placeholders
                 if len(stateShape) == 4:
                     self.s = tf.placeholder(tf.float32, [None]+stateShape[1:4], 'S')
@@ -86,38 +86,38 @@ class MAML(Method):
                 # Clipped surrogate function
                 ratio = tf.exp(log_prob - old_log_prob)
                 surrogate = ratio * self.advantage_
-                clipped_surrogate = tf.clip_by_value(ratio, 1-HPs["eps"], 1+HPs["eps"]) * self.advantage_
+                clipped_surrogate = tf.clip_by_value(ratio, 1-self.HPs["eps"], 1+self.HPs["eps"]) * self.advantage_
                 surrogate_loss = tf.minimum(surrogate, clipped_surrogate, name='surrogate_loss')
                 actor_loss = self.actor_loss = -tf.reduce_mean(surrogate_loss, name='actor_loss')
 
-                actor_loss = actor_loss - entropy * HPs["EntropyBeta"]
-                loss = actor_loss + critic_loss * HPs["CriticBeta"]
+                actor_loss = actor_loss - entropy * self.HPs["EntropyBeta"]
+                loss = actor_loss + critic_loss * self.HPs["CriticBeta"]
 
                 # Build Trainer
-                if HPs["Optimizer"] == "Adam":
-                    self.optimizer = tf.keras.optimizers.Adam(HPs["LR"])
-                    self.metaOptimizer = tf.keras.optimizers.Adam(HPs["Meta LR"])
-                elif HPs["Optimizer"] == "RMS":
-                    self.optimizer = tf.keras.optimizers.RMSProp(HPs["LR"])
-                    self.metaOptimizer = tf.keras.optimizers.RMSProp(HPs["Meta LR"])
-                elif HPs["Optimizer"] == "Adagrad":
-                    self.optimizer = tf.keras.optimizers.Adagrad(HPs["LR"])
-                    self.metaOptimizer = tf.keras.optimizers.Adagrad(HPs["Meta LR"])
-                elif HPs["Optimizer"] == "Adadelta":
-                    self.optimizer = tf.keras.optimizers.Adadelta(HPs["LR"])
-                    self.metaOptimizer = tf.keras.optimizers.Adadelta(HPs["Meta LR"])
-                elif HPs["Optimizer"] == "Adamax":
-                    self.optimizer = tf.keras.optimizers.Adamax(HPs["LR"])
-                    self.metaOptimizer = tf.keras.optimizers.Adamax(HPs["Meta LR"])
-                elif HPs["Optimizer"] == "Nadam":
-                    self.optimizer = tf.keras.optimizers.Nadam(HPs["LR"])
-                    self.metaOptimizer = tf.keras.optimizers.Nadam(HPs["Meta LR"])
-                elif HPs["Optimizer"] == "SGD":
-                    self.optimizer = tf.keras.optimizers.SGD(HPs["LR"])
-                    self.metaOptimizer = tf.keras.optimizers.SGD(HPs["Meta LR"])
-                elif HPs["Optimizer"] == "Amsgrad":
-                    self.optimizer = tf.keras.optimizers.Nadam(HPs["LR"],amsgrad=True)
-                    self.metaOptimizer = tf.keras.optimizers.Nadam(HPs["Meta LR"],amsgrad=True)
+                if self.HPs["Optimizer"] == "Adam":
+                    self.optimizer = tf.keras.optimizers.Adam(self.HPs["LR"])
+                    self.metaOptimizer = tf.keras.optimizers.Adam(self.HPs["Meta LR"])
+                elif self.HPs["Optimizer"] == "RMS":
+                    self.optimizer = tf.keras.optimizers.RMSProp(self.HPs["LR"])
+                    self.metaOptimizer = tf.keras.optimizers.RMSProp(self.HPs["Meta LR"])
+                elif self.HPs["Optimizer"] == "Adagrad":
+                    self.optimizer = tf.keras.optimizers.Adagrad(self.HPs["LR"])
+                    self.metaOptimizer = tf.keras.optimizers.Adagrad(self.HPs["Meta LR"])
+                elif self.HPs["Optimizer"] == "Adadelta":
+                    self.optimizer = tf.keras.optimizers.Adadelta(self.HPs["LR"])
+                    self.metaOptimizer = tf.keras.optimizers.Adadelta(self.HPs["Meta LR"])
+                elif self.HPs["Optimizer"] == "Adamax":
+                    self.optimizer = tf.keras.optimizers.Adamax(self.HPs["LR"])
+                    self.metaOptimizer = tf.keras.optimizers.Adamax(self.HPs["Meta LR"])
+                elif self.HPs["Optimizer"] == "Nadam":
+                    self.optimizer = tf.keras.optimizers.Nadam(self.HPs["LR"])
+                    self.metaOptimizer = tf.keras.optimizers.Nadam(self.HPs["Meta LR"])
+                elif self.HPs["Optimizer"] == "SGD":
+                    self.optimizer = tf.keras.optimizers.SGD(self.HPs["LR"])
+                    self.metaOptimizer = tf.keras.optimizers.SGD(self.HPs["Meta LR"])
+                elif self.HPs["Optimizer"] == "Amsgrad":
+                    self.optimizer = tf.keras.optimizers.Nadam(self.HPs["LR"],amsgrad=True)
+                    self.metaOptimizer = tf.keras.optimizers.Nadam(self.HPs["Meta LR"],amsgrad=True)
                 else:
                     print("Not selected a proper Optimizer")
                     exit()
@@ -138,7 +138,6 @@ class MAML(Method):
         self.CriticLossMA = MovingAverage(400)
         self.ActorLossMA = MovingAverage(400)
         self.GradMA = MovingAverage(400)
-        self.HPs = HPs
         self.counter = 0
 
     def next_task(self):

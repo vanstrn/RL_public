@@ -13,12 +13,11 @@ import numpy as np
 import scipy
 from utils.utils import MovingAverage
 
-from networks.network import Network
 from networks.common import NetworkBuilder
 
 class PPO(Method):
 
-    def __init__(self,networkConfig,netConfigOverride,sess,stateShape,actionSize,HPs,nTrajs=1,scope="PPO_Training"):
+    def __init__(self,sess,settings,netConfigOverride,stateShape,actionSize,nTrajs=1,**kwargs):
         """
         Initializes a training method for a neural network.
 
@@ -46,15 +45,16 @@ class PPO(Method):
         #Processing inputs
         self.actionSize = actionSize
         self.sess=sess
+        self.HPs = settings["NetworkHPs"]
 
         #Building the network.
-        self.Model = NetworkBuilder(networkConfig=networkConfig,netConfigOverride=netConfigOverride,actionSize=actionSize)
+        self.Model = NetworkBuilder(networkConfig=settings["NetworkConfig"],netConfigOverride=netConfigOverride,actionSize=actionSize)
 
         #Creating appropriate buffer for the method.
         self.buffer = [Trajectory(depth=7) for _ in range(nTrajs)]
 
         with self.sess.as_default(), self.sess.graph.as_default():
-            with tf.name_scope(scope):
+            with tf.name_scope("PPO"):
                 #Placeholders
                 if len(stateShape) == 4:
                     self.s = tf.placeholder(tf.float32, [None]+stateShape[1:4], 'S')
@@ -89,34 +89,33 @@ class PPO(Method):
                 # Clipped surrogate function
                 ratio = tf.exp(log_prob - old_log_prob)
                 surrogate = ratio * self.advantage_
-                clipped_surrogate = tf.clip_by_value(ratio, 1-HPs["eps"], 1+HPs["eps"]) * self.advantage_
+                clipped_surrogate = tf.clip_by_value(ratio, 1-self.HPs["eps"], 1+self.HPs["eps"]) * self.advantage_
                 surrogate_loss = tf.minimum(surrogate, clipped_surrogate, name='surrogate_loss')
                 actor_loss = self.actor_loss = -tf.reduce_mean(surrogate_loss, name='actor_loss')
 
-                actor_loss = actor_loss - entropy * HPs["EntropyBeta"]
-                loss = actor_loss + critic_loss * HPs["CriticBeta"]
+                actor_loss = actor_loss - entropy * self.HPs["EntropyBeta"]
+                loss = actor_loss + critic_loss * self.HPs["CriticBeta"]
 
                 # Build Trainer
-                if HPs["Optimizer"] == "Adam":
-                    self.optimizer = tf.keras.optimizers.Adam(HPs["LR"])
-                elif HPs["Optimizer"] == "RMS":
-                    self.optimizer = tf.keras.optimizers.RMSProp(HPs["LR"])
-                elif HPs["Optimizer"] == "Adagrad":
-                    self.optimizer = tf.keras.optimizers.Adagrad(HPs["LR"])
-                elif HPs["Optimizer"] == "Adadelta":
-                    self.optimizer = tf.keras.optimizers.Adadelta(HPs["LR"])
-                elif HPs["Optimizer"] == "Adamax":
-                    self.optimizer = tf.keras.optimizers.Adamax(HPs["LR"])
-                elif HPs["Optimizer"] == "Nadam":
-                    self.optimizer = tf.keras.optimizers.Nadam(HPs["LR"])
-                elif HPs["Optimizer"] == "SGD":
-                    self.optimizer = tf.keras.optimizers.SGD(HPs["LR"])
-                elif HPs["Optimizer"] == "Amsgrad":
-                    self.optimizer = tf.keras.optimizers.Nadam(HPs["LR"],amsgrad=True)
+                if self.HPs["Optimizer"] == "Adam":
+                    self.optimizer = tf.keras.optimizers.Adam(self.HPs["LR"])
+                elif self.HPs["Optimizer"] == "RMS":
+                    self.optimizer = tf.keras.optimizers.RMSProp(self.HPs["LR"])
+                elif self.HPs["Optimizer"] == "Adagrad":
+                    self.optimizer = tf.keras.optimizers.Adagrad(self.HPs["LR"])
+                elif self.HPs["Optimizer"] == "Adadelta":
+                    self.optimizer = tf.keras.optimizers.Adadelta(self.HPs["LR"])
+                elif self.HPs["Optimizer"] == "Adamax":
+                    self.optimizer = tf.keras.optimizers.Adamax(self.HPs["LR"])
+                elif self.HPs["Optimizer"] == "Nadam":
+                    self.optimizer = tf.keras.optimizers.Nadam(self.HPs["LR"])
+                elif self.HPs["Optimizer"] == "SGD":
+                    self.optimizer = tf.keras.optimizers.SGD(self.HPs["LR"])
+                elif self.HPs["Optimizer"] == "Amsgrad":
+                    self.optimizer = tf.keras.optimizers.Nadam(self.HPs["LR"],amsgrad=True)
                 else:
                     print("Not selected a proper Optimizer")
                     exit()
-                print(self.Model.trainable_variables)
                 self.gradients = self.optimizer.get_gradients(loss, self.Model.trainable_variables)
                 self.update_ops = self.optimizer.apply_gradients(zip(self.gradients, self.Model.trainable_variables))
                 # self.gradients = self.optimizer.get_gradients(loss, tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope))
@@ -128,7 +127,6 @@ class PPO(Method):
         self.CriticLossMA = MovingAverage(400)
         self.ActorLossMA = MovingAverage(400)
         self.GradMA = MovingAverage(400)
-        self.HPs = HPs
 
     def GetAction(self, state, episode=1,step=0):
         """

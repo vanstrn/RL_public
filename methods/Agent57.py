@@ -15,7 +15,9 @@ from utils.record import Record
 from utils.utils import InitializeVariables, CreatePath, interval_flag, GetFunction
 from utils.record import Record,SaveHyperparams
 import random
-
+from environments import CreateEnvironment
+from networks.common import NetworkBuilder
+import json
 
 class Agent57(Method):
 
@@ -378,7 +380,7 @@ class WorkerSlave(object):
 
             self.sess.run(self.global_step_next)
 
-            logging = interval_flag(self.sess.run(self.global_step), self.settings["LogFreq"], 'log')
+            logging = interval_flag(self.sess.run(self.global_step), self.settings["LogFreq"], 'logEnv')
             saving = interval_flag(self.sess.run(self.global_step), self.settings["SaveFreq"], 'save')
 
             #Initializing environment and storage variables:
@@ -450,8 +452,7 @@ class WorkerMaster(object):
         #Allowing access to the global variables.
         while not COORD.should_stop() and self.sess.run(self.global_step) < self.settings["MaxEpisodes"]:
 
-            logging = interval_flag(self.sess.run(self.global_step), self.settings["LogFreq"], 'log')
-
+            logging = interval_flag(self.sess.run(self.global_step), self.settings["LogFreq"], 'logNet')
             self.net.Update(self.settings["NetworkHPs"],self.sess.run(self.global_step))
 
             if logging:
@@ -535,6 +536,7 @@ class Agent57Buffer():
 
     def GetMuSigma(self):
         return self.errorMA(), self.errorMA.std()
+
     def AddError(self,val):
         self.errorMA.append(val)
 
@@ -543,17 +545,15 @@ class Agent57Buffer():
         self.priorities.append(priority)
         self.trajLengths.append(len(sample[0]))
 
-
     def Sample(self):
         return self.buffer[0:self.slice] , self.sampleSize
-
 
     def PrioritizeandPruneSamples(self,sampleSize):
         if len(self.trajLengths) ==0:
             return
         if self.flag:
             self.flag=False
-        self.priorities, self.buffer,self.trajLengths = (list(t) for t in zip(*sorted(zip(self.priorities, self.buffer,self.trajLengths), reverse=True)))
+        self.priorities, self.buffer,self.trajLengths = (list(t) for t in zip(*sorted(zip(self.priorities, self.buffer,self.trajLengths), key=lambda x: x[0],reverse=True)))
 
         #Pruning the least favorable samples
         while sum(self.trajLengths) >= self.maxSamples:
@@ -567,8 +567,48 @@ class Agent57Buffer():
             if self.sampleSize > sampleSize:
                 break
 
-
     def UpdatePriorities(self,priorities):
         self.priorities[0:self.slice] = priorities
         self.flag = True
         return self.buffer
+
+
+def Agent57Workers(sess,settings,netConfigOverride):
+    #Created Here if there is something to save images
+    EXP_NAME = settings["RunName"]
+    MODEL_PATH = './models/'+EXP_NAME
+    LOG_PATH = './logs/'+EXP_NAME
+    CreatePath(LOG_PATH)
+    CreatePath(MODEL_PATH)
+
+    with open("configs/environment/"+settings["EnvConfig"]) as json_file:
+        envSettings = json.load(json_file)
+
+    sharedBuffer = Agent57Buffer()
+    sharedBandit = SlidingWindowUCBBandit()
+    _,dFeatures,nActions,nTrajs = CreateEnvironment(envSettings,multiprocessing=1)
+
+    progbar = tf.keras.utils.Progbar(None, unit_name='Training',stateful_metrics=["Reward"])
+    writer = tf.summary.FileWriter(LOG_PATH,graph=sess.graph)
+    global_step = tf.Variable(0, trainable=False, name='global_step')
+    global_step_next = tf.assign_add(global_step,1)
+
+    workers = []
+
+    network = NetworkBuilder(settings["NetworkConfig"],netConfigOverride,scope="Global",actionSize=nActions)
+    Updater = Agent57(network,sess,stateShape=dFeatures,actionSize=nActions,scope="Global",HPs=settings["NetworkHPs"],sharedBuffer=sharedBuffer)
+    Updater.Model.summary()
+    saver = tf.train.Saver(max_to_keep=3, var_list=Updater.getVars+[global_step])
+    Updater.InitializeVariablesFromFile(saver,MODEL_PATH)
+    workers.append(WorkerMaster(Updater,sess,global_step,global_step_next,settings,progbar,writer,MODEL_PATH,saver))
+
+    # Create workers
+    for i in range(settings["NumberENV"]):
+        i_name = 'W_%i' % i   # worker name
+        network = NetworkBuilder(settings["NetworkConfig"],netConfigOverride,scope=i_name,actionSize=nActions)
+        localNetwork = Agent57(network,sess,stateShape=dFeatures,actionSize=nActions,scope=i_name,HPs=settings["NetworkHPs"],globalNet=Updater,nTrajs=nTrajs,sharedBuffer=sharedBuffer,sharedBandit=sharedBandit)
+        localNetwork.InitializeVariablesFromFile(saver,MODEL_PATH)
+        env,_,_,_ = CreateEnvironment(envSettings,multiprocessing=1)
+        workers.append(WorkerSlave(localNetwork,env,sess,global_step,global_step_next,settings,progbar,writer,MODEL_PATH,saver))
+
+    return workers

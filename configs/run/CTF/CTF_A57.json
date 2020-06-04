@@ -1,4 +1,4 @@
-{ "RunName":"CTF_DQN_10Maps_EGreedy",
+{ "RunName":"CTF_A57_1",
   "GPUCapacitty":0.95,
   "NetworkHPs":{"LearningRate": 1E-3,
                 "Gamma":0.98,
@@ -24,8 +24,8 @@
   "LogFreq":20,
   "SaveFreq":5000,
 
-  "EnvConfig":"CTF_1v0_FO.json",
+  "EnvConfig":"CTF_1v1_FO_1.json",
   "NetworkConfig":"CTF_A57_v1.json",
   "NumberENV":1,
-  "Method":"methods.Agent57.Agent57"
+  "Method":"methods.Agent57.Agent57Workers"
   }

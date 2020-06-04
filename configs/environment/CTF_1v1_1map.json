@@ -14,13 +14,11 @@
   { "WrapperName":"environments.CTF_v2.UseMap",
     "WrapperParameters":{ "execute":true,
                           "unbiased":true,
-                          "mapPath":"/home/capturetheflag/RL/environments/fair_map_1v1"}},
+                          "mapPath":"/home/capturetheflag/RL/environments/fair_map_1v1_1"}},
   { "WrapperName":"environments.Common.NPConverter",
     "WrapperParameters":{}},
   { "WrapperName":"environments.CTF_v2.RewardLogging",
     "WrapperParameters":{}},
-  { "WrapperName":"environments.CTF_v2.StateStacking",
-    "WrapperParameters":{"nStates":4}},
   { "WrapperName":"environments.CTF_v2.Reset",
     "WrapperParameters":{
       "policy_red":"Roomba"}}

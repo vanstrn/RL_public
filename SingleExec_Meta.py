@@ -9,6 +9,7 @@ import gym_minigrid,gym_cap
 import tensorflow as tf
 import argparse
 from urllib.parse import unquote
+import os
 
 from networks.network import Network
 from utils.utils import InitializeVariables, CreatePath, interval_flag, GetFunction
@@ -74,10 +75,8 @@ sess = tf.Session(config=config)
 with tf.device(args.processor):
     global_step = tf.Variable(0, trainable=False, name='global_step')
     global_step_next = tf.assign_add(global_step,1)
-    network = Network(settings["NetworkConfig"],nActions,netConfigOverride,scope="local")
-    network2 = Network(settings["NetworkConfig"],nActions,netConfigOverride,scope="global")
     Method = GetFunction(settings["Method"])
-    net = Method(network,network2,sess,scope="net",stateShape=dFeatures,actionSize=nActions,HPs=settings["NetworkHPs"],nTrajs=nTrajs)
+    net = Method(sess,settings,netConfigOverride,stateShape=dFeatures,actionSize=nActions,nTrajs=nTrajs)
 
 #Creating Auxilary Functions for logging and saving.
 writer = tf.summary.FileWriter(LOG_PATH,graph=sess.graph)

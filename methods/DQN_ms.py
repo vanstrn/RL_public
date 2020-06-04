@@ -14,10 +14,11 @@ from utils.utils import MovingAverage
 from utils.record import Record
 import random
 
+from networks.common import NetworkBuilder
 
 class DQN_ms(Method):
 
-    def __init__(self,sharedModel,sess,stateShape,actionSize,scope,HPs,globalAC=None,nTrajs=1):
+    def __init__(self,sess,settings,netConfigOverride,stateShape,actionSize,nTrajs=1,**kwargs):
         """
         Initializes I/O placeholders and the training process of a Multi-step DQN.
         Main principal is that instead of one-step TD diference, the loss is evaluated on a
@@ -29,12 +30,13 @@ class DQN_ms(Method):
         #Placeholders
         self.actionSize = actionSize
         self.sess=sess
-        self.scope=scope
-        self.Model = sharedModel
+        self.HPs = settings["NetworkHPs"]
+        self.scope="DQN"
+        self.Model = NetworkBuilder(networkConfig=settings["NetworkConfig"],netConfigOverride=netConfigOverride,actionSize=actionSize)
 
         self.buffer = [Trajectory(depth=5) for _ in range(nTrajs)]
         with self.sess.as_default(), self.sess.graph.as_default():
-            with tf.name_scope(scope):
+            with tf.name_scope(self.scope):
                 self.states_ = tf.placeholder(shape=[None]+stateShape, dtype=tf.float32, name='states')
                 self.next_states_ = tf.placeholder(shape=[None]+stateShape, dtype=tf.float32, name='next_states')
                 self.actions_ = tf.placeholder(shape=[None], dtype=tf.int32, name='actions_hold')
@@ -54,16 +56,16 @@ class DQN_ms(Method):
 
                 with tf.name_scope('target_Q'):
                     max_next_q = tf.reduce_max(q_next, axis=-1)
-                    td_target = self.rewards_  + HPs["Gamma"] * max_next_q * (1. - self.done_)
+                    td_target = self.rewards_  + self.HPs["Gamma"] * max_next_q * (1. - self.done_)
 
                 with tf.name_scope('td_error'):
                     loss = tf.keras.losses.MSE(td_target, curr_q)
                     softmax_q = tf.nn.softmax(curr_q)
                     self.entropy = -tf.reduce_mean(softmax_q * tf.log(softmax_q+ 1e-5))
-                    self.loss=total_loss = loss + HPs["EntropyBeta"] * self.entropy
+                    self.loss=total_loss = loss + self.HPs["EntropyBeta"] * self.entropy
 
-                optimizer = tf.keras.optimizers.Adam(HPs["LearningRate"])
-                self.params = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope)
+                optimizer = tf.keras.optimizers.Adam(self.HPs["LearningRate"])
+                self.params = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, self.scope)
 
                 self.gradients = optimizer.get_gradients(total_loss, self.params)
                 self.update_op = optimizer.apply_gradients(zip(self.gradients, self.params))
@@ -75,7 +77,6 @@ class DQN_ms(Method):
         self.grad_MA = [MovingAverage(400) for i in range(len(self.grads))]
         self.loss_MA = [MovingAverage(400) for i in range(len(self.losses))]
         self.labels = ["Critic"]
-        self.HPs = HPs
 
     def GetAction(self, state,episode,step):
         """
@@ -99,7 +100,7 @@ class DQN_ms(Method):
             actions = np.argmax(q, axis=-1)
         return actions ,[]  # return a int and extra data that needs to be fed to buffer.
 
-    def Update(self,HPs,episode=0,statistics=True):
+    def Update(self,episode=0):
         """
         The main update function for A3C. The function pushes gradients to the global AC Network.
         The second function is to Pull

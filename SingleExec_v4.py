@@ -13,7 +13,7 @@ import os
 import json
 import time
 
-from utils.utils import InitializeVariables, CreatePath, interval_flag, GetFunction
+from utils.utils import InitializeVariables, CreatePath, interval_flag, GetFunction, UpdateNestedDictionary
 from utils.record import Record,SaveHyperparams
 from environments.Common import CreateEnvironment
 
@@ -23,21 +23,17 @@ parser.add_argument("-f", "--file", required=True,
                     help="File for specific run. Located in ./configs/run")
 parser.add_argument("-c", "--config", required=False,
                     help="JSON configuration string to override runtime configs of the script.")
-parser.add_argument("-e", "--environment", required=False,
-                    help="JSON configuration string to override environment parameters")
 parser.add_argument("-n", "--network", required=False,
                     help="JSON configuration string to override network parameters")
 parser.add_argument("-p", "--processor", required=False, default="/gpu:0",
                     help="Processor identifier string. Ex. /cpu:0 /gpu:0")
 parser.add_argument("-r", "--render", required=False, default=False, action="store_true",
                     help="Whether or not to render the environment")
-parser.add_argument("-t", "--continu", required=False, default=False, action="store_true",
+parser.add_argument("-t", "--cont", required=False, default=False, action="store_true",
                     help="Defining if this a continuation of training")
 args = parser.parse_args()
 if args.config is not None: configOverride = json.loads(unquote(args.config))
 else: configOverride = {}
-if args.environment is not None: envConfigOverride = json.loads(unquote(args.environment))
-else: envConfigOverride = {}
 if args.network is not None: netConfigOverride = json.loads(unquote(args.network))
 else: netConfigOverride = {}
 
@@ -49,11 +45,10 @@ for (dirpath, dirnames, filenames) in os.walk("configs/run"):
             break
 with open(runConfigFile) as json_file:
     settings = json.load(json_file)
-    settings.update(configOverride)
+    settings = UpdateNestedDictionary(settings,configOverride)
 with open("configs/environment/"+settings["EnvConfig"]) as json_file:
     envSettings = json.load(json_file)
-    envSettings.update(envConfigOverride)
-
+print(settings["NetworkHPs"])
 env,dFeatures,nActions,nTrajs = CreateEnvironment(envSettings)
 EXP_NAME = settings["RunName"]
 MODEL_PATH = './models/'+EXP_NAME
@@ -77,7 +72,7 @@ with tf.device(args.processor):
     global_step = tf.Variable(0, trainable=False, name='global_step')
     global_step_next = tf.assign_add(global_step,1)
     Method = GetFunction(settings["Method"])
-    net = Method(settings["NetworkConfig"],netConfigOverride,sess,scope="net",stateShape=dFeatures,actionSize=nActions,HPs=settings["NetworkHPs"],nTrajs=nTrajs)
+    net = Method(sess,settings,netConfigOverride,stateShape=dFeatures,actionSize=nActions,nTrajs=nTrajs)
 
 #Creating Auxilary Functions for logging and saving.
 writer = tf.summary.FileWriter(LOG_PATH,graph=sess.graph)
@@ -85,7 +80,7 @@ saver = tf.train.Saver(max_to_keep=3, var_list=net.getVars+[global_step])
 net.InitializeVariablesFromFile(saver,LOAD_PATH)
 
 #If not continuing training reset step counter to 0.
-if args.continu:
+if args.cont:
     global_step_next = tf.assign(global_step,0)
 
 InitializeVariables(sess) #Included to catch if there are any uninitalized variables.

@@ -8,12 +8,24 @@ from importlib import import_module #Used to import module based on a string.
 import inspect
 import functools
 import math
+import collections.abc
+
+
+def UpdateNestedDictionary(defaultSettings,overrides):
+    for label,override in overrides.items():
+        if isinstance(override, collections.abc.Mapping):
+            UpdateNestedDictionary(defaultSettings[label],override)
+        else:
+            defaultSettings[label] = override
+    return defaultSettings
+
 
 def GetFunction(string):
     module_name, func_name = string.rsplit('.',1)
     module = import_module(module_name)
     func = getattr(module,func_name)
     return func
+
 
 def interval_flag(step, freq, name):
     """

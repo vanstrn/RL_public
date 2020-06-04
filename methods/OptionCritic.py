@@ -13,12 +13,14 @@ import numpy as np
 from utils.utils import MovingAverage
 import random
 
+from networks.common import NetworkBuilder
+
 def _log(val):
     return tf.log(tf.clip_by_value(val, 1e-10, 10.0))
 
 class OptionCritic(Method):
 
-    def __init__(self,Model,sess,stateShape,actionSize,HPs,nTrajs=1,scope="PPO_Training",subReward=False):
+    def __init__(self,sess,settings,netConfigOverride,stateShape,actionSize,nTrajs=1,**kwargs):
         """
         Initializes a training method for a neural network.
 
@@ -46,10 +48,10 @@ class OptionCritic(Method):
         #Processing inputs
         self.actionSize = actionSize
         self.sess=sess
-        self.Model = Model
+        self.Model = NetworkBuilder(networkConfig=settings["NetworkConfig"],netConfigOverride=netConfigOverride,actionSize=actionSize)
         self.method = "Confidence" #Create input for this.
-        self.HPs=HPs
-        self.subReward = subReward
+        self.HPs=settings["NetworkHPs"]
+        self.subReward = False
         self.UpdateSubpolicies = True
         self.nTrajs = nTrajs
 
@@ -58,7 +60,7 @@ class OptionCritic(Method):
         #[s0,a,r,s1,done]+[HL_action]
 
         with self.sess.as_default(), self.sess.graph.as_default():
-            with tf.name_scope(scope):
+            with tf.name_scope("OptionCritic"):
                 #Generic placeholders
                 self.batch_size = tf.placeholder(tf.int32, 1, 'BS')
                 self.s = tf.placeholder(tf.float32, [None]+stateShape, 'S')
@@ -121,7 +123,7 @@ class OptionCritic(Method):
                 self.loss = -self.policy_loss - self.entropy - self.value_loss - self.termination_loss
 
                 variables = self.Model.getVars()
-                variables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope)
+                variables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, "OptionCritic")
                 optimizer = tf.keras.optimizers.Adam(self.HPs["LR"])
                 gradients = optimizer.get_gradients(self.loss,variables)
                 self.update_op = optimizer.apply_gradients(zip(gradients,variables))

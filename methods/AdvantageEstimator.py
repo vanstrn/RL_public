@@ -79,11 +79,10 @@ def MultiStepDiscountProcessing(reward_list, state_list, gamma:float, steps=40):
     td_target: list
     advantage: list
     """
-    rewards = np.append(np.asarray(reward_list),np.zeros(steps))
-    value_disc = np.zeros_like(np.asarray(reward_list))
+    rewards = np.append(np.asarray(reward_list).squeeze(),np.zeros(steps))
+    value_disc = np.zeros_like(np.asarray(reward_list).squeeze())
     for i in range(steps):
         value_disc = value_disc+gamma**i*rewards[i:len(reward_list)+i]
-
     if steps  < len(state_list):
         states_n = state_list[steps:]
         for i in range(steps):
