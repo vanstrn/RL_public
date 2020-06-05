@@ -116,14 +116,14 @@ class CTFCentering(gym.core.ObservationWrapper):
         if centering:
 
             self.observation_space = spaces.Box(
-                low=0,
+                low=-255,
                 high=255,
                 shape=( 2*self.map_size[0]-1, 2*self.map_size[1]-1, 6),  # number of cells
                 dtype='uint8'
             )
         else:
             self.observation_space = spaces.Box(
-                low=0,
+                low=-255,
                 high=255,
                 shape=( self.map_size[0], self.map_size[1], 6),  # number of cells
                 dtype='uint8'
@@ -182,29 +182,48 @@ class StateStacking(gym.core.ObservationWrapper):
     Fully observable gridworld using a compact grid encoding
     """
 
-    def __init__(self, env,nStates,axis=3):
+    def __init__(self, env,nStates,lstm=False,axis=3):
         super().__init__(env)
         nAgents = len(self.env.get_team_blue)
         self.nStates = nStates
         self.axis = axis
 
-        self.observation_space = spaces.Box(
-            low=0,
-            high=255,
-            shape=( self.map_size[0], self.map_size[1], 6*nStates),  # number of cells
-            dtype='uint8'
-        )
+        self.lstm = lstm
+        if self.lstm: #If lstm then the states need to be stacked in a different way.
+            self.observation_space = spaces.Box(
+                low=-255,
+                high=255,
+                shape=(nStates, self.map_size[0], self.map_size[1], 6),  # number of cells
+                dtype='uint8'
+            )
+        else:
+            self.observation_space = spaces.Box(
+                low=-255,
+                high=255,
+                shape=( self.map_size[0], self.map_size[1], 6*nStates),  # number of cells
+                dtype='uint8'
+            )
 
     def reset(self, **kwargs):
         s0 = self.env.reset(**kwargs)
-        self.stack = [s0] * self.nStates
-        return np.concatenate(self.stack, axis=self.axis)
+
+        if self.lstm:
+            self.stack = [s0] * self.nStates
+            return np.stack(self.stack, axis=self.axis)
+        else:
+            self.stack = [s0] * self.nStates
+            return np.concatenate(self.stack, axis=self.axis)
+
     def observation(self, s0):
         if s0 is None:
             return np.concatenate(self.stack, axis=self.axis)
         self.stack.append(s0)
         self.stack.pop(0)
-        return np.concatenate(self.stack, axis=self.axis)
+
+        if self.lstm:
+            return np.stack(self.stack, axis=self.axis)
+        else:
+            return np.concatenate(self.stack, axis=self.axis)
 
 
 class Reset(gym.core.Wrapper):

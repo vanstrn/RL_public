@@ -27,6 +27,7 @@ def CreateEnvironment(envSettings,multiprocessing=1):
 
 def ApplyWrappers(env,wrapperList):
     for wrapperDict in wrapperList:
+        print(wrapperDict["WrapperName"])
         wrapper = GetFunction(wrapperDict["WrapperName"])
         env = wrapper(env,**wrapperDict["WrapperParameters"])
     return env

@@ -9,6 +9,7 @@ from .layers.non_local import Non_local_nn
 from .layers.approx_round import *
 from .layers.inception import Inception
 from .layers.reverse_inception import ReverseInception
+from .layers.lstm_reshape import LSTM_Reshape,LSTM_Unshape
 import tensorflow.keras.backend as K
 
 import collections.abc
@@ -99,18 +100,12 @@ def GetLayer( dict):
         layer = KL.Conv2DTranspose( **dict["Parameters"],name=dict["layerName"])
     elif dict["layerType"] == "SeparableConv":
         layer = KL.SeparableConv2D( **dict["Parameters"],name=dict["layerName"])
-    elif dict["layerType"] == "Round":
-        layer= RoundingSine(name=dict["layerName"])
     elif dict["layerType"] == "Flatten":
         layer= KL.Flatten()
     elif dict["layerType"] == "AveragePool":
         layer= KL.AveragePooling2D(**dict["Parameters"],name=dict["layerName"])
     elif dict["layerType"] == "GlobalAveragePooling2D":
         layer= KL.GlobalAveragePooling2D(name=dict["layerName"])
-    elif dict["layerType"] == "NonLocalNN":
-        layer= Non_local_nn( **dict["Parameters"],name=dict["layerName"])
-    elif dict["layerType"] == "LogSoftMax":
-        layer = tf.nn.log_softmax
     elif dict["layerType"] == "SoftMax":
         layer = KL.Activation('softmax')
     elif dict["layerType"] == "Concatenate":
@@ -125,20 +120,34 @@ def GetLayer( dict):
         layer = KL.LSTM(**dict["Parameters"],name=dict["layerName"])
     elif dict["layerType"] == "SimpleRNN":
         layer = KL.SimpleRNN(**dict["Parameters"],name=dict["layerName"])
-    elif dict["layerType"] == "Sum":
-        layer = tf.keras.backend.sum
-    elif dict["layerType"] == "Inception":
-        layer = Inception(**dict["Parameters"],name=dict["layerName"])
-    elif dict["layerType"] == "ReverseInception":
-        layer = ReverseInception(**dict["Parameters"],name=dict["layerName"])
     elif dict["layerType"] == "UpSampling2D":
         layer = KL.UpSampling2D(**dict["Parameters"],name=dict["layerName"])
     elif dict["layerType"] == "GaussianNoise":
         layer = KL.GaussianNoise(**dict["Parameters"],name=dict["layerName"])
+
+    #Weird Math Layers
+    elif dict["layerType"] == "LogSoftMax":
+        layer = tf.nn.log_softmax
+    elif dict["layerType"] == "Sum":
+        layer = tf.keras.backend.sum
     elif dict["layerType"] == "StopGradient":
         layer = KL.Lambda(lambda x: K.stop_gradient(x))
     elif dict["layerType"] == "StopNan":
         layer = KL.Lambda(lambda x: tf.math.maximum(x,1E-9))
+
+    #Custom Layers
+    elif dict["layerType"] == "LSTM_Reshape":
+        layer = LSTM_Reshape(**dict["Parameters"],name=dict["layerName"])
+    elif dict["layerType"] == "Round":
+        layer= RoundingSine(name=dict["layerName"])
+    elif dict["layerType"] == "LSTM_Unshape":
+        layer = LSTM_Unshape(**dict["Parameters"],name=dict["layerName"])
+    elif dict["layerType"] == "Inception":
+        layer = Inception(**dict["Parameters"],name=dict["layerName"])
+    elif dict["layerType"] == "ReverseInception":
+        layer = ReverseInception(**dict["Parameters"],name=dict["layerName"])
+    elif dict["layerType"] == "NonLocalNN":
+        layer= Non_local_nn( **dict["Parameters"],name=dict["layerName"])
 
     return layer
 

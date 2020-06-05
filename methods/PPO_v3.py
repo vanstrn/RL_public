@@ -57,7 +57,7 @@ class PPO(Method):
             with tf.name_scope("PPO"):
                 #Placeholders
                 if len(stateShape) == 4:
-                    self.s = tf.placeholder(tf.float32, [None]+stateShape[1:4], 'S')
+                    self.s = tf.placeholder(tf.float32, [None]+stateShape[0:4], 'S')
                 else:
                     self.s = tf.placeholder(tf.float32, [None]+stateShape, 'S')
                 self.a_his = tf.placeholder(tf.int32, [None, ], 'A')
