@@ -1,0 +1,149 @@
+{ "NetworkName" : "MG_SF",
+  "NetworkBuilder":"network",
+  "DefaultParams":{ "SFSize":64,
+                    "FCUnits":64},
+  "Inputs":{"state":[19,19,2]},
+  "NetworkStructure":{
+    "Phi":[
+      { "layerType":"Dense",
+        "layerName":"Shared_FC1",
+        "layerInput":"input.state",
+        "Parameters":{"units":"FCUnits",
+                      "activation":"relu"}},
+      { "layerType":"Dense",
+        "layerName":"Phi",
+        "layerInput":"Shared_FC1",
+        "Parameters":{"units":"FCUnits",
+                      "activation":"relu"}}
+      ],
+    "EmbeddingS":[
+      { "layerType":"Dense",
+        "layerName":"Shared_FC1_Embedding",
+        "layerInput":"input.state",
+        "Parameters":{"units":"FCUnits",
+                      "activation":"relu"}},
+      { "layerType":"Dense",
+        "layerName":"Phi_s",
+        "layerInput":"Shared_FC1_Embedding",
+        "Parameters":{"units":"FCUnits",
+                      "activation":"relu"}}
+      ],
+    "EmbeddingSNext":[
+      { "layerType":"Dense",
+        "layerName":"Shared_FC1_Embedding_",
+        "layerInput":"input.state_next",
+        "ReuseLayer":"Shared_FC1_Embedding"},
+      { "layerType":"Dense",
+        "layerName":"Phi_s_",
+        "layerInput":"Shared_FC1_Embedding_",
+        "ReuseLayer":"Phi_s"}
+      ],
+
+    "ActionPrediction":[
+      { "layerType":"Concatenate",
+        "layerName":"Concatenate",
+        "layerInput":["Phi_s","Phi_s_"],
+        "Parameters":{}},
+      { "layerType":"Dense",
+        "layerName":"AP1",
+        "layerInput":"Concatenate",
+        "Parameters":{"units":"FCUnits",
+                      "activation":"relu"}},
+      { "layerType":"Dense",
+        "layerName":"AP2",
+        "layerInput":"AP1",
+        "Parameters":{"units":"actionSize",
+                      "activation":"relu"}}
+    ],
+
+    "RND_Random_Net":[
+      { "layerType":"Dense",
+        "layerName":"RND_Dense1",
+        "layerInput":"input.state",
+        "Parameters":{"units":"FCUnits",
+                      "trainable":false,
+                      "activation":"relu"}},
+      { "layerType":"Dense",
+        "layerName":"RND_Phi",
+        "layerInput":"RND_Dense1",
+        "Parameters":{"units":"SFSize",
+                      "trainable":false,
+                      "activation":null}}
+    ],
+
+    "RND_Predict_Net":[
+      { "layerType":"Dense",
+        "layerName":"RNDP_Dense1",
+        "layerInput":"input.state",
+        "Parameters":{"units":"FCUnits",
+                      "activation":"relu"}},
+      { "layerType":"Dense",
+        "layerName":"RNDP_Phi",
+        "layerInput":"RNDP_Dense1",
+        "Parameters":{"units":"SFSize",
+                      "activation":null}}
+    ],
+
+    "Qe":[
+      { "layerType":"Dense",
+        "layerName":"ECritic_FC1",
+        "layerInput":"Phi",
+        "Parameters":{"units":"FCUnits",
+                      "activation":"relu"}},
+      { "layerType":"Dense",
+        "layerName":"ECritic_FC2",
+        "layerInput":"ECritic_FC1",
+        "Parameters":{"units":"FCUnits",
+                      "activation":"relu"}},
+      { "layerType":"Dense",
+        "layerName":"ECritic_FC3",
+        "layerInput":"ECritic_FC2",
+        "Parameters":{"units":"actionSize",
+                      "activation":null}}
+    ],
+
+  "Qi":[
+    { "layerType":"Dense",
+      "layerName":"ICritic_FC1",
+      "layerInput":"Phi",
+      "Parameters":{"units":"FCUnits",
+                    "activation":"relu"}},
+    { "layerType":"Dense",
+      "layerName":"ICritic_FC2",
+      "layerInput":"ICritic_FC1",
+      "Parameters":{"units":"FCUnits",
+                    "activation":"relu"}},
+    { "layerType":"Dense",
+      "layerName":"ICritic_FC3",
+      "layerInput":"ICritic_FC2",
+      "Parameters":{"units":"actionSize",
+                    "activation":null}}
+  ],
+  "Q_Combine":[
+    { "layerType":"Multiply",
+      "layerName":"Critic_Multiply",
+      "layerInput":["input.beta","ICritic_FC3"],
+      "Parameters":{}},
+    { "layerType":"Add",
+      "layerName":"Critic_Add",
+      "layerInput":["Critic_Multiply","ECritic_FC3"],
+      "Parameters":{}}
+  ]
+},
+
+  "NetworkOutputs":
+    {
+      "latent_space":"Phi",
+      "Q":"Critic_Add",
+      "action_prediction":"AP2",
+      "RND_predictor":"RND_Phi",
+      "RND_random":"RNDP_Phi"
+    },
+
+    "NetworkVariableGroups":{
+      "Critic":["Phi","Qe","Qi","Q_Combine"],
+      "Intrinsic":["EmbeddingS","EmbeddingSNext","ActionPrediction","RND_Predict_Net"]
+  },
+  "TestInput":{"state":[null,7,7,4]}
+
+  }

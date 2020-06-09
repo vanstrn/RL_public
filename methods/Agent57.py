@@ -7,7 +7,7 @@ To Do:
 """
 from .method import Method
 from .buffer import Trajectory
-from .AdvantageEstimator import gae
+from .AdvantageEstimator import MultiStepDiscountProcessing
 import tensorflow as tf
 import numpy as np
 from utils.utils import MovingAverage
@@ -71,18 +71,17 @@ class Agent57(Method):
                 self.done_ = tf.placeholder(shape=[None], dtype=tf.float32, name='done_hold')
                 self.rewards_ = tf.placeholder(shape=[None], dtype=tf.float32, name='total_reward')
                 self.bandit_one_hot = tf.placeholder(shape=[None,self.HPs["N"]], dtype=tf.int32, name='beta_bandit')
-                self.beta = tf.placeholder(shape=[None], dtype=tf.float32, name='beta')
                 self.action_past = tf.placeholder(shape=[None], dtype=tf.int32, name='action_past')
                 self.reward_i_past = tf.placeholder(shape=[None], dtype=tf.float32, name='reward_i_past')
                 self.reward_e_past = tf.placeholder(shape=[None], dtype=tf.float32, name='reward_e_past')
                 self.reward_i_current = tf.placeholder(shape=[None], dtype=tf.float32, name='reward_i_current')
                 self.reward_e_current = tf.placeholder(shape=[None], dtype=tf.float32, name='reward_e_current')
-
+                g = tf.constant(np.asarray(self.gammas),dtype=tf.float32)
                 # Creating the IO for the entire network
                 input = {   "state":self.states_,
                             "state_next":self.next_states_,
                             "bandit_one_hot":self.bandit_one_hot,
-                            "beta":self.beta,
+                            "beta":tf.math.reduce_sum(tf.cast(self.bandit_one_hot,tf.float32)*g,axis=1),
                             "action_past":self.action_past,
                             "reward_i_past":self.reward_i_past,
                             "reward_e_past":self.reward_e_past,
@@ -97,7 +96,7 @@ class Agent57(Method):
                 input2 = {  "state":self.next_states_,
                             "state_next":self.next_states_, #Used as a placeholder in network
                             "bandit_one_hot":self.bandit_one_hot,
-                            "beta":self.beta,
+                            "beta":tf.math.reduce_sum(tf.cast(self.bandit_one_hot,tf.float32)*g,axis=1),
                             "action_past":self.actions_,
                             "reward_i_past":self.reward_i_current,
                             "reward_e_past":self.reward_e_current,
@@ -111,43 +110,52 @@ class Agent57(Method):
                     #Next Q
                     max_next_q = tf.reduce_max(q_next, axis=-1)
                     #TD Error
-                    td_target = self.rewards_  + HPs["Gamma"] * max_next_q * (1. - self.done_)
+                    td_target = self.rewards_  + tf.reduce_sum(tf.cast(self.bandit_one_hot,tf.float32)*self.gammas) * max_next_q * (1. - self.done_)
                     self.td_error=loss = tf.keras.losses.MSE(td_target, curr_q)
                     softmax_q = tf.nn.softmax(curr_q)
                     self.entropy = -tf.reduce_mean(softmax_q * tf.log(softmax_q))
                     self.loss = loss + HPs["EntropyBeta"] * self.entropy
 
                 self.params = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope)
+                self.int_params = self.Model.GetVariables("Intrinsic")
+                self.critic_params = self.Model.GetVariables("Critic")
 
                 if globalNet is None: #Creating the Training instance of the network.
                     with tf.name_scope('embedding_network'):
                         oh_action = tf.one_hot(self.actions_, actionSize, dtype=tf.float32) # [?, num_agent, action_size]
-                        self.embedding_loss = tf.keras.losses.MSE(oh_action, self.a_pred)
+                        self.embedding_loss = tf.reduce_mean(tf.keras.losses.MSE(oh_action, self.a_pred))
 
                     with tf.name_scope('life_long_curiosity'):
-                        self.llc_loss = tf.keras.losses.MSE(self.rnd_random, self.rnd_predictor)
-                    loss = tf.reduce_mean(self.loss + self.llc_loss + self.embedding_loss)
+                        self.llc_loss = tf.reduce_mean(tf.keras.losses.MSE(self.rnd_random, self.rnd_predictor))
 
+                    loss_critic = tf.reduce_mean(self.loss)
                     optimizer = tf.keras.optimizers.Adam(HPs["LearningRate"])
+                    self.gradients = optimizer.get_gradients(loss_critic, self.critic_params)
+                    self.update_op = optimizer.apply_gradients(zip(self.gradients, self.critic_params))
+                    #
+                    loss_intrinsic = tf.reduce_mean( self.llc_loss+self.embedding_loss)
+                    optimizer2 = tf.keras.optimizers.Adam(HPs["LearningRateEmbedding"])
+                    self.embedding_gradients = optimizer2.get_gradients(loss_intrinsic, self.int_params)
+                    self.embedding_update = optimizer2.apply_gradients(zip(self.embedding_gradients, self.int_params))
 
-                    self.gradients = optimizer.get_gradients(loss, self.params)
-                    self.update_op = optimizer.apply_gradients(zip(self.gradients, self.params))
+                    total_counter = 1
+                    vanish_counter = 0
+                    for gradient in self.gradients:
+                        total_counter += np.prod(gradient.shape)
+                        stuff = tf.reduce_sum(tf.cast(tf.math.less_equal(tf.math.abs(gradient),tf.constant(1e-8)),tf.int32))
+                        vanish_counter += stuff
+                    self.vanishing_gradient = vanish_counter/total_counter
 
-                    self.grads=[self.gradients]
-                    self.losses=[loss]
                     self.update_ops=[self.update_op]
-
-                    self.grad_MA = [MovingAverage(400) for i in range(len(self.grads))]
-                    self.loss_MA = [MovingAverage(400) for i in range(len(self.losses))]
-                    self.entropy_MA = MovingAverage(400)
-                    self.labels = ["Total"]
-                    self.HPs = HPs
+                    self.logging_ops=[loss,self.embedding_loss,self.llc_loss,self.entropy,self.vanishing_gradient]
+                    self.logging_MA = [MovingAverage(400) for i in range(len(self.logging_ops))]
+                    self.labels = ["Total Loss","Embedding Loss","Life Long Curiosity Loss","Entropy","Vanishing Gradient"]
 
                 else: #Creating a Actor Instance for the Network.
                     #Creating the Episodic Memory, which compares samples
                     self.episodicMemory = EpisodicMemory()
                     #Creating Local Buffer to store data until it is ready to push to sample buffer
-                    self.buffer = [Trajectory(depth=11) for _ in range(nTrajs)]
+                    self.buffer = [Trajectory(depth=10) for _ in range(nTrajs)]
                     #Creating a pull operation to synch network parameters
                     with tf.name_scope('sync'):
                         self.pull_params_op = [l_p.assign(g_p) for l_p, g_p in zip(self.params, globalNet.params)]
@@ -177,18 +185,25 @@ class Agent57(Method):
         feedDict={ self.states_: state,
             self.bandit_one_hot:self.betaSelect[np.newaxis, :],
             self.action_past:np.asarray(a_past),
-            self.beta:np.asarray([self.currBeta]),
             self.reward_i_past:np.asarray(r_i_past),
             self.reward_e_past:np.asarray(r_e_past)}
         q = self.sess.run(self.q, feedDict)
 
         actions = np.argmax(q, axis=-1)
-        return actions ,[[self.currBeta],self.currGamma,self.betaSelect]  # return a int and extra data that needs to be fed to buffer.
+        return actions ,[self.currBeta,self.betaSelect]  # return a int and extra data that needs to be fed to buffer.
 
     def Encode(self,state):
+        if len(state.shape) == 3:
+            state = state[np.newaxis, :]
+        if len(state.shape) == 1:
+            state = state[np.newaxis, :]
         return self.sess.run(self.latent,{self.states_:state})
 
     def RNDPredictionError(self,state):
+        if len(state.shape) == 3:
+            state = state[np.newaxis, :]
+        if len(state.shape) == 1:
+            state = state[np.newaxis, :]
         random,predictor = self.sess.run([self.rnd_random,self.rnd_predictor],{self.states_:state})
         return np.linalg.norm(random-predictor)
 
@@ -226,7 +241,6 @@ class Agent57(Method):
         """
         #Process the data from the buffer
         samples,num = self.sharedBuffer.Sample()
-
         if num < self.HPs["BatchSize"]:
             return
 
@@ -234,122 +248,120 @@ class Agent57(Method):
         for traj in samples:
             if len(traj[0]) <= 5:
                 continue
-            batches = len(traj[0])//self.HPs["MinibatchSize"]+1
-            s = np.array_split( traj[0], batches)
-            a_his = np.array_split( np.asarray(traj[1]).reshape(-1), batches)
-            r = np.array_split( np.asarray(traj[2]).reshape(-1), batches)
-            s_next = np.array_split( traj[3], batches)
-            done = np.array_split( traj[4], batches)
-            bandit_one_hot = np.array_split( traj[8], batches)
-            action_past = np.array_split( traj[5], batches)
-            reward_i_past = np.array_split( traj[6], batches)
-            reward_e_past = np.array_split( traj[7], batches)
-            beta = np.array_split( traj[9], batches)
 
             for epoch in range(self.HPs["Epochs"]):
-                for i in range(batches):
                 #Create a feedDict from the buffer
-                    if len(np.squeeze(np.asarray(s[i])).shape)==3:
-                        continue
-                    feedDict = {
-                        self.states_ : np.squeeze(np.asarray(s[i])),
-                        self.next_states_ : np.squeeze(np.asarray(s_next[i])),
-                        self.actions_ : np.squeeze(np.asarray(a_his[i])),
-                        self.rewards_ : np.squeeze(np.asarray(r[i])),
-                        self.done_ : np.squeeze(np.asarray(done[i],dtype=float)),
-                        self.bandit_one_hot:np.squeeze(np.asarray(bandit_one_hot[i])),
-                        self.action_past:np.squeeze(np.asarray(action_past[i])),
-                        self.reward_i_past:np.squeeze(np.asarray(reward_i_past[i])),
-                        self.reward_e_past:np.squeeze(np.asarray(reward_e_past[i])),
-                        self.beta:np.squeeze(np.asarray(beta[i])),
-                    }
-                    out = self.sess.run(self.update_ops+self.losses+self.grads, feedDict)   # local grads applied to global net.
-                    out = np.array_split(out,3)
-                    losses = out[1]
-                    grads = out[2]
-
-                    for i,loss in enumerate(losses):
-                        self.loss_MA[i].append(loss)
-
-                    for i,grads_i in enumerate(grads):
-                        total_counter = 1
-                        vanish_counter = 0
-                        for grad in grads_i:
-                            total_counter += np.prod(grad.shape)
-                            vanish_counter += (np.absolute(grad)<1e-8).sum()
-                        self.grad_MA[i].append(vanish_counter/total_counter)
-
-                    ent = self.sess.run(self.entropy, feedDict)   # local grads applied to global net.
-                    entropy = np.average(np.asarray(ent))
-                    self.entropy_MA.append(entropy)
                 feedDict = {
                     self.states_ : np.squeeze(np.asarray(traj[0])),
+                    self.actions_ : np.squeeze(np.asarray(traj[1])),
+                    self.rewards_ : np.squeeze(np.asarray(traj[2])),
                     self.next_states_ : np.squeeze(np.asarray(traj[3])),
-                    self.actions_ : traj[1],
-                    self.rewards_ : traj[2],
                     self.done_ : np.squeeze(np.asarray(traj[4],dtype=float)),
-                    self.bandit_one_hot : np.asarray( traj[8]),
-                    self.action_past : np.squeeze(np.asarray( traj[5], )),
-                    self.reward_i_past : np.squeeze(np.asarray( traj[6], )),
-                    self.reward_e_past : np.squeeze(np.asarray( traj[7], )),
-                    self.beta : np.squeeze(np.asarray( traj[9], )),
+                    self.action_past:np.squeeze(np.asarray(traj[5])),
+                    self.reward_i_past:np.squeeze(np.asarray(traj[6])),
+                    self.reward_e_past:np.squeeze(np.asarray(traj[7])),
+                    self.bandit_one_hot:np.squeeze(np.asarray(traj[8])),
                 }
-                priorities.append(self.sess.run(self.td_error, feedDict))
+                out = self.sess.run(self.update_ops+self.logging_ops, feedDict)   # local grads applied to global net.
+                logging = out[len(self.update_ops):]
 
-        self.sharedBuffer.UpdatePriorities(priorities)
+                for i,log in enumerate(logging):
+                    self.logging_MA[i].append(log)
 
     def GetStatistics(self):
         dict ={}
         for i,label in enumerate(self.labels):
-            dict["Training Results/Vanishing Gradient " + label] = self.grad_MA[i]()
-            dict["Training Results/Loss " + label] = self.loss_MA[i]()
-            dict["Training Results/Entropy"] = self.entropy_MA()
+            dict["Training Results/" + label] = self.logging_MA[i]()
         return dict
 
     def PushToBuffer(self,total_reward):
-
         # Updating the UCB bandit
         self.bandit.InformBandit(self.currBetaSel,total_reward)
-        #Packaging samples in manner that requires modification on the learner end.
+        self.sess.run(self.pull_ops)
 
+        #Packaging samples in manner that requires modification on the learner end.
         #Estimating TD Difference to give priority to the data.
         for traj in range(len(self.buffer)):
-            s = self.buffer[traj][0]
-            a_his = np.asarray(self.buffer[traj][1]).reshape(-1)
-            r =  np.asarray(self.buffer[traj][2]).reshape(-1)
-            s_next = self.buffer[traj][3]
-            done =  self.buffer[traj][4]
-            action_past =  self.buffer[traj][5]
-            reward_i_past =  self.buffer[traj][6]
-            reward_e_past =  self.buffer[traj][7]
-            beta =  self.buffer[traj][8]
-            bandit_one_hot =  self.buffer[traj][10]
+            g,s_n=MultiStepDiscountProcessing(np.asarray(self.buffer[traj][2]),self.buffer[traj][3],np.sum(self.buffer[traj][9][0]*self.gammas),self.HPs["MultiStep"])
+            batches = len(self.buffer[traj][0])//self.HPs["MinibatchSize"]+1
+            s = np.array_split(self.buffer[traj][0], batches)
+            a_his = np.array_split( self.buffer[traj][1], batches)
+            r = np.array_split( np.asarray(g), batches)
+            s_next = np.array_split( s_n, batches)
+            done = np.array_split( self.buffer[traj][4], batches)
 
-                #Create a feedDict from the buffer
-            feedDict = {
-                self.states_ : np.squeeze(np.asarray(s)),
-                self.next_states_ : np.squeeze(np.asarray(s_next)),
-                self.actions_ : np.squeeze(np.asarray(a_his)),
-                self.rewards_ : np.squeeze(np.asarray(r)),
-                self.done_ : np.squeeze(np.asarray(done,dtype=float)),
-                self.beta : np.squeeze(np.asarray( beta)),
-                self.bandit_one_hot : np.squeeze(np.asarray( bandit_one_hot)),
-                self.action_past : np.squeeze(np.asarray( action_past )),
-                self.reward_i_past : np.squeeze(np.asarray( reward_i_past )),
-                self.reward_e_past : np.squeeze(np.asarray( reward_e_past )),
-            }
-            priority = self.sess.run(self.td_error, feedDict)
+            action_past =  np.array_split(self.buffer[traj][5],batches)
+            reward_i_past =  np.array_split(self.buffer[traj][6],batches)
+            reward_e_past =  np.array_split(self.buffer[traj][7],batches)
+            bandit_one_hot =  np.array_split(self.buffer[traj][9],batches)
+            for i in range(batches):
+                feedDict = {
+                    self.states_ : np.squeeze(np.asarray(s[i])),
+                    self.next_states_ : np.squeeze(np.asarray(s_next[i])),
+                    self.actions_ : np.squeeze(np.asarray(a_his[i])),
+                    self.rewards_ : np.squeeze(np.asarray(r[i])),
+                    self.done_ : np.squeeze(np.asarray(done[i],dtype=float)),
+                    self.bandit_one_hot : np.squeeze(np.asarray( bandit_one_hot[i])),
+                    self.action_past : np.squeeze(np.asarray( action_past[i] )),
+                    self.reward_i_past : np.squeeze(np.asarray( reward_i_past[i] )),
+                    self.reward_e_past : np.squeeze(np.asarray( reward_e_past[i] )),
+                }
+                priority = self.sess.run(self.td_error, feedDict)
 
-        self.sharedBuffer.AddTrajectory([s,a_his,r,s_next,done,action_past,reward_i_past,reward_e_past,bandit_one_hot,beta],priority)
-        self.sharedBuffer.PrioritizeandPruneSamples(2048)
+                self.sharedBuffer.AddTrajectory([s[i],a_his[i],r[i],s_next[i],done[i],action_past[i],reward_i_past[i],reward_e_past[i],bandit_one_hot[i]],priority)
         self.ClearTrajectory()
+
+    def PrioritizeBuffer(self):
+        #Updating the network weights before calculating new priorities
         self.sess.run(self.pull_ops)
+        #Getting the data that needs to be assigned a new priority.
+        trajs = self.sharedBuffer.GetReprioritySamples()
+        priority=[]
+        for traj in trajs:
+
+            feedDict = {
+                self.states_ : np.squeeze(np.asarray(traj[0])),
+                self.actions_ : np.squeeze(np.asarray(traj[1])),
+                self.rewards_ : np.squeeze(np.asarray(traj[2])),
+                self.next_states_ : np.squeeze(np.asarray(traj[3])),
+                self.done_ : np.squeeze(np.asarray(traj[4],dtype=float)),
+                self.action_past:np.squeeze(np.asarray(traj[5])),
+                self.reward_i_past:np.squeeze(np.asarray(traj[6])),
+                self.reward_e_past:np.squeeze(np.asarray(traj[7])),
+                self.bandit_one_hot:np.squeeze(np.asarray(traj[8])),
+            }
+            priority.append( self.sess.run(self.td_error, feedDict))
+        #Calculating the priority.
+        self.sharedBuffer.UpdatePriorities(priority)
+
+        #Pushing the priorities back to the buffer
+        self.sharedBuffer.PrioritizeandPruneSamples(2048)
 
 
     @property
     def getVars(self):
         return self.Model.getVars(self.scope)
+class WorkerPrioritizer(object):
+    def __init__(self,localNetwork,sess,global_step,settings):
+        """Creates a worker that is used to gather smaples to update the main network.
 
+        Inputs:
+        name        - Unique name for the worker actor-critic environmnet.
+        sess        - Session Name
+        globalAC    - Name of the Global actor-critic which the updates are based around.
+        """
+        self.sess=sess
+        self.net = localNetwork
+        self.global_step = global_step
+        self.settings =settings
+
+    def work(self,COORD,render=False):
+        """Main function of the Workers. This runs the environment and the experience
+        is used to update the main Actor Critic Network.
+        """
+        #Allowing access to the global variables.
+        while not COORD.should_stop() and self.sess.run(self.global_step) < self.settings["MaxEpisodes"]:
+            self.net.PrioritizeBuffer()
 class WorkerSlave(object):
     def __init__(self,localNetwork,env,sess,global_step,global_step_next,settings,
                     progbar,writer,MODEL_PATH,saver):
@@ -389,6 +401,7 @@ class WorkerSlave(object):
             r_i_past = [0.0]
             r_e_past = [0.0]
             r_episode = 0.0
+            r_int_episode = 0.0
 
             for j in range(self.settings["MaxEpisodeSteps"]+1):
 
@@ -401,7 +414,7 @@ class WorkerSlave(object):
 
                 #Calculating Intrinsic Reward of the state:
                 r_intrinsic = self.net.GetIntrinsicReward(s0,s1)
-                r_total = r + networkData[0][0]*r_intrinsic
+                r_total = r + networkData[0]*r_intrinsic
 
                 #Adding to the trajectory
                 self.net.AddToTrajectory([s0,a,r_total,s1,done,a_past,r_i_past,r_e_past]+networkData)
@@ -410,8 +423,9 @@ class WorkerSlave(object):
                 s0 = s1
                 a_past = a
                 r_i_past = [r_intrinsic]
-                r_e_past = r
+                r_e_past = [r]
                 r_episode+=r_total
+                r_int_episode+=networkData[0]*r_intrinsic
 
                 #Pushing entire trajectory to the buffer
                 if done or j == self.settings["MaxEpisodeSteps"]:
@@ -420,6 +434,7 @@ class WorkerSlave(object):
 
             self.progbar.update(self.sess.run(self.global_step))
             if logging:
+                Record({"Reward/Intrinsic":r_int_episode,"Reward/Total":r_episode}, self.writer, self.sess.run(self.global_step))
                 loggingDict = self.env.getLogging()
                 Record(loggingDict, self.writer, self.sess.run(self.global_step))
             if saving:
@@ -484,9 +499,9 @@ class EpisodicMemory():
         return K
 
 class SlidingWindowUCBBandit():
-    def __init__(self,N=32,WindowSize=90):
+    def __init__(self,N=16,WindowSize=90):
         self.counter = 0
-        self.N = 32
+        self.N = N
         self.WindowSize = WindowSize
         self.buffer = Trajectory(depth=2)
         self.beta= 1.0
@@ -495,7 +510,7 @@ class SlidingWindowUCBBandit():
         self.thing = 1.0
 
     def GetBanditDecision(self):
-        if self.counter < 32: #Taking the first N actions
+        if self.counter < self.N: #Taking the first N actions
             tmp = self.counter
             self.counter+=1
             return tmp
@@ -572,6 +587,9 @@ class Agent57Buffer():
         self.flag = True
         return self.buffer
 
+    def GetReprioritySamples(self):
+        return self.buffer[0:self.slice]
+
 
 def Agent57Workers(sess,settings,netConfigOverride):
     #Created Here if there is something to save images
@@ -601,6 +619,11 @@ def Agent57Workers(sess,settings,netConfigOverride):
     saver = tf.train.Saver(max_to_keep=3, var_list=Updater.getVars+[global_step])
     Updater.InitializeVariablesFromFile(saver,MODEL_PATH)
     workers.append(WorkerMaster(Updater,sess,global_step,global_step_next,settings,progbar,writer,MODEL_PATH,saver))
+
+    network = NetworkBuilder(settings["NetworkConfig"],netConfigOverride,scope="prioritizer",actionSize=nActions)
+    localNetwork = Agent57(network,sess,stateShape=dFeatures,actionSize=nActions,scope="prioritizer",HPs=settings["NetworkHPs"],globalNet=Updater,nTrajs=nTrajs,sharedBuffer=sharedBuffer)
+    localNetwork.InitializeVariablesFromFile(saver,MODEL_PATH)
+    workers.append(WorkerPrioritizer(localNetwork,sess,global_step,settings))
 
     # Create workers
     for i in range(settings["NumberENV"]):

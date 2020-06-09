@@ -1,4 +1,4 @@
-{ "NetworkName" : "CP_APEX",
+{ "NetworkName" : "CP_APEX1",
   "NetworkBuilder":"network",
   "DefaultParams":{ "SFSize":64,
                     "FCUnits":64},

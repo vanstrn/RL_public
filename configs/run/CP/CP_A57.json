@@ -1,0 +1,34 @@
+{ "RunName":"CP_A57_10",
+  "GPUCapacitty":0.95,
+  "NetworkHPs":{"LearningRate": 1E-3,
+                "LearningRateEmbedding": 1E-3,
+                "Gamma0":0.99,
+                "Gamma1":0.97,
+                "Gamma2":0.95,
+                "N":16,
+                "betaMax":0.01,
+
+                "EntropyBeta":0.05,
+                "CriticBeta":0.5,
+                "BatchSize":512,
+                "MinibatchSize":32,
+
+                "MultiStep":40,
+                "TrajLength":40,
+                "Epochs":1,
+                "Exploration":"EGreedy",
+                "ExplorationDecay":500,
+                "ExploreSS":0.05
+                },
+
+  "MaxEpisodes":120000,
+  "MaxEpisodeSteps":500,
+  "Epochs":1000,
+  "LogFreq":20,
+  "SaveFreq":5000,
+
+  "EnvConfig":"CartPole_v2.json",
+  "NetworkConfig":"CP_A57.json",
+  "NumberENV":1,
+  "Method":"methods.Agent57.Agent57Workers"
+  }

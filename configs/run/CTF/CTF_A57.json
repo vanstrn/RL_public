@@ -24,7 +24,7 @@
   "LogFreq":20,
   "SaveFreq":5000,
 
-  "EnvConfig":"CTF_1v1_FO_1.json",
+  "EnvConfig":"CTF_1v1_1Map.json",
   "NetworkConfig":"CTF_A57_v1.json",
   "NumberENV":1,
   "Method":"methods.Agent57.Agent57Workers"
