@@ -64,6 +64,12 @@ CreatePath(LOG_PATH)
 CreatePath(MODEL_PATH)
 CreatePath(IMAGE_PATH)
 
+#Saving config files in the model directory
+with open(LOG_PATH+'/runSettings.json', 'w') as outfile:
+    json.dump(settings, outfile)
+with open(LOG_PATH+'/netConfigOverride.json', 'w') as outfile:
+    json.dump(netConfigOverride, outfile)
+
 #Creating the Environment and Network to be used in training
 gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=settings["GPUCapacitty"], allow_growth=True)
 config = tf.ConfigProto(gpu_options=gpu_options, log_device_placement=False, allow_soft_placement=True)

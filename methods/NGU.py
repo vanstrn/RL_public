@@ -7,7 +7,7 @@ To Do:
 """
 from .method import Method
 from .buffer import Trajectory
-from .AdvantageEstimator import gae
+from .AdvantageEstimator import MultiStepDiscountProcessing
 import tensorflow as tf
 import numpy as np
 from utils.utils import MovingAverage
@@ -15,7 +15,9 @@ from utils.record import Record
 from utils.utils import InitializeVariables, CreatePath, interval_flag, GetFunction
 from utils.record import Record,SaveHyperparams
 import random
-
+from environments import CreateEnvironment
+from networks.common import NetworkBuilder
+import json
 
 class NGU(Method):
 
@@ -30,9 +32,10 @@ class NGU(Method):
         self.scope=scope
         self.Model = sharedModel
         self.sharedBuffer=sharedBuffer
-        #Common Stuff Between the networks:
         self.HPs = HPs
-        #Creating the different values of beta
+        self.actionSize =actionSize
+
+        #Creating the different values of beta and gamma
         def sigmoid(x):
             return 1/(1+np.exp(-x))
         self.betas = []
@@ -43,6 +46,17 @@ class NGU(Method):
                 self.betas.append(self.HPs["betaMax"])
             else:
                 self.betas.append(self.HPs["betaMax"]*sigmoid((2.0*float(i)+2.0-self.HPs["N"])/(self.HPs["N"]-2.0)))
+        self.gammas = []
+        for i in range(self.HPs["N"]):
+            if i ==0:
+                self.gammas.append(self.HPs["Gamma0"])
+            elif i < 7:
+                self.gammas.append(self.HPs["Gamma1"]+(self.HPs["Gamma0"]-self.HPs["Gamma1"])*sigmoid(10.0*(2.0*float(i)-6.0)/6.0))
+            elif i==7:
+                self.gammas.append(self.HPs["Gamma1"])
+            else:
+                self.gammas.append(1.0-np.exp(((self.HPs["N"]-9.0)*np.log(1.0-self.HPs["Gamma1"])+(float(i)-8.0)*np.log(1-self.HPs["Gamma2"]))/(self.HPs["N"]-9.0)))
+        self.gammas=np.asarray(self.gammas)
 
         with self.sess.as_default(), self.sess.graph.as_default():
             with tf.name_scope(scope):
@@ -95,37 +109,50 @@ class NGU(Method):
                     #Next Q
                     max_next_q = tf.reduce_max(q_next, axis=-1)
                     #TD Error
-                    td_target = self.rewards_  + HPs["Gamma"] * max_next_q * (1. - self.done_)
+                    td_target = self.rewards_  + tf.reduce_sum(tf.cast(self.bandit_one_hot,tf.float32)*self.gammas) * max_next_q * (1. - self.done_)
+                    # td_target = self.rewards_  + HPs["Gamma"] * max_next_q * (1. - self.done_)
                     self.td_error=loss = tf.keras.losses.MSE(td_target, curr_q)
                     softmax_q = tf.nn.softmax(curr_q)
-                    self.entropy = -tf.reduce_mean(softmax_q * tf.log(softmax_q))
+                    self.entropy = -tf.reduce_mean(softmax_q * tf.log(softmax_q+ 1e-5))
                     self.loss = loss + HPs["EntropyBeta"] * self.entropy
 
                 self.params = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope)
+                self.int_params = self.Model.GetVariables("Intrinsic")
+                self.critic_params = self.Model.GetVariables("Critic")
 
                 if globalNet is None: #Creating the Training instance of the network.
                     with tf.name_scope('embedding_network'):
                         oh_action = tf.one_hot(self.actions_, actionSize, dtype=tf.float32) # [?, num_agent, action_size]
-                        self.embedding_loss = tf.keras.losses.MSE(oh_action, self.a_pred)
+                        self.embedding_loss = tf.reduce_mean(tf.keras.losses.MSE(oh_action, self.a_pred))
 
                     with tf.name_scope('life_long_curiosity'):
-                        self.llc_loss = tf.keras.losses.MSE(self.rnd_random, self.rnd_predictor)
-                    loss = self.loss + self.llc_loss + self.embedding_loss
+                        self.llc_loss = tf.reduce_mean(tf.keras.losses.MSE(self.rnd_random, self.rnd_predictor))
 
+                    loss_critic = tf.reduce_mean(self.loss)
                     optimizer = tf.keras.optimizers.Adam(HPs["LearningRate"])
+                    self.gradients = optimizer.get_gradients(loss_critic, self.critic_params)
+                    self.update_op = optimizer.apply_gradients(zip(self.gradients, self.critic_params))
+                    #
+                    loss_intrinsic = tf.reduce_mean( self.llc_loss+self.embedding_loss)
+                    optimizer2 = tf.keras.optimizers.Adam(HPs["LearningRateEmbedding"])
+                    self.embedding_gradients = optimizer2.get_gradients(loss_intrinsic, self.int_params)
+                    self.embedding_update = optimizer2.apply_gradients(zip(self.embedding_gradients, self.int_params))
 
-                    self.gradients = optimizer.get_gradients(loss, self.params)
-                    self.update_op = optimizer.apply_gradients(zip(self.gradients, self.params))
+                    total_counter = 1
+                    vanish_counter = 0
+                    for gradient in self.gradients:
+                        total_counter += np.prod(gradient.shape)
+                        stuff = tf.reduce_sum(tf.cast(tf.math.less_equal(tf.math.abs(gradient),tf.constant(1e-8)),tf.int32))
+                        vanish_counter += stuff
+                    self.vanishing_gradient = vanish_counter/total_counter
 
-                    self.grads=[self.gradients]
-                    self.losses=[loss]
-                    self.update_ops=[self.update_op]
+                    # self.vanishing_gradient = 0
 
-                    self.grad_MA = [MovingAverage(400) for i in range(len(self.grads))]
-                    self.loss_MA = [MovingAverage(400) for i in range(len(self.losses))]
-                    self.entropy_MA = MovingAverage(400)
-                    self.labels = ["Total"]
-                    self.HPs = HPs
+                    self.update_ops=[self.update_op,self.embedding_update]
+                    # self.update_ops=[self.update_op]
+                    self.logging_ops=[loss,self.embedding_loss,self.llc_loss,self.entropy,self.vanishing_gradient]
+                    self.logging_MA = [MovingAverage(400) for i in range(len(self.logging_ops))]
+                    self.labels = ["Total Loss","Embedding Loss","Life Long Curiosity Loss","Entropy","Vanishing Gradient"]
 
                 else: #Creating a Actor Instance for the Network.
                     #Creating the Episodic Memory, which compares samples
@@ -136,6 +163,9 @@ class NGU(Method):
                     with tf.name_scope('sync'):
                         self.pull_params_op = [l_p.assign(g_p) for l_p, g_p in zip(self.params, globalNet.params)]
                         self.pull_ops = [self.pull_params_op]
+
+                    self.alpha = MovingAverage(2000)
+                    self.K = MovingAverage(2000)
 
 
     def GetAction(self, state, a_past,r_i_past,r_e_past, episode=None, step=0):
@@ -156,7 +186,7 @@ class NGU(Method):
             oh[currBeta] = 1
             self.betaSelect = oh
             self.currBeta = self.betas[currBeta]
-            
+
         feedDict={ self.states_: state,
             self.bandit_one_hot:self.betaSelect[np.newaxis, :],
             self.action_past:np.asarray(a_past),
@@ -164,13 +194,32 @@ class NGU(Method):
             self.reward_e_past:np.asarray(r_e_past)}
         q = self.sess.run(self.q, feedDict)
 
-        actions = np.argmax(q, axis=-1)
+        if "Exploration" in self.HPs:
+            if self.HPs["Exploration"]=="EGreedy":
+                prob = self.HPs["ExploreSS"] + (1-self.HPs["ExploreSS"])*(np.exp(-episode/self.HPs["ExplorationDecay"]))
+                if random.uniform(0, 1) < prob:
+                    actions = np.array([random.randint(0,self.actionSize-1)])
+                else:
+                    actions = np.argmax(q, axis=-1)
+            else:
+                actions = np.argmax(q, axis=-1)
+        else:
+            actions = np.argmax(q, axis=-1)
+
         return actions ,[self.currBeta,self.betaSelect]  # return a int and extra data that needs to be fed to buffer.
 
     def Encode(self,state):
+        if len(state.shape) == 3:
+            state = state[np.newaxis, :]
+        if len(state.shape) == 1:
+            state = state[np.newaxis, :]
         return self.sess.run(self.latent,{self.states_:state})
 
     def RNDPredictionError(self,state):
+        if len(state.shape) == 3:
+            state = state[np.newaxis, :]
+        if len(state.shape) == 1:
+            state = state[np.newaxis, :]
         random,predictor = self.sess.run([self.rnd_random,self.rnd_predictor],{self.states_:state})
         return np.linalg.norm(random-predictor)
 
@@ -187,15 +236,17 @@ class NGU(Method):
 
         #####Calculating the episodic reward factor
         #-finding k nearest neighbors in buffer and distance to them
-        K = self.episodicMemory.NearestNeighborsDist(encodedState,num=5)
+        K = self.episodicMemory.NearestNeighborsDist(encodedState,num=self.HPs["NearestNeighbors"])
         r_episodic = 1.0/np.sqrt(K+0.001)
 
         #Calculating alpha
         stateError_Average,stateError_std=self.sharedBuffer.GetMuSigma()
         alpha = 1.0 + (stateError - stateError_Average) / stateError_std
+        self.alpha.append(alpha)
+        self.K.append(K)
 
         #Calculating the intrinsic reward
-        r_i = r_episodic * min(max(1.0,alpha),5.0)
+        r_i = r_episodic * min(max(1.0,alpha),self.HPs["L"])
 
         #adding the sample to the buffer after nearest neighbors has been calculated.
         self.episodicMemory.Add(encodedState)
@@ -203,12 +254,9 @@ class NGU(Method):
 
     def Update(self,HPs,episode=0,statistics=True):
         """
-        The main update function for A3C. The function pushes gradients to the global AC Network.
-        The second function is to Pull
         """
         #Process the data from the buffer
         samples,num = self.sharedBuffer.Sample()
-
         if num < self.HPs["BatchSize"]:
             return
 
@@ -216,109 +264,100 @@ class NGU(Method):
         for traj in samples:
             if len(traj[0]) <= 5:
                 continue
-            batches = len(traj[0])//self.HPs["MinibatchSize"]+1
-            s = np.array_split( traj[0], batches)
-            a_his = np.array_split( np.asarray(traj[1]).reshape(-1), batches)
-            r = np.array_split( np.asarray(traj[2]).reshape(-1), batches)
-            s_next = np.array_split( traj[3], batches)
-            done = np.array_split( traj[4], batches)
-            bandit_one_hot = np.array_split( traj[8], batches)
-            action_past = np.array_split( traj[5], batches)
-            reward_i_past = np.array_split( traj[6], batches)
-            reward_e_past = np.array_split( traj[7], batches)
 
             for epoch in range(self.HPs["Epochs"]):
-                for i in range(batches):
                 #Create a feedDict from the buffer
-                    if len(np.squeeze(np.asarray(s[i])).shape)==3:
-                        continue
-                    feedDict = {
-                        self.states_ : np.squeeze(np.asarray(s[i])),
-                        self.next_states_ : np.squeeze(np.asarray(s_next[i])),
-                        self.actions_ : np.squeeze(np.asarray(a_his[i])),
-                        self.rewards_ : np.squeeze(np.asarray(r[i])),
-                        self.done_ : np.squeeze(np.asarray(done[i],dtype=float)),
-                        self.bandit_one_hot:np.squeeze(np.asarray(bandit_one_hot[i])),
-                        self.action_past:np.squeeze(np.asarray(action_past[i])),
-                        self.reward_i_past:np.squeeze(np.asarray(reward_i_past[i])),
-                        self.reward_e_past:np.squeeze(np.asarray(reward_e_past[i])),
-                    }
-                    out = self.sess.run(self.update_ops+self.losses+self.grads, feedDict)   # local grads applied to global net.
-                    out = np.array_split(out,3)
-                    losses = out[1]
-                    grads = out[2]
-
-                    for i,loss in enumerate(losses):
-                        self.loss_MA[i].append(loss)
-
-                    for i,grads_i in enumerate(grads):
-                        total_counter = 1
-                        vanish_counter = 0
-                        for grad in grads_i:
-                            total_counter += np.prod(grad.shape)
-                            vanish_counter += (np.absolute(grad)<1e-8).sum()
-                        self.grad_MA[i].append(vanish_counter/total_counter)
-
-                    ent = self.sess.run(self.entropy, feedDict)   # local grads applied to global net.
-                    entropy = np.average(np.asarray(ent))
-                    self.entropy_MA.append(entropy)
                 feedDict = {
                     self.states_ : np.squeeze(np.asarray(traj[0])),
+                    self.actions_ : np.squeeze(np.asarray(traj[1])),
+                    self.rewards_ : np.squeeze(np.asarray(traj[2])),
                     self.next_states_ : np.squeeze(np.asarray(traj[3])),
-                    self.actions_ : traj[1],
-                    self.rewards_ : traj[2],
                     self.done_ : np.squeeze(np.asarray(traj[4],dtype=float)),
-                    self.bandit_one_hot : np.asarray( traj[8]),
-                    self.action_past : np.squeeze(np.asarray( traj[5], )),
-                    self.reward_i_past : np.squeeze(np.asarray( traj[6], )),
-                    self.reward_e_past : np.squeeze(np.asarray( traj[7], )),
+                    self.action_past:np.squeeze(np.asarray(traj[5])),
+                    self.reward_i_past:np.squeeze(np.asarray(traj[6])),
+                    self.reward_e_past:np.squeeze(np.asarray(traj[7])),
+                    self.bandit_one_hot:np.squeeze(np.asarray(traj[8])),
                 }
-                priorities.append(self.sess.run(self.td_error, feedDict))
+                out = self.sess.run(self.update_ops+self.logging_ops, feedDict)   # local grads applied to global net.
+                logging = out[len(self.update_ops):]
 
-        self.sharedBuffer.UpdatePriorities(priorities)
+                for i,log in enumerate(logging):
+                    self.logging_MA[i].append(log)
 
     def GetStatistics(self):
         dict ={}
         for i,label in enumerate(self.labels):
-            dict["Training Results/Vanishing Gradient " + label] = self.grad_MA[i]()
-            dict["Training Results/Loss " + label] = self.loss_MA[i]()
-            dict["Training Results/Entropy"] = self.entropy_MA()
+            dict["Training Results/" + label] = self.logging_MA[i]()
+        return dict
+    def GetWorkerStatistics(self):
+        dict ={}
+        dict["Training Results/Alpha"] = self.alpha()
+        dict["Training Results/K"] = self.K()
         return dict
 
     def PushToBuffer(self):
+        self.sess.run(self.pull_ops)
         #Packaging samples in manner that requires modification on the learner end.
 
         #Estimating TD Difference to give priority to the data.
 
         for traj in range(len(self.buffer)):
-            s = self.buffer[traj][0]
-            a_his = np.asarray(self.buffer[traj][1]).reshape(-1)
-            r =  np.asarray(self.buffer[traj][2]).reshape(-1)
-            s_next = self.buffer[traj][3]
-            done =  self.buffer[traj][4]
-            action_past =  self.buffer[traj][5]
-            reward_i_past =  self.buffer[traj][6]
-            reward_e_past =  self.buffer[traj][7]
-            bandit_one_hot =  self.buffer[traj][9]
+            # g,s_n=MultiStepDiscountProcessing(np.asarray(self.buffer[traj][2]),self.buffer[traj][3],np.sum(self.buffer[traj][9][0]*self.gammas),self.HPs["MultiStep"])
+            g,s_n=MultiStepDiscountProcessing(np.asarray(self.buffer[traj][2]),self.buffer[traj][3],np.sum(self.buffer[traj][9][0]*self.gammas),self.HPs["MultiStep"])
 
-                #Create a feedDict from the buffer
-            feedDict = {
-                self.states_ : np.squeeze(np.asarray(s)),
-                self.next_states_ : np.squeeze(np.asarray(s_next)),
-                self.actions_ : np.squeeze(np.asarray(a_his)),
-                self.rewards_ : np.squeeze(np.asarray(r)),
-                self.done_ : np.squeeze(np.asarray(done,dtype=float)),
-                self.bandit_one_hot : np.squeeze(np.asarray( bandit_one_hot)),
-                self.action_past : np.squeeze(np.asarray( action_past )),
-                self.reward_i_past : np.squeeze(np.asarray( reward_i_past )),
-                self.reward_e_past : np.squeeze(np.asarray( reward_e_past )),
-            }
-            priority = self.sess.run(self.td_error, feedDict)
+            batches = len(self.buffer[traj][0])//self.HPs["MinibatchSize"]+1
+            s = np.array_split(self.buffer[traj][0], batches)
+            a_his = np.array_split( self.buffer[traj][1], batches)
+            r = np.array_split( np.asarray(g), batches)
+            s_next = np.array_split( s_n, batches)
+            done = np.array_split( self.buffer[traj][4], batches)
 
-        self.sharedBuffer.AddTrajectory([s,a_his,r,s_next,done,action_past,reward_i_past,reward_e_past,bandit_one_hot],priority)
-        self.sharedBuffer.PrioritizeandPruneSamples(2048)
+            action_past =  np.array_split(self.buffer[traj][5],batches)
+            reward_i_past =  np.array_split(self.buffer[traj][6],batches)
+            reward_e_past =  np.array_split(self.buffer[traj][7],batches)
+            bandit_one_hot =  np.array_split(self.buffer[traj][9],batches)
+            for i in range(batches):
+                feedDict = {
+                    self.states_ : np.squeeze(np.asarray(s[i])),
+                    self.next_states_ : np.squeeze(np.asarray(s_next[i])),
+                    self.actions_ : np.squeeze(np.asarray(a_his[i])),
+                    self.rewards_ : np.squeeze(np.asarray(r[i])),
+                    self.done_ : np.squeeze(np.asarray(done[i],dtype=float)),
+                    self.bandit_one_hot : np.squeeze(np.asarray( bandit_one_hot[i])),
+                    self.action_past : np.squeeze(np.asarray( action_past[i] )),
+                    self.reward_i_past : np.squeeze(np.asarray( reward_i_past[i] )),
+                    self.reward_e_past : np.squeeze(np.asarray( reward_e_past[i] )),
+                }
+                priority = self.sess.run(self.td_error, feedDict)
+
+                self.sharedBuffer.AddTrajectory([s[i],a_his[i],r[i],s_next[i],done[i],action_past[i],reward_i_past[i],reward_e_past[i],bandit_one_hot[i]],priority)
         self.ClearTrajectory()
+
+    def PrioritizeBuffer(self):
+        #Updating the network weights before calculating new priorities
         self.sess.run(self.pull_ops)
+        #Getting the data that needs to be assigned a new priority.
+        trajs = self.sharedBuffer.GetReprioritySamples()
+        priority=[]
+        for traj in trajs:
+
+            feedDict = {
+                self.states_ : np.squeeze(np.asarray(traj[0])),
+                self.actions_ : np.squeeze(np.asarray(traj[1])),
+                self.rewards_ : np.squeeze(np.asarray(traj[2])),
+                self.next_states_ : np.squeeze(np.asarray(traj[3])),
+                self.done_ : np.squeeze(np.asarray(traj[4],dtype=float)),
+                self.action_past:np.squeeze(np.asarray(traj[5])),
+                self.reward_i_past:np.squeeze(np.asarray(traj[6])),
+                self.reward_e_past:np.squeeze(np.asarray(traj[7])),
+                self.bandit_one_hot:np.squeeze(np.asarray(traj[8])),
+            }
+            priority.append( self.sess.run(self.td_error, feedDict))
+        #Calculating the priority.
+        self.sharedBuffer.UpdatePriorities(priority)
+
+        #Pushing the priorities back to the buffer
+        self.sharedBuffer.PrioritizeandPruneSamples(2048)
 
 
     @property
@@ -355,7 +394,7 @@ class WorkerSlave(object):
 
             self.sess.run(self.global_step_next)
 
-            logging = interval_flag(self.sess.run(self.global_step), self.settings["LogFreq"], 'log')
+            logging = interval_flag(self.sess.run(self.global_step), self.settings["LogFreq"], 'logEnv')
             saving = interval_flag(self.sess.run(self.global_step), self.settings["SaveFreq"], 'save')
 
             #Initializing environment and storage variables:
@@ -364,8 +403,10 @@ class WorkerSlave(object):
             r_i_past = [0.0]
             r_e_past = [0.0]
 
-            for j in range(self.settings["MaxEpisodeSteps"]+1):
+            r_store = 0.0
+            r_i_store = 0.0
 
+            for j in range(self.settings["MaxEpisodeSteps"]+1):
                 a,networkData = self.net.GetAction(state = s0,episode=self.sess.run(self.global_step),step=j,a_past=a_past,r_i_past=r_i_past,r_e_past=r_e_past)
                 #networkData is expected to be [betaVal,betaOH]
 
@@ -381,10 +422,12 @@ class WorkerSlave(object):
                 self.net.AddToTrajectory([s0,a,r_total,s1,done,a_past,r_i_past,r_e_past]+networkData)
 
                 #Updating the storage variables.
+                r_store += r
+                r_i_store += networkData[0]*r_intrinsic
                 s0 = s1
                 a_past = a
                 r_i_past = [r_intrinsic]
-                r_e_past = r
+                r_e_past = [r]
 
                 #Pushing entire trajectory to the buffer
                 if done or j == self.settings["MaxEpisodeSteps"]:
@@ -393,7 +436,10 @@ class WorkerSlave(object):
 
             self.progbar.update(self.sess.run(self.global_step))
             if logging:
+                Record({"Reward/Intrinsic":r_i_store,"Reward/Env":r_store}, self.writer, self.sess.run(self.global_step))
                 loggingDict = self.env.getLogging()
+                Record(loggingDict, self.writer, self.sess.run(self.global_step))
+                loggingDict = self.net.GetWorkerStatistics()
                 Record(loggingDict, self.writer, self.sess.run(self.global_step))
             if saving:
                 self.saver.save(self.sess, self.MODEL_PATH+'/ctf_policy.ckpt', global_step=self.sess.run(self.global_step))
@@ -425,7 +471,7 @@ class WorkerMaster(object):
         #Allowing access to the global variables.
         while not COORD.should_stop() and self.sess.run(self.global_step) < self.settings["MaxEpisodes"]:
 
-            logging = interval_flag(self.sess.run(self.global_step), self.settings["LogFreq"], 'log')
+            logging = interval_flag(self.sess.run(self.global_step), self.settings["LogFreq"], 'logNet')
 
             self.net.Update(self.settings["NetworkHPs"],self.sess.run(self.global_step))
 
@@ -433,6 +479,27 @@ class WorkerMaster(object):
                 loggingDict = self.net.GetStatistics()
                 Record(loggingDict, self.writer, self.sess.run(self.global_step))
 
+class WorkerPrioritizer(object):
+    def __init__(self,localNetwork,sess,global_step,settings):
+        """Creates a worker that is used to gather smaples to update the main network.
+
+        Inputs:
+        name        - Unique name for the worker actor-critic environmnet.
+        sess        - Session Name
+        globalAC    - Name of the Global actor-critic which the updates are based around.
+        """
+        self.sess=sess
+        self.net = localNetwork
+        self.global_step = global_step
+        self.settings =settings
+
+    def work(self,COORD,render=False):
+        """Main function of the Workers. This runs the environment and the experience
+        is used to update the main Actor Critic Network.
+        """
+        #Allowing access to the global variables.
+        while not COORD.should_stop() and self.sess.run(self.global_step) < self.settings["MaxEpisodes"]:
+            self.net.PrioritizeBuffer()
 
 class EpisodicMemory():
     def __init__(self):
@@ -471,6 +538,7 @@ class NGUBuffer():
 
     def GetMuSigma(self):
         return self.errorMA(), self.errorMA.std()
+
     def AddError(self,val):
         self.errorMA.append(val)
 
@@ -479,17 +547,15 @@ class NGUBuffer():
         self.priorities.append(priority)
         self.trajLengths.append(len(sample[0]))
 
-
     def Sample(self):
         return self.buffer[0:self.slice] , self.sampleSize
-
 
     def PrioritizeandPruneSamples(self,sampleSize):
         if len(self.trajLengths) ==0:
             return
         if self.flag:
             self.flag=False
-        self.priorities, self.buffer,self.trajLengths = (list(t) for t in zip(*sorted(zip(self.priorities, self.buffer,self.trajLengths), reverse=True)))
+        self.priorities, self.buffer,self.trajLengths = (list(t) for t in zip(*sorted(zip(self.priorities, self.buffer,self.trajLengths), key=lambda x: x[0],reverse=True)))
 
         #Pruning the least favorable samples
         while sum(self.trajLengths) >= self.maxSamples:
@@ -508,3 +574,54 @@ class NGUBuffer():
         self.priorities[0:self.slice] = priorities
         self.flag = True
         return self.buffer
+
+    def GetReprioritySamples(self):
+        return self.buffer[0:self.slice]
+
+
+
+
+def NGUWorkers(sess,settings,netConfigOverride):
+    #Created Here if there is something to save images
+    EXP_NAME = settings["RunName"]
+    MODEL_PATH = './models/'+EXP_NAME
+    LOG_PATH = './logs/'+EXP_NAME
+    CreatePath(LOG_PATH)
+    CreatePath(MODEL_PATH)
+
+    with open("configs/environment/"+settings["EnvConfig"]) as json_file:
+        envSettings = json.load(json_file)
+
+    sharedBuffer = NGUBuffer(maxSamples=settings["MemoryCapacity"])
+    # sharedBandit = SlidingWindowUCBBandit()
+    _,dFeatures,nActions,nTrajs = CreateEnvironment(envSettings,multiprocessing=1)
+
+    progbar = tf.keras.utils.Progbar(None, unit_name='Training',stateful_metrics=["Reward"])
+    writer = tf.summary.FileWriter(LOG_PATH,graph=sess.graph)
+    global_step = tf.Variable(0, trainable=False, name='global_step')
+    global_step_next = tf.assign_add(global_step,1)
+
+    workers = []
+
+    network = NetworkBuilder(settings["NetworkConfig"],netConfigOverride,scope="Global",actionSize=nActions)
+    Updater = NGU(network,sess,stateShape=dFeatures,actionSize=nActions,scope="Global",HPs=settings["NetworkHPs"],sharedBuffer=sharedBuffer)
+    Updater.Model.summary()
+    saver = tf.train.Saver(max_to_keep=3, var_list=Updater.getVars+[global_step])
+    Updater.InitializeVariablesFromFile(saver,MODEL_PATH)
+    workers.append(WorkerMaster(Updater,sess,global_step,global_step_next,settings,progbar,writer,MODEL_PATH,saver))
+
+    network = NetworkBuilder(settings["NetworkConfig"],netConfigOverride,scope="prioritizer",actionSize=nActions)
+    localNetwork = NGU(network,sess,stateShape=dFeatures,actionSize=nActions,scope="prioritizer",HPs=settings["NetworkHPs"],globalNet=Updater,nTrajs=nTrajs,sharedBuffer=sharedBuffer)
+    localNetwork.InitializeVariablesFromFile(saver,MODEL_PATH)
+    workers.append(WorkerPrioritizer(localNetwork,sess,global_step,settings))
+
+    # Create workers
+    for i in range(settings["NumberENV"]):
+        i_name = 'W_%i' % i   # worker name
+        network = NetworkBuilder(settings["NetworkConfig"],netConfigOverride,scope=i_name,actionSize=nActions)
+        localNetwork = NGU(network,sess,stateShape=dFeatures,actionSize=nActions,scope=i_name,HPs=settings["NetworkHPs"],globalNet=Updater,nTrajs=nTrajs,sharedBuffer=sharedBuffer)
+        localNetwork.InitializeVariablesFromFile(saver,MODEL_PATH)
+        env,_,_,_ = CreateEnvironment(envSettings,multiprocessing=1)
+        workers.append(WorkerSlave(localNetwork,env,sess,global_step,global_step_next,settings,progbar,writer,MODEL_PATH,saver))
+
+    return workers

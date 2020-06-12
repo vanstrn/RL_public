@@ -66,6 +66,16 @@ with tf.device(args.processor):
 
 InitializeVariables(sess) #Included to catch if there are any uninitalized variables.
 
+#Saving config files in the model directory
+EXP_NAME = settings["RunName"]
+LOG_PATH = './logs/'+EXP_NAME
+CreatePath(LOG_PATH)
+with open(LOG_PATH+'/runSettings.json', 'w') as outfile:
+    json.dump(settings, outfile)
+with open(LOG_PATH+'/netConfigOverride.json', 'w') as outfile:
+    json.dump(netConfigOverride, outfile)
+
+
 COORD = tf.train.Coordinator()
 worker_threads = []
 for i,worker in enumerate(workers):

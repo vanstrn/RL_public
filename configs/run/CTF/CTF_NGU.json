@@ -21,8 +21,8 @@
   "LogFreq":20,
   "SaveFreq":5000,
 
-  "EnvConfig":"CTF_1v0_FO.json",
+  "EnvConfig":"CTF_1v1_1map.json",
   "NetworkConfig":"CTF_NGU_v1.json",
   "NumberENV":1,
-  "Method":"methods.NGU.NGU"
+  "Method":"methods.NGU.NGUWorkers"
   }
