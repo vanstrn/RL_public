@@ -77,3 +77,54 @@ python SF_Hierarchy_v2.py -f MG4R_SFH.json  -c '{"RunName":"MG4R_v1_SF_64_Unifor
 
 
 python SF.py -f MG4R_v1_SF.json  -c '{"RunName":"MG4R_v1_SF_32_3"}' -n '{"DefaultParams":{"SFSize":32}}'
+
+python SF_CTF_v2.py -f CTF_SF_v2_1v1_1map_split.json -c '{"RunName":"SF_CTF_1Map_1"}'
+
+
+
+python SF_CTF_v2.py -f CTF_SF_v2_1v1_1map.json -c '{"RunName":"SF_CTF_1Map_1"}'
+python SF_CTF_v2.py -f CTF_SF_v2_1v1_1map.json -c '{"RunName":"SF_CTF_1Map_2"}'
+python SF_CTF_v2.py -f CTF_SF_v2_1v1_10map.json -c '{"RunName":"SF_CTF_10Map_1"}'
+python SF_CTF_v2.py -f CTF_SF_v2_1v1_10map.json -c '{"RunName":"SF_CTF_10Map_2"}'
+
+
+python SF_Hierarchy_v3_CTF_1v1_v2.py -f CTF_SFH.json -d SF_SampleData1Map_1.npz -c '{"RunName":"SF_CTF_1Map_Random_DS1_T1","LoadName":"SF_CTF_1Map_1","Selection":"Random"}'
+python SF_Hierarchy_v3_CTF_1v1_v2.py -f CTF_SFH.json -d SF_SampleData1Map_1.npz -c '{"RunName":"SF_CTF_1Map_First_DS1_T1","LoadName":"SF_CTF_1Map_1","Selection":"First"}'
+python SF_Hierarchy_v3_CTF_1v1_v2.py -f CTF_SFH.json -d SF_SampleData1Map_1.npz -c '{"RunName":"SF_CTF_1Map_PCA_DS1_T1","LoadName":"SF_CTF_1Map_1","Selection":"Hull_pca"}'
+python SF_Hierarchy_v3_CTF_1v1_v2.py -f CTF_SFH.json -d SF_SampleData1Map_1.npz -c '{"RunName":"SF_CTF_1Map_TSNE_DS1_T1","LoadName":"SF_CTF_1Map_1","Selection":"Hull_tsne"}'
+python SF_Hierarchy_v3_CTF_1v1_v2.py -f CTF_SFH.json -d SF_SampleData1Map_1.npz -c '{"RunName":"SF_CTF_1Map_Clust_DS1_T1","LoadName":"SF_CTF_1Map_1","Selection":"Hull_cluster"}'
+
+python SF_Hierarchy_v3_CTF_1v1_v2.py -f CTF_SFH.json -d SF_SampleData1Map_2.npz -c '{"RunName":"SF_CTF_1Map_Random_DS2_T1","LoadName":"SF_CTF_1Map_1","Selection":"Random"}'
+python SF_Hierarchy_v3_CTF_1v1_v2.py -f CTF_SFH.json -d SF_SampleData1Map_2.npz -c '{"RunName":"SF_CTF_1Map_First_DS2_T1","LoadName":"SF_CTF_1Map_1","Selection":"First"}'
+python SF_Hierarchy_v3_CTF_1v1_v2.py -f CTF_SFH.json -d SF_SampleData1Map_2.npz -c '{"RunName":"SF_CTF_1Map_PCA_DS2_T1","LoadName":"SF_CTF_1Map_1","Selection":"Hull_pca"}'
+python SF_Hierarchy_v3_CTF_1v1_v2.py -f CTF_SFH.json -d SF_SampleData1Map_2.npz -c '{"RunName":"SF_CTF_1Map_TSNE_DS2_T1","LoadName":"SF_CTF_1Map_1","Selection":"Hull_tsne"}'
+python SF_Hierarchy_v3_CTF_1v1_v2.py -f CTF_SFH.json -d SF_SampleData1Map_2.npz -c '{"RunName":"SF_CTF_1Map_Clust_DS2_T1","LoadName":"SF_CTF_1Map_1","Selection":"Hull_cluster"}'
+
+
+python SF_Hierarchy_v3_CTF_1v1_v2.py -f CTF_SFH.json -d SF_SampleData10Map_1.npz -c '{"RunName":"SF_CTF_10Map_Random_DS1_T1","LoadName":"SF_CTF_10Map_1","Selection":"Random"}'
+python SF_Hierarchy_v3_CTF_1v1_v2.py -f CTF_SFH.json -d SF_SampleData10Map_1.npz -c '{"RunName":"SF_CTF_10Map_First_DS1_T1","LoadName":"SF_CTF_10Map_1","Selection":"First"}'
+python SF_Hierarchy_v3_CTF_1v1_v2.py -f CTF_SFH.json -d SF_SampleData10Map_1.npz -c '{"RunName":"SF_CTF_10Map_PCA_DS1_T1","LoadName":"SF_CTF_10Map_1","Selection":"Hull_pca"}'
+python SF_Hierarchy_v3_CTF_1v1_v2.py -f CTF_SFH.json -d SF_SampleData10Map_1.npz -c '{"RunName":"SF_CTF_10Map_TSNE_DS1_T1","LoadName":"SF_CTF_10Map_1","Selection":"Hull_tsne"}'
+python SF_Hierarchy_v3_CTF_1v1_v2.py -f CTF_SFH.json -d SF_SampleData10Map_1.npz -c '{"RunName":"SF_CTF_10Map_Clust_DS1_T1","LoadName":"SF_CTF_10Map_1","Selection":"Hull_cluster"}'
+
+python SF_Hierarchy_v3_CTF_1v1_v2.py -f CTF_SFH.json -d SF_SampleData10Map_2.npz -c '{"RunName":"SF_CTF_10Map_Random_DS2_T1","LoadName":"SF_CTF_10Map_1","Selection":"Random"}'
+python SF_Hierarchy_v3_CTF_1v1_v2.py -f CTF_SFH.json -d SF_SampleData10Map_2.npz -c '{"RunName":"SF_CTF_10Map_First_DS2_T1","LoadName":"SF_CTF_10Map_1","Selection":"First"}'
+python SF_Hierarchy_v3_CTF_1v1_v2.py -f CTF_SFH.json -d SF_SampleData10Map_2.npz -c '{"RunName":"SF_CTF_10Map_PCA_DS2_T1","LoadName":"SF_CTF_10Map_1","Selection":"Hull_pca"}'
+python SF_Hierarchy_v3_CTF_1v1_v2.py -f CTF_SFH.json -d SF_SampleData10Map_2.npz -c '{"RunName":"SF_CTF_10Map_TSNE_DS2_T1","LoadName":"SF_CTF_10Map_1","Selection":"Hull_tsne"}'
+python SF_Hierarchy_v3_CTF_1v1_v2.py -f CTF_SFH.json -d SF_SampleData10Map_2.npz -c '{"RunName":"SF_CTF_10Map_Clust_DS2_T1","LoadName":"SF_CTF_10Map_1","Selection":"Hull_cluster"}'
+
+
+
+
+python SF_Hierarchy_v3_CTF_1v1_v2.py -f CTF_SFH.json -d SF_SampleData1Map_1.npz -c '{"RunName":"SF_CTF_1Map_Random_DS1_T2","LoadName":"SF_CTF_1Map_1","Selection":"Random"}'
+python SF_Hierarchy_v3_CTF_1v1_v2.py -f CTF_SFH.json -d SF_SampleData1Map_1.npz -c '{"RunName":"SF_CTF_1Map_First_DS1_T2","LoadName":"SF_CTF_1Map_1","Selection":"First"}'
+python SF_Hierarchy_v3_CTF_1v1_v2.py -f CTF_SFH.json -d SF_SampleData1Map_1.npz -c '{"RunName":"SF_CTF_1Map_PCA_DS1_T2","LoadName":"SF_CTF_1Map_1","Selection":"Hull_pca"}'
+python SF_Hierarchy_v3_CTF_1v1_v2.py -f CTF_SFH.json -d SF_SampleData1Map_1.npz -c '{"RunName":"SF_CTF_1Map_TSNE_DS1_T2","LoadName":"SF_CTF_1Map_1","Selection":"Hull_tsne"}'
+python SF_Hierarchy_v3_CTF_1v1_v2.py -f CTF_SFH.json -d SF_SampleData1Map_1.npz -c '{"RunName":"SF_CTF_1Map_Clust_DS1_T2","LoadName":"SF_CTF_1Map_1","Selection":"Hull_cluster"}'
+
+
+python SF_Hierarchy_v3_CTF_1v1_v2.py -f CTF_SFH.json -d SF_SampleData1Map_1.npz -c '{"RunName":"SF_CTF_1Map_Random_DS1_T3","LoadName":"SF_CTF_1Map_1","Selection":"Random"}'
+python SF_Hierarchy_v3_CTF_1v1_v2.py -f CTF_SFH.json -d SF_SampleData1Map_1.npz -c '{"RunName":"SF_CTF_1Map_First_DS1_T3","LoadName":"SF_CTF_1Map_1","Selection":"First"}'
+python SF_Hierarchy_v3_CTF_1v1_v2.py -f CTF_SFH.json -d SF_SampleData1Map_1.npz -c '{"RunName":"SF_CTF_1Map_PCA_DS1_T3","LoadName":"SF_CTF_1Map_1","Selection":"Hull_pca"}'
+python SF_Hierarchy_v3_CTF_1v1_v2.py -f CTF_SFH.json -d SF_SampleData1Map_1.npz -c '{"RunName":"SF_CTF_1Map_TSNE_DS1_T3","LoadName":"SF_CTF_1Map_1","Selection":"Hull_tsne"}'
+python SF_Hierarchy_v3_CTF_1v1_v2.py -f CTF_SFH.json -d SF_SampleData1Map_1.npz -c '{"RunName":"SF_CTF_1Map_Clust_DS1_T3","LoadName":"SF_CTF_1Map_1","Selection":"Hull_cluster"}'

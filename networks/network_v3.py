@@ -118,10 +118,11 @@ def buildNetwork(configFile, actionSize, netConfigOverride={},debug=True, traini
             #If a layer has multiple outputs assign the outputs unique names. Otherwise just have output be the layername.
             if "multiOutput" in layerDict:
                 for i,output_i in enumerate(output):
-                    layerOutputs[multiOutput[layerDict["layerName"]][i]]=output_i
+                    layerOutputs[layerDict["multiOutput"][i]]=output_i
+                    if debug: print("\tLayer Output",layerOutputs[layerDict["multiOutput"][i]])
             else:
                 layerOutputs[layerDict["layerName"]] = output
-            if debug: print("\tLayer Output",layerOutputs[layerDict["layerName"]])
+                if debug: print("\tLayer Output",layerOutputs[layerDict["layerName"]])
 
 
     #Creating the outputs for the model.

@@ -1,0 +1,28 @@
+{ "RunName":"SF_CTF_1Map",
+  "GPUCapacitty":0.95,
+  "NetworkHPs":{},
+  "Optimizer":"Adadelta",
+  "SampleEpisodes":200,
+  "MAX_EP_STEPS":150,
+  "PhiEpochs":501,
+  "PsiEpochs":251,
+  "FitIterations":3,
+  "BatchSize":16,
+  "Gamma":0.99,
+  "LearningRate":0.2,
+  "SaveFreq":125,
+  "LogFreq":25,
+  "channelWeights":[1,1,1,1,10,1],
+
+  "EnvConfig":"CTF_1v1_1map.json",
+  "NetworkConfig":"CTF_SF_v2_actions.json",
+
+  "PhiLogging":["SF_Utils.ImageGenerator_CTF",
+                "SF_Utils.SaveModel",
+                "SF_Utils.SaveModel_Phi",
+                "SF_Utils.RewardTest_CTF"],
+  "PsiLogging":["SF_Utils.ValueTest_CTF",
+                "SF_Utils.SaveModel",
+                "SF_Utils.SaveModel_Psi"]
+
+  }

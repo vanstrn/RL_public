@@ -3,6 +3,8 @@
                 "goal_pos":[9,7]},
   "Seed":1337,
   "Wrappers":[
+  { "WrapperName":"environments.MiniGridWrappers.SampleConstructor",
+    "WrapperParameters":{}},
   { "WrapperName":"environments.MiniGridWrappers.DiscreteAction",
     "WrapperParameters":{}},
   { "WrapperName":"environments.MiniGridWrappers.RewardWrapper",

@@ -11,7 +11,7 @@
                 "Epochs":2,
                 "eps":0.2},
 
-  "MaxEpisodes":20001,
+  "MaxEpisodes":30001,
   "MaxEpisodeSteps":150,
   "Epochs":1000,
   "SFSize":256,

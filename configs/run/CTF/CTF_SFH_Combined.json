@@ -20,15 +20,15 @@
   "SaveFreq":1000,
   "LogFreq":10,
 
-  "NumOptions":2,
+  "NumOptions":4,
   "TotalSamples":256,
   "Selection":"Hull_pca",
 
 
-  "EnvConfig":"CTF_1v1_FO.json",
+  "EnvConfig":"CTF_1v0_FO.json",
   "SFNetworkConfig":"CTF_SF_v2_actions.json",
-  "NetworkConfig":"CTF_PPO.json",
-  "Method":"methods.SF_Qmap_CTF.SF_QMap_CTF_1v1",
+  "NetworkConfig":"CTF_PPO_v3.json",
+  "Method":"methods.SF_Qmap.SF_QMap",
   "SubMethod":"methods.PPO_FS.PPO",
 
   "LoggingFunctions":[]

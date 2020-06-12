@@ -10,6 +10,7 @@ from .layers.approx_round import *
 from .layers.inception import Inception
 from .layers.reverse_inception import ReverseInception
 from .layers.lstm_reshape import LSTM_Reshape,LSTM_Unshape
+from .layers.split import Split
 import tensorflow.keras.backend as K
 
 import collections.abc
@@ -148,6 +149,8 @@ def GetLayer( dict):
         layer = ReverseInception(**dict["Parameters"],name=dict["layerName"])
     elif dict["layerType"] == "NonLocalNN":
         layer= Non_local_nn( **dict["Parameters"],name=dict["layerName"])
+    elif dict["layerType"] == "Split":
+        layer= Split( **dict["Parameters"],name=dict["layerName"])
 
     return layer
 

@@ -230,3 +230,115 @@ class GrayscaleStackedFrames(gym.core.ObservationWrapper):
             'mission': obs['mission'],
             'image': np.squeeze(np.stack(self.stack,2))
         }
+
+
+def SmoothOption(option, gamma =0.9):
+    # option[option<0.0] = 0.0
+    #Create the Adjacency Matric
+    states_ = {}
+    count = 0
+    for i in range(option.shape[0]):
+        for j in range(option.shape[1]):
+            if option[i,j] != 0:
+                states_[count] = [i,j]
+                # states_.append([count, [i,j]])
+                count+=1
+    states=len(states_.keys())
+    x = np.zeros((states,states))
+    for i in range(len(states_)):
+        [locx,locy] = states_[i]
+        sum = 0
+        for j in range(len(states_)):
+            if states_[j] == [locx+1,locy]:
+                x[i,j] = 0.25
+                sum += 0.25
+            if states_[j] == [locx-1,locy]:
+                x[i,j] = 0.25
+                sum += 0.25
+            if states_[j] == [locx,locy+1]:
+                x[i,j] = 0.25
+                sum += 0.25
+            if states_[j] == [locx,locy-1]:
+                x[i,j] = 0.25
+                sum += 0.25
+        x[i,i]= 1.0-sum
+
+    #Create W
+    w = np.zeros((states))
+    for count,loc in states_.items():
+        w[count] = option[loc[0],loc[1]]
+
+    # (I-gamma*Q)^-1
+    I = np.identity(states)
+    psi = np.linalg.inv(I-gamma*x)
+
+    smoothedOption = np.zeros_like(option,dtype=float)
+
+    value = np.matmul(psi,w)
+    for j,loc in states_.items():
+        smoothedOption[loc[0],loc[1]] = value[j]
+
+    return smoothedOption
+
+class SampleConstructor(gym.core.Wrapper):
+    """
+    Fully observable gridworld using a compact grid encoding
+    """
+
+    def __init__(self, env):
+        super().__init__(env)
+
+    def ConstructAllSamples(self):
+        """Constructing All Samples into a Q table. """
+        #### Getting Background Grid
+        grid = env.grid.encode()
+        stacked_grids = np.repeat(np.expand_dims(grid,0), grid.shape[0]*grid.shape[1],0)
+        for i in range(grid.shape[1]):
+            for j in range(grid.shape[2]):
+                if grid[i,j,1] == 5:
+                    pass
+                stacked_grids[i*stacked_grids_i.shape[2]+j,i,j,0] = 10
+        return grid[:,:,:,:2]
+
+    def ReformatSamples(self,values):
+        """Formating Data back into a Q Table. """
+        grid = self.get_obs_blue
+        value_map = np.reshape(values,grid.shape[:2])
+        for i in range(grid.shape[1]):
+            for j in range(grid.shape[2]):
+                if grid[i,j,1] == 5:
+                    value_map[i,j] = 0.0
+        smoothed_value_map = SmoothOption(value_map,grid[i,j,3])
+        smoothed_value_map_inv = -smoothed_value_map
+        for i in range(grid.shape[1]):
+            for j in range(grid.shape[2]):
+                if grid[i,j,1] == 5:
+                    smoothed_value_map[i,j] = -999
+                    smoothed_value_map_inv[i,j] = -999
+        return smoothed_value_map, smoothed_value_map_inv
+
+    def UseSubpolicy(self,s,subpolicy):
+        #Extracting location of agent.
+
+        locX,locY = np.unravel_index(np.argmax(s[:,:,0], axis=None), s[:,:,0].shape)
+        #Getting Value of all adjacent policies. Ignoring location of the walls.
+        actionValue = []
+        if [int(locX),int(locY+1),0] == 2:
+            actionValue.append(-999)
+        else:
+            actionValue.append(subpolicy[int(locX),  int(locY+1)  ]) # Go Up
+        if [int(locX+1),int(locY),0] == 2:
+            actionValue.append(-999)
+        else:
+            actionValue.append(subpolicy[int(locX+1),int(locY)    ]) # Go Right
+        if [int(locX),int(locY-1),0] == 2:
+            actionValue.append(-999)
+        else:
+            actionValue.append(subpolicy[int(locX),  int(locY-1)  ]) # Go Down
+        if [int(locX-1),int(locY),0] == 2:
+            actionValue.append(-999)
+        else:
+            actionValue.append(subpolicy[int(locX-1),int(locY)    ]) # Go Left
+
+        #Selecting Action with Highest Value. Will always take a movement.
+        return actionValue.index(max(actionValue))

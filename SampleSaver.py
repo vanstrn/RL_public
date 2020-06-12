@@ -14,6 +14,7 @@ import os
 from utils.utils import CreatePath
 import json
 import environments as e
+import gym,gym_cap
 
 
 #Input arguments to override the default Config Files
@@ -70,24 +71,30 @@ def GetAction(state):
     actions = np.array([np.random.choice(probs.shape[1], p=prob / sum(prob)) for prob in probs])
     return actions
 
+def arreq_in_list(myarr, list_arrays):
+    return next((True for elem in list_arrays if np.array_equal(elem, myarr)), False)
+
 s = []
 s_next = []
 r_store = []
-for i in range(2):
+for i in range(200):
     s0 = env.reset()
 
-    for j in range(settings["MAX_EP_STEPS"]+1):
+    for j in range(settings["MaxEpisodeSteps"]+1):
 
         a = GetAction(state=s0)
 
         s1,r,done,_ = env.step(a)
 
-        s.append(s0)
-        s_next.append(s1)
-        r_store.append(r)
+        if arreq_in_list(s0,s):
+            pass
+        else:
+            s.append(s0)
+            s_next.append(s1)
+            r_store.append(r)
 
         s0 = s1
         if done:
             break
 
-np.savez_compressed("./data/SF_TRIAL2.npz", s=s, s_next=s_next, r_store=r_store)
+np.savez_compressed("./data/SF_SampleData10Map_2.npz", s=s, s_next=s_next, r_store=r_store)

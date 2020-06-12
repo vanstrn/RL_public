@@ -3,8 +3,12 @@
     "config_path":"environments/1v0.ini"},
   "Seed":1337,
   "Wrappers":[
+  { "WrapperName":"environments.CTF_v2.SampleConstructor",
+    "WrapperParameters":{}},
   { "WrapperName":"environments.CTF_v2.CTFCentering",
     "WrapperParameters":{"centering":false}},
+  { "WrapperName":"environments.CTF_v2.CTFObsModifier",
+    "WrapperParameters":{"agents":5,"flags":2}},
   { "WrapperName":"environments.CTF_v2.RewardShape",
     "WrapperParameters":{}},
   { "WrapperName":"environments.CTF_v2.UseMap",

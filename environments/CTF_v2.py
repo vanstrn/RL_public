@@ -11,6 +11,7 @@ import os
 from utils.utils import MovingAverage
 
 
+
 def use_this_policy(policyName=None):
     if policyName is None:
         heur_policy_list = [policy.Patrol(), policy.Roomba(), policy.Defense(), policy.Random(), policy.AStar()]
@@ -28,6 +29,106 @@ def use_this_policy(policyName=None):
     elif policyName == "Random":
         return policy.Random()
 
+def SmoothOption(option, obstacles,gamma =0.9):
+    # option[option<0.0] = 0.0
+    #Create the Adjacency Matric
+    states_ = {}
+    count = 0
+    for i in range(option.shape[0]):
+        for j in range(option.shape[1]):
+            if option[i,j] != 0:
+                states_[count] = [i,j]
+                # states_.append([count, [i,j]])
+                count+=1
+    states=len(states_.keys())
+    x = np.zeros((states,states))
+    for i in range(len(states_)):
+        [locx,locy] = states_[i]
+        sum = 0
+        for j in range(len(states_)):
+            if states_[j] == [locx+1,locy]:
+                x[i,j] = 0.25
+                sum += 0.25
+            if states_[j] == [locx-1,locy]:
+                x[i,j] = 0.25
+                sum += 0.25
+            if states_[j] == [locx,locy+1]:
+                x[i,j] = 0.25
+                sum += 0.25
+            if states_[j] == [locx,locy-1]:
+                x[i,j] = 0.25
+                sum += 0.25
+        x[i,i]= 1.0-sum
+
+    #Create W
+    w = np.zeros((states))
+    for count,loc in states_.items():
+        w[count] = option[loc[0],loc[1]]
+
+    # (I-gamma*Q)^-1
+    I = np.identity(states)
+    psi = np.linalg.inv(I-gamma*x)
+
+    smoothedOption = np.zeros_like(option,dtype=float)
+
+    value = np.matmul(psi,w)
+    for j,loc in states_.items():
+        smoothedOption[loc[0],loc[1]] = value[j]
+
+    return smoothedOption
+
+def SmoothOption_2(option_,obstacles, gamma =0.9):
+    # option[option<0.0] = 0.0
+    #Create the Adjacency Matric
+    v_option=np.full((dFeatures[0],dFeatures[1],dFeatures[0],dFeatures[1]),0,dtype=np.float32)
+    for i2,j2 in itertools.product(range(dFeatures[0]),range(dFeatures[1])):
+        option = option_[:,:,i2,j2]
+        states_ = {}
+        count = 0
+        for i in range(option.shape[0]):
+            for j in range(option.shape[1]):
+                if option[i,j] != 0:
+                    states_[count] = [i,j]
+                    # states_.append([count, [i,j]])
+                    count+=1
+        states=len(states_.keys())
+        x = np.zeros((states,states))
+        for i in range(len(states_)):
+            [locx,locy] = states_[i]
+            sum = 0
+            for j in range(len(states_)):
+                if states_[j] == [locx+1,locy] and not obstacles[locx+1,locy]:
+                    x[i,j] = 0.25
+                    sum += 0.25
+                if states_[j] == [locx-1,locy] and not obstacles[locx-1,locy]:
+                    x[i,j] = 0.25
+                    sum += 0.25
+                if states_[j] == [locx,locy+1] and not obstacles[locx,locy+1]:
+                    x[i,j] = 0.25
+                    sum += 0.25
+                if states_[j] == [locx,locy-1] and not obstacles[locx,locy-1]:
+                    x[i,j] = 0.25
+                    sum += 0.25
+            x[i,i]= 1.0-sum
+
+        #Create W
+        w = np.zeros((states))
+        for count,loc in states_.items():
+            w[count] = option[loc[0],loc[1]]
+
+        # (I-gamma*Q)^-1
+        I = np.identity(states)
+        psi = np.linalg.inv(I-gamma*x)
+
+        smoothedOption = np.zeros_like(option,dtype=float)
+
+        value = np.matmul(psi,w)
+        for j,loc in states_.items():
+            smoothedOption[loc[0],loc[1]] = value[j]
+
+        v_option[:,:,i2,j2] = smoothedOption
+    return v_option
+
 class SampleConstructor(gym.core.Wrapper):
     """
     Fully observable gridworld using a compact grid encoding
@@ -37,7 +138,9 @@ class SampleConstructor(gym.core.Wrapper):
         super().__init__(env)
         self.agents_repr = 1
         self.flags_repr = 1
+
     def ConstructSample(self,position):
+        """Constructing All Samples into a Q table. """
         grid = self.get_obs_blue
         if grid[position[0],position[1],3] == 1:
             return None
@@ -50,6 +153,138 @@ class SampleConstructor(gym.core.Wrapper):
         grid[:,:,2] = np.where(grid[:,:,2]==-1,-self.flags_repr,grid[:,:,2])
         grid[position[0],position[1],4] = self.agents_repr
         return grid
+
+    def ConstructAllSamples(self):
+        """Constructing All Samples into a Q table. """
+        #### Getting Background Grid
+        grid = self.get_obs_blue
+        locX,locY = np.unravel_index(np.argmax(grid[:,:,4], axis=None), grid[:,:,0].shape)
+        locX2,locY2 = np.unravel_index(np.argmin(grid[:,:,4], axis=None), grid[:,:,0].shape)
+        #Removing the agent
+        grid[locX,locY,4] = 0
+        grid[locX2,locY2,4] = 0
+
+        #### Creating Grids for no enemies
+        stacked_grids = np.repeat(np.expand_dims(grid,0), grid.shape[0]*grid.shape[1],0)
+        for i in range(stacked_grids.shape[1]):
+            for j in range(stacked_grids.shape[2]):
+                stacked_grids[i*stacked_grids.shape[2]+j,stacked_grids.shape[2]-i-1,j,4] = self.agents_repr
+
+        if self.mode == "sandbox":
+            return stacked_grids
+
+        #### Creating Grids for 1v1 Case
+        all_grids = [stacked_grids]
+        if self.mode != "sandbox":
+
+            for i_enemy in range(stacked_grids.shape[1]):
+                for j_enemy in range(stacked_grids.shape[2]):
+
+                    stacked_grids_i = np.repeat(np.expand_dims(grid,0), grid.shape[0]*grid.shape[1],0)
+                    for i in range(stacked_grids_i.shape[1]):
+                        for j in range(stacked_grids_i.shape[2]):
+                            stacked_grids_i[i*stacked_grids_i.shape[2]+j,stacked_grids_i.shape[2]-i-1,j,4] = self.agents_repr
+                            stacked_grids_i[i*stacked_grids_i.shape[2]+j,stacked_grids_i.shape[2]-i_enemy-1,j_enemy,4] = -self.agents_repr
+
+                    print(i_enemy,j_enemy)
+                    all_grids.append(stacked_grids_i)
+
+        return np.vstack(all_grids)
+
+    def ReformatSamples(self,values):
+        """Formating Data back into a Q Table. """
+        grid = self.get_obs_blue
+        if self.mode == "sandbox":
+            value_map = np.reshape(values,grid.shape[:2])
+            for i in range(grid.shape[1]):
+                for j in range(grid.shape[2]):
+                    if grid[i,j,3] == 1:
+                        value_map[i,j] = 0.0
+            smoothed_value_map = SmoothOption(value_map,grid[i,j,3])
+            smoothed_value_map_inv = -smoothed_value_map
+            for i in range(grid.shape[1]):
+                for j in range(grid.shape[2]):
+                    if grid[i,j,3] == 1:
+                        smoothed_value_map[i,j] = -999
+                        smoothed_value_map_inv[i,j] = -999
+            return smoothed_value_map, smoothed_value_map_inv
+
+        else:
+            #Getting the first value_map for no
+            value_map = np.reshape(values[:grid.shape[0]*grid.shape[1],:],grid.shape[:2])
+            for i in range(grid.shape[1]):
+                for j in range(grid.shape[2]):
+                    if grid[i,j,3] == 1:
+                        value_map[i,j] = 0.0
+            smoothed_value_map_1v0 = SmoothOption(value_map,grid[i,j,3])
+            smoothed_value_map_inv_1v0 = -smoothed_value_map
+            for i in range(grid.shape[1]):
+                for j in range(grid.shape[2]):
+                    if grid[i,j,3] == 1:
+                        smoothed_value_map_1v0[i,j] = -999
+                        smoothed_value_map_inv_1v0[i,j] = -999
+
+            #Other value maps
+            value_map = np.reshape(values[grid.shape[1]*grid.shape[1]:,:],grid.shape+grid.shape[:2])
+            for i in range(grid.shape[1]):
+                for j in range(grid.shape[2]):
+                    if grid[i,j,3] == 1:
+                        value_map[i,j,:,:] = 0.0
+
+            smoothed_value_map = SmoothOption_2(value_map,grid[i,j,3])
+            smoothed_value_map_inv = -smoothed_value_map
+            for i in range(grid.shape[1]):
+                for j in range(grid.shape[2]):
+                    if grid[i,j,3] == 1:
+                        smoothed_value_map[i,j,:,:] = -999
+                        smoothed_value_map_inv[i,j,:,:] = -999
+            value_map_final = np.zeros([grid.shape[0],grid.shape[1],grid.shape[0]+1,grid.shape[1]+1])
+            value_map_final[:,:,:grid.shape[0],:grid.shape[1]] = smoothed_value_map
+            value_map_final[:,:,grid.shape[0],:grid.shape[1]] = smoothed_value_map_1v0
+            value_map_final_inv = np.zeros([grid.shape[0],grid.shape[1],grid.shape[0]+1,grid.shape[1]+1])
+            value_map_final_inv[:,:,:grid.shape[0],:grid.shape[1]] = smoothed_value_map_inv
+            value_map_final_inv[:,:,grid.shape[0],:grid.shape[1]] = smoothed_value_map_inv_1v0
+
+    def UseSubpolicy(self,s,subpolicy):
+        #Extracting location of agent.
+
+        if self.mode == "sandbox":
+
+            locX,locY = np.unravel_index(np.argmax(s[0,:,:,4], axis=None), s[0,:,:,0].shape)
+            #Getting Value of all adjacent policies. Ignoring location of the walls.
+            actionValue = [subpolicy[int(locX),int(locY)]]
+            if locX+1 > s.shape[1]-1:
+                actionValue.append(-999)
+            elif [0,int(locX+1),int(locY),3] == 1:
+                actionValue.append(-999)
+            else:
+                actionValue.append(subpolicy[int(locX+1),int(locY)]) # Go Up
+
+            if locY+1 > s.shape[2]-1:
+                actionValue.append(-999)
+            elif [0,int(locX),int(locY+1),3] == 1:
+                actionValue.append(-999)
+            else:
+                actionValue.append(subpolicy[int(locX),int(locY+1)]) # Go Right
+
+            if locY-1 < 0:
+                actionValue.append(-999)
+            elif [0,int(locX-1),int(locY),3] == 1:
+                actionValue.append(-999)
+            else:
+                actionValue.append(subpolicy[int(locX-1),int(locY)]) # Go Down
+
+            if locY-1<0:
+                actionValue.append(-999)
+            elif [0,int(locX),int(locY-1),3] == 1:
+                actionValue.append(-999)
+            else:
+                actionValue.append(subpolicy[int(locX),int(locY-1)]) # Go Left
+
+            #Selecting Action with Highest Value. Will always take a movement.
+            return actionValue.index(max(actionValue))
+        else:
+            pass
 
 class UseMap(gym.core.Wrapper):
     """

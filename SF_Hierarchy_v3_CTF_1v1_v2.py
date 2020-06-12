@@ -41,6 +41,8 @@ parser.add_argument("-r", "--reward", required=False, default=False, action='sto
                     help="Determines if the sub-policies are trained and not Q-tables.")
 parser.add_argument("-l", "--load", required=False, default=False, action='store_true',
                     help="Determines if the Q-trables are reloaded.")
+parser.add_argument("-d", "--data", required=False, default="",
+                    help="Which data to use for the training.")
 
 args = parser.parse_args()
 print(args.config)
@@ -99,43 +101,43 @@ else:
         SF5.load_weights(MODEL_PATH+"model.h5")
 
 #Collecting Samples for the Decomposition Analysis.
-    def GetAction(state):
-        """
-        Contains the code to run the network based on an input.
-        """
-        p = 1/nActions
-        if len(state.shape)==3:
-            probs =np.full((1,nActions),p)
-        else:
-            probs =np.full((state.shape[0],nActions),p)
-        actions = np.array([np.random.choice(probs.shape[1], p=prob / sum(prob)) for prob in probs])
-        return actions
-    s = []
-    s_next = []
-    r_store = []
 
-    def arreq_in_list(myarr, list_arrays):
-        return next((True for elem in list_arrays if np.array_equal(elem, myarr)), False)
-
-    for i in range(settings["SampleEpisodes"]):
-        s0 = env.reset()
-
-        for j in range(settings["MAX_EP_STEPS"]+1):
-
-            a = GetAction(state=s0)
-
-            s1,r,done,_ = env.step(a)
-            if arreq_in_list(s0,s):
-                pass
+    if args.data == "":
+        def GetAction(state):
+            """
+            Contains the code to run the network based on an input.
+            """
+            p = 1/nActions
+            if len(state.shape)==3:
+                probs =np.full((1,nActions),p)
             else:
-                s.append(s0)
-                s_next.append(s1)
-                r_store.append(r)
+                probs =np.full((state.shape[0],nActions),p)
+            actions = np.array([np.random.choice(probs.shape[1], p=prob / sum(prob)) for prob in probs])
+            return actions
+        s = []
 
-            s0 = s1
-            if done:
-                break
+        def arreq_in_list(myarr, list_arrays):
+            return next((True for elem in list_arrays if np.array_equal(elem, myarr)), False)
 
+        for i in range(settings["SampleEpisodes"]):
+            s0 = env.reset()
+
+            for j in range(settings["MAX_EP_STEPS"]+1):
+
+                a = GetAction(state=s0)
+
+                s1,r,done,_ = env.step(a)
+                if arreq_in_list(s0,s):
+                    pass
+                else:
+                    s.append(s0)
+
+                s0 = s1
+                if done:
+                    break
+    else:
+        loadedData = np.load('./data/'+args.data)
+        s = loadedData["s"]
 
     def ConstructSample(env,position1,position2):
         if position1 == position2:
@@ -429,9 +431,9 @@ for i in range(settings["MAX_EP"]):
 
         s0 = s1
         if updating:   # update global and assign to local net
-            net.Update(settings["NetworkHPs"],sess.run(global_step))
+            net.Update(sess.run(global_step))
         if done or j == settings["MAX_EP_STEPS"]:
-            net.Update(settings["NetworkHPs"],sess.run(global_step))
+            net.Update(sess.run(global_step))
             break
     loggingDict = env.getLogging()
     if logging:

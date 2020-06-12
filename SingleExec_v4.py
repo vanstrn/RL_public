@@ -72,7 +72,7 @@ with tf.device(args.processor):
     global_step = tf.Variable(0, trainable=False, name='global_step')
     global_step_next = tf.assign_add(global_step,1)
     Method = GetFunction(settings["Method"])
-    net = Method(sess,settings,netConfigOverride,stateShape=dFeatures,actionSize=nActions,nTrajs=nTrajs)
+    net = Method(sess,settings,netConfigOverride,stateShape=dFeatures,actionSize=nActions,nTrajs=nTrajs,env=env)
 
 #Creating Auxilary Functions for logging and saving.
 writer = tf.summary.FileWriter(LOG_PATH,graph=sess.graph)
@@ -101,6 +101,7 @@ for i in range(settings["MaxEpisodes"]):
 
     s0 = env.reset()
 
+    ts = time.time()
     for j in range(settings["MaxEpisodeSteps"]+1):
 
         a, networkData = net.GetAction(state=s0,episode=sess.run(global_step),step=j)
@@ -111,6 +112,7 @@ for i in range(settings["MaxEpisodes"]):
             env.render()
         s0 = s1
         if done or j == settings["MaxEpisodeSteps"]:
+            print(time.time()-ts)
             net.Update(sess.run(global_step))
             break
 

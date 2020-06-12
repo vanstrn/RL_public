@@ -39,8 +39,8 @@ parser.add_argument("-s", "--sfnetwork", required=False,
                     help="JSON configuration string to override network parameters")
 parser.add_argument("-p", "--processor", required=False, default="/gpu:0",
                     help="Processor identifier string. Ex. /cpu:0 /gpu:0")
-parser.add_argument("-r", "--reward", required=False, default=False, action='store_true',
-                    help="Determines if the sub-policies are trained and not Q-tables.")
+parser.add_argument("-l", "--load", required=False, default=False, action='store_true',
+                    help="Determines if the Q-tables are reloaded.")
 
 args = parser.parse_args()
 if args.config is not None: configOverride = json.loads(unquote(args.config))
@@ -68,10 +68,9 @@ with open("configs/environment/"+settings["EnvConfig"]) as json_file:
 EXP_NAME = settings["RunName"]
 LoadName = settings["LoadName"]
 MODEL_PATH = './models/'+LoadName+ '/'
-ts = str(time.time())
-IMAGE_PATH = './images/SF/'+EXP_NAME+"_"+ts+'/'
-MODEL_PATH_ = './models/'+EXP_NAME+"_"+ts+'/'
-LOG_PATH = './logs/'+EXP_NAME+"_"+ts
+IMAGE_PATH = './images/SF/'+EXP_NAME+'/'
+MODEL_PATH_ = './models/'+EXP_NAME+'/'
+LOG_PATH = './logs/'+EXP_NAME
 CreatePath(LOG_PATH)
 CreatePath(IMAGE_PATH)
 CreatePath(MODEL_PATH)
@@ -84,219 +83,248 @@ env,dFeatures,nActions,nTrajs = CreateEnvironment(envSettings)
 gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=settings["GPUCapacitty"], allow_growth=True)
 config = tf.ConfigProto(gpu_options=gpu_options, log_device_placement=False, allow_soft_placement=True)
 sess = tf.Session(config=config)
-with tf.device(args.processor):
-    SF1,SF2,SF3,SF4,SF5 = buildNetwork(settings["SFNetworkConfig"],nActions,SFnetConfigOverride,scope="Global")
-    SF5.load_weights(MODEL_PATH+"model.h5")
 
-#Collecting Samples for the Decomposition Analysis.
-def GetAction(state):
-    """
-    Contains the code to run the network based on an input.
-    """
-    p = 1/nActions
-    if len(state.shape)==3:
-        probs =np.full((1,nActions),p)
-    else:
-        probs =np.full((state.shape[0],nActions),p)
-    actions = np.array([np.random.choice(probs.shape[1], p=prob / sum(prob)) for prob in probs])
-    return actions
-s = []
-s_next = []
-r_store = []
+#Loading premade sub-policies.
+if args.load:
+    #Loading the Q-tables for the sub-policies
+    loadedData = np.load(MODEL_PATH+'options.npz')
+    opt = loadedData["options"]
+    options=[]
+    for i in range(opt.shape[0]):
+        options.append(opt[i,:,:])
 
-def arreq_in_list(myarr, list_arrays):
-    return next((True for elem in list_arrays if np.array_equal(elem, myarr)), False)
+#If no policies are loaded, then we need to calculate them.
+else:
+    with tf.device(args.processor):
+        SF1,SF2,SF3,SF4,SF5 = buildNetwork(settings["SFNetworkConfig"],nActions,SFnetConfigOverride,scope="Global")
+        SF5.load_weights(MODEL_PATH+"model.h5")
 
-for i in range(settings["SampleEpisodes"]):
-    s0 = env.reset()
-
-    for j in range(settings["MAX_EP_STEPS"]+1):
-
-        a = GetAction(state=s0)
-
-        s1,r,done,_ = env.step(a)
-        if arreq_in_list(s0,s):
-            pass
+    #Collecting Samples for the Decomposition Analysis.
+    def GetAction(state):
+        """
+        Contains the code to run the network based on an input.
+        """
+        p = 1/nActions
+        if len(state.shape)==3:
+            probs =np.full((1,nActions),p)
         else:
-            s.append(s0)
-            s_next.append(s1)
-            r_store.append(r)
+            probs =np.full((state.shape[0],nActions),p)
+        actions = np.array([np.random.choice(probs.shape[1], p=prob / sum(prob)) for prob in probs])
+        return actions
+    s = []
+    s_next = []
+    r_store = []
 
-        s0 = s1
-        if done:
-            break
-def PlotOccupancy(states,title=""):
-    #Taking average over the list of states.
-    state = np.stack(states)
-    occupancy = np.average(state,axis=0)
-    #plotting them
-    fig=plt.figure(figsize=(5.5, 5.5))
-    fig.add_subplot(1,1,1)
-    plt.title("State Occupancy")
-    imgplot = plt.imshow(occupancy[:,:,0], vmin=0,vmax=10)
-    # plt.savefig(IMAGE_PATH+"/StateOccupancy_"+title+".png")
-    plt.show()
-    plt.close()
+    def arreq_in_list(myarr, list_arrays):
+        return next((True for elem in list_arrays if np.array_equal(elem, myarr)), False)
 
-def ConstructSample(env,position):
-    grid = env.grid.encode()
-    if grid[position[0],position[1],1] == 5:
-        return None
-    grid[position[0],position[1],0] = 10
-    return grid[:,:,:2]
+    for i in range(settings["SampleEpisodes"]):
+        s0 = env.reset()
 
-def SmoothOption(option, gamma =0.9):
-    # option[option<0.0] = 0.0
-    #Create the Adjacency Matric
-    states_ = {}
-    count = 0
-    for i in range(option.shape[0]):
-        for j in range(option.shape[1]):
-            if option[i,j] != 0:
-                states_[count] = [i,j]
-                # states_.append([count, [i,j]])
-                count+=1
-    states=len(states_.keys())
-    x = np.zeros((states,states))
-    for i in range(len(states_)):
-        [locx,locy] = states_[i]
-        sum = 0
-        for j in range(len(states_)):
-            if states_[j] == [locx+1,locy]:
-                x[i,j] = 0.25
-                sum += 0.25
-            if states_[j] == [locx-1,locy]:
-                x[i,j] = 0.25
-                sum += 0.25
-            if states_[j] == [locx,locy+1]:
-                x[i,j] = 0.25
-                sum += 0.25
-            if states_[j] == [locx,locy-1]:
-                x[i,j] = 0.25
-                sum += 0.25
-        x[i,i]= 1.0-sum
+        for j in range(settings["MAX_EP_STEPS"]+1):
 
-    #Create W
-    w = np.zeros((states))
-    for count,loc in states_.items():
-        w[count] = option[loc[0],loc[1]]
+            a = GetAction(state=s0)
 
-    # (I-gamma*Q)^-1
-    I = np.identity(states)
-    psi = np.linalg.inv(I-gamma*x)
+            s1,r,done,_ = env.step(a)
+            if arreq_in_list(s0,s):
+                pass
+            else:
+                s.append(s0)
+                s_next.append(s1)
+                r_store.append(r)
 
-    smoothedOption = np.zeros_like(option,dtype=float)
+            s0 = s1
+            if done:
+                break
+    def PlotOccupancy(states,title=""):
+        #Taking average over the list of states.
+        state = np.stack(states)
+        occupancy = np.average(state,axis=0)
+        #plotting them
+        fig=plt.figure(figsize=(5.5, 5.5))
+        fig.add_subplot(1,1,1)
+        plt.title("State Occupancy")
+        imgplot = plt.imshow(occupancy[:,:,0], vmin=0,vmax=10)
+        # plt.savefig(IMAGE_PATH+"/StateOccupancy_"+title+".png")
+        plt.show()
+        plt.close()
 
-    value = np.matmul(psi,w)
-    for j,loc in states_.items():
-        smoothedOption[loc[0],loc[1]] = value[j]
+    def ConstructSample(env,position):
+        grid = env.grid.encode()
+        if grid[position[0],position[1],1] == 5:
+            return None
+        grid[position[0],position[1],0] = 10
+        return grid[:,:,:2]
 
-    return smoothedOption
+    def SmoothOption(option, gamma =0.9):
+        # option[option<0.0] = 0.0
+        #Create the Adjacency Matric
+        states_ = {}
+        count = 0
+        for i in range(option.shape[0]):
+            for j in range(option.shape[1]):
+                if option[i,j] != 0:
+                    states_[count] = [i,j]
+                    # states_.append([count, [i,j]])
+                    count+=1
+        states=len(states_.keys())
+        x = np.zeros((states,states))
+        for i in range(len(states_)):
+            [locx,locy] = states_[i]
+            sum = 0
+            for j in range(len(states_)):
+                if states_[j] == [locx+1,locy]:
+                    x[i,j] = 0.25
+                    sum += 0.25
+                if states_[j] == [locx-1,locy]:
+                    x[i,j] = 0.25
+                    sum += 0.25
+                if states_[j] == [locx,locy+1]:
+                    x[i,j] = 0.25
+                    sum += 0.25
+                if states_[j] == [locx,locy-1]:
+                    x[i,j] = 0.25
+                    sum += 0.25
+            x[i,i]= 1.0-sum
 
-#Selecting the samples:
-# PlotOccupancy(s)
-psi = SF2.predict(np.stack(s)) # [X,SF Dim]
+        #Create W
+        w = np.zeros((states))
+        for count,loc in states_.items():
+            w[count] = option[loc[0],loc[1]]
 
-def arreq_in_list(myarr, list_arrays):
-    return next((True for elem in list_arrays if np.array_equal(elem, myarr)), False)
-#test for approximate equality (for floating point types)
-def arreqclose_in_list(myarr, list_arrays):
-    return next((True for elem in list_arrays if elem.size == myarr.size and np.allclose(elem, myarr,atol=1E-6)), False)
+        # (I-gamma*Q)^-1
+        I = np.identity(states)
+        psi = np.linalg.inv(I-gamma*x)
 
-if settings["Selection"]=="First":
-    samples = [];points=[]
-    i =0
-    while len(samples) < settings["TotalSamples"]:
-        if not arreqclose_in_list(psi[i,:], samples):
-            samples.append(psi[i,:])
-            points.append(i)
-        i+=1
-elif settings["Selection"]=="Random":
-    samples = [];points=[]
-    while len(samples) < settings["TotalSamples"]:
-        idx = randint(1,psi.shape[0])
-        if not arreqclose_in_list(psi[idx,:], samples):
-            samples.append(psi[idx,:])
-            points.append(idx)
-elif settings["Selection"]=="Hull-pca":
-    #PCA Decomp to dimension:
-    import pandas as pd
-    from sklearn.decomposition import PCA
-    feat_cols = [ 'pixel'+str(i) for i in range(psi.shape[1]) ]
-    df = pd.DataFrame(psi,columns=feat_cols)
-    np.random.seed(42)
-    rndperm = np.random.permutation(df.shape[0])
-    pca = PCA(n_components=2)
-    pca_result = pca.fit_transform(df[feat_cols].values)
+        smoothedOption = np.zeros_like(option,dtype=float)
 
-    from SampleSelection import SampleSelection_v2
-    points = SampleSelection_v2(pca_result,settings["TotalSamples"],returnIndicies=True)
-elif settings["Selection"]=="Hull_tsne":
-    #PCA Decomp to dimension:
-    import pandas as pd
-    from sklearn.manifold import TSNE
-    feat_cols = [ 'pixel'+str(i) for i in range(psi.shape[1]) ]
-    df = pd.DataFrame(psi,columns=feat_cols)
-    np.random.seed(42)
-    rndperm = np.random.permutation(df.shape[0])
-    tsne = TSNE(n_components=2, verbose=1, perplexity=10, n_iter=5000)
-    tsne_results = tsne.fit_transform(df[feat_cols].values)
-    plt.figure(figsize=(7,7))
-    plt.scatter(tsne_results[:,0],tsne_results[:,1])
-    plt.show()
-    exit()
+        value = np.matmul(psi,w)
+        for j,loc in states_.items():
+            smoothedOption[loc[0],loc[1]] = value[j]
 
-    from SampleSelection import SampleSelection_v2
-    points = SampleSelection_v2(tsne_results,settings["TotalSamples"],returnIndicies=True)
-elif settings["Selection"]=="Hull_cluster":
-    #PCA Decomp to dimension:
-    import pandas as pd
-    from sklearn.decomposition import PCA
-    feat_cols = [ 'pixel'+str(i) for i in range(psi.shape[1]) ]
-    df = pd.DataFrame(psi,columns=feat_cols)
-    np.random.seed(42)
-    rndperm = np.random.permutation(df.shape[0])
-    pca = PCA(n_components=2)
-    pca_result = pca.fit_transform(df[feat_cols].values)
+        return smoothedOption
 
-    from SampleSelection import SampleSelection_v3
-    points = SampleSelection_v3(pca_result,settings["TotalSamples"],returnIndicies=True)
+    #Selecting the samples:
+    # PlotOccupancy(s)
+    psi = SF2.predict(np.stack(s)) # [X,SF Dim]
 
-psiSamples=[]
-for point in points:
-    psiSamples.append(psi[point,:])
+    def arreq_in_list(myarr, list_arrays):
+        return next((True for elem in list_arrays if np.array_equal(elem, myarr)), False)
+    #test for approximate equality (for floating point types)
+    def arreqclose_in_list(myarr, list_arrays):
+        return next((True for elem in list_arrays if elem.size == myarr.size and np.allclose(elem, myarr,atol=1E-6)), False)
 
-while len(psiSamples) < len(psiSamples[0]):
-    psiSamples.extend(psiSamples)
+    if settings["Selection"]=="First":
+        samples = [];points=[]
+        i =0
+        while len(samples) < settings["TotalSamples"]:
+            if not arreqclose_in_list(psi[i,:], samples):
+                samples.append(psi[i,:])
+                points.append(i)
+            i+=1
+    elif settings["Selection"]=="Random":
+        samples = [];points=[]
+        while len(samples) < settings["TotalSamples"]:
+            print(psi.shape)
+            idx = randint(1,psi.shape[0]-1)
+            if not arreqclose_in_list(psi[idx,:], samples):
+                samples.append(psi[idx,:])
+                points.append(idx)
+    elif settings["Selection"]=="Random_sampling":
+        #PCA Decomp to dimension:
+        import pandas as pd
+        from sklearn.decomposition import PCA
+        feat_cols = [ 'pixel'+str(i) for i in range(psi.shape[1]) ]
+        df = pd.DataFrame(psi,columns=feat_cols)
+        np.random.seed(42)
+        rndperm = np.random.permutation(df.shape[0])
+        pca = PCA(n_components=2)
+        pca_result = pca.fit_transform(df[feat_cols].values)
 
-samps = np.stack(psiSamples)
-samps2 = samps[0:samps.shape[1],:]
-w_g,v_g = np.linalg.eig(samps2)
+        from SampleSelection import SampleSelection_v1
+        points = SampleSelection_v1(pca_result,settings["TotalSamples"],returnIndicies=True)
+    elif settings["Selection"]=="Hull_pca":
+        #PCA Decomp to dimension:
+        import pandas as pd
+        from sklearn.decomposition import PCA
+        feat_cols = [ 'pixel'+str(i) for i in range(psi.shape[1]) ]
+        df = pd.DataFrame(psi,columns=feat_cols)
+        np.random.seed(42)
+        rndperm = np.random.permutation(df.shape[0])
+        pca = PCA(n_components=2)
+        pca_result = pca.fit_transform(df[feat_cols].values)
 
-# print("here")
-dim = samps2.shape[1]
-#Creating Sub-policies
-N = settings["NumOptions"]
-offset = 0
-options = []
-for sample in range(N):
+        from SampleSelection import SampleSelection_v2
+        points = SampleSelection_v2(pca_result,settings["TotalSamples"],returnIndicies=True)
+    elif settings["Selection"]=="Hull_tsne":
+        #PCA Decomp to dimension:
+        import pandas as pd
+        from sklearn.manifold import TSNE
+        feat_cols = [ 'pixel'+str(i) for i in range(psi.shape[1]) ]
+        df = pd.DataFrame(psi,columns=feat_cols)
+        np.random.seed(42)
+        rndperm = np.random.permutation(df.shape[0])
+        tsne = TSNE(n_components=2, verbose=1, perplexity=10, n_iter=5000)
+        tsne_results = tsne.fit_transform(df[feat_cols].values)
+        # plt.figure(figsize=(7,7))
+        # plt.scatter(tsne_results[:,0],tsne_results[:,1])
+        # plt.show()
+        # exit()
 
-    v_option=np.full((dFeatures[0],dFeatures[1]),0,dtype=np.float32)
-    for i,j in itertools.product(range(dFeatures[0]),range(dFeatures[1])):
-        grid = ConstructSample(env,[i,j])
-        if grid is None: continue
-        phi= SF3.predict(np.expand_dims(grid,0))
-        if sample+offset >= dim:
-            continue
-        v_option[i,j]=np.matmul(phi,v_g[:,sample+offset])[0]
-        if np.iscomplex(w_g[sample+offset]):
-            offset+=1
-    v_option_ = SmoothOption(v_option)
-    options.append(v_option_)
-    imgplot = plt.imshow(v_option_)
-    plt.title(" Option "+str(sample)+" Value Estimate | Eigenvalue:" +str(w_g[sample+offset]))
-    plt.savefig(IMAGE_PATH+"/option"+str(sample)+".png")
-    plt.close()
+        from SampleSelection import SampleSelection_v2
+        points = SampleSelection_v2(tsne_results,settings["TotalSamples"],returnIndicies=True)
+    elif settings["Selection"]=="Hull_cluster":
+        #PCA Decomp to dimension:
+        import pandas as pd
+        from sklearn.decomposition import PCA
+        feat_cols = [ 'pixel'+str(i) for i in range(psi.shape[1]) ]
+        df = pd.DataFrame(psi,columns=feat_cols)
+        np.random.seed(42)
+        rndperm = np.random.permutation(df.shape[0])
+        pca = PCA(n_components=2)
+        pca_result = pca.fit_transform(df[feat_cols].values)
+
+        from SampleSelection import SampleSelection_v3
+        points = SampleSelection_v3(pca_result,settings["TotalSamples"],returnIndicies=True)
+
+    psiSamples=[]
+    for point in points:
+        psiSamples.append(psi[point,:])
+
+    while len(psiSamples) < len(psiSamples[0]):
+        psiSamples.extend(psiSamples)
+
+    samps = np.stack(psiSamples)
+    samps2 = samps[0:samps.shape[1],:]
+    w_g,v_g = np.linalg.eig(samps2)
+
+    # print("here")
+    dim = samps2.shape[1]
+    #Creating Sub-policies
+    N = settings["NumOptions"]
+    offset = 0
+    options = []
+    for sample in range(int(N/2)):
+
+        v_option=np.full((dFeatures[0],dFeatures[1]),0,dtype=np.float32)
+        for i,j in itertools.product(range(dFeatures[0]),range(dFeatures[1])):
+            grid = ConstructSample(env,[i,j])
+            if grid is None: continue
+            phi= SF3.predict(np.expand_dims(grid,0))
+            if sample+offset >= dim:
+                continue
+            v_option[i,j]=np.matmul(phi,v_g[:,sample+offset])[0]
+            if np.iscomplex(w_g[sample+offset]):
+                offset+=1
+        v_option_ = SmoothOption(v_option)
+        options.append(v_option_)
+        options.append(-v_option_)
+        # imgplot = plt.imshow(v_option_)
+        # plt.title(" Option "+str(sample)+" Value Estimate | Eigenvalue:" +str(w_g[sample+offset]))
+        # plt.savefig(IMAGE_PATH+"/option"+str(sample)+".png")
+        # plt.close()
+
+    np.savez_compressed(MODEL_PATH_ +"options.npz", options=np.stack(options))
 
 
 def UseSubpolicy(s,subpolicyNum):
@@ -325,7 +353,7 @@ def UseSubpolicy(s,subpolicyNum):
     return actionValue.index(max(actionValue))
 
 from networks.network import Network
-
+N = settings["NumOptions"]
 #Creating High level policy
 with tf.device(args.processor):
     global_step = tf.Variable(0, trainable=False, name='global_step')
@@ -337,7 +365,11 @@ with tf.device(args.processor):
 #Creating Auxilary Functions for logging and saving.
 writer = tf.summary.FileWriter(LOG_PATH,graph=sess.graph)
 saver = tf.train.Saver(max_to_keep=3, var_list=net.getVars+[global_step])
-net.InitializeVariablesFromFile(saver,MODEL_PATH_)
+
+if args.load:
+    net.InitializeVariablesFromFile(saver,MODEL_PATH)
+else:
+    net.InitializeVariablesFromFile(saver,MODEL_PATH_)
 InitializeVariables(sess) #Included to catch if there are any uninitalized variables.
 
 progbar = tf.keras.utils.Progbar(None, unit_name='Training',stateful_metrics=["Reward"])
@@ -366,9 +398,9 @@ for i in range(settings["MAX_EP"]):
 
         s0 = s1
         if updating:   # update global and assign to local net
-            net.Update(settings["NetworkHPs"],sess.run(global_step))
+            net.Update(sess.run(global_step))
         if done or j == settings["MAX_EP_STEPS"]:
-            net.Update(settings["NetworkHPs"],sess.run(global_step))
+            net.Update(sess.run(global_step))
             break
 
     loggingDict = env.getLogging()

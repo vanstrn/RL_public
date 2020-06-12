@@ -5,16 +5,17 @@
                 "EntropyBeta":0.001,
                 "CriticBeta":0.5,
                 "Critic LR":0.0002,
+                "LR":0.0002,
                 "Gamma":0.99,
                 "lambda":0.9,
                 "Optimizer":"Adam",
-                "Epochs":5,
+                "Epochs":2,
                 "BatchSize":1024,
                 "FS":1,
                 "MinibatchSize":32},
   "SampleEpisodes":100,
   "MAX_EP_STEPS":150,
-  "MAX_EP":25001,
+  "MAX_EP":50001,
   "UPDATE_GLOBAL_ITER":151,
   "SaveFreq":5000,
   "LogFreq":100,
@@ -24,10 +25,10 @@
   "Selection":"Random",
 
 
-  "EnvConfig":"CTF_1v1_FO.json",
+  "EnvConfig":"CTF_1v1_1map.json",
   "SFNetworkConfig":"CTF_SF_v2_actions.json",
-  "NetworkConfig":"CTF_PPO.json",
-  "Method":"methods.PPO_FS.PPO",
+  "NetworkConfig":"CTF_PPO_v2.json",
+  "Method":"methods.PPO_v3.PPO",
 
   "LoggingFunctions":[]
 
