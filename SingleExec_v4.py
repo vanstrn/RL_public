@@ -67,7 +67,7 @@ CreatePath(IMAGE_PATH)
 #Saving config files in the model directory
 with open(LOG_PATH+'/runSettings.json', 'w') as outfile:
     json.dump(settings, outfile)
-with open(LOG_PATH+'/netConfigOverride.json', 'w') as outfile:
+with open(MODEL_PATH+'/netConfigOverride.json', 'w') as outfile:
     json.dump(netConfigOverride, outfile)
 
 #Creating the Environment and Network to be used in training

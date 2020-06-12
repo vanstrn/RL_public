@@ -69,8 +69,13 @@ LOG_PATH = './logs/'+EXP_NAME
 CreatePath(LOG_PATH)
 CreatePath(MODEL_PATH)
 
-#Creating the Environment
+#Saving config files in the model directory
+with open(LOG_PATH+'/runSettings.json', 'w') as outfile:
+    json.dump(settings, outfile)
+with open(MODEL_PATH+'/netConfigOverride.json', 'w') as outfile:
+    json.dump(netConfigOverride, outfile)
 
+#Creating the Environment
 _,dFeatures,nActions,nTrajs = CreateEnvironment(envSettings,multiprocessing=1)
 
 #Creating the Networks and Methods of the Run.

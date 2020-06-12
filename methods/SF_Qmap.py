@@ -56,6 +56,7 @@ class SF_QMap(Method):
         EXP_NAME = settings["RunName"]
         LoadName = settings["LoadName"]
         MODEL_PATH_ = './models/'+EXP_NAME+'/'
+        MODEL_PATH = './models/'+LoadName+'/'
         CreatePath(MODEL_PATH_)
         self.sess=sess
         self.env=env
@@ -107,8 +108,9 @@ class SF_QMap(Method):
                         if done:
                             break
 
-
-            SF1,SF2,SF3,SF4,SF5 = buildNetwork(settings["SFNetworkConfig"],actionSize,{},scope="Global")
+            with open(MODEL_PATH+'/netConfigOverride.json') as json_file:
+                networkOverrides = json.load(json_file)
+            SF1,SF2,SF3,SF4,SF5 = buildNetwork(settings["SFNetworkConfig"],actionSize,networkOverrides,scope="Global")
             SF5.load_weights('./models/'+LoadName+ '/'+"model.h5")
 
             #Selecting the samples:
@@ -263,40 +265,6 @@ class SF_QMap(Method):
         return self.nestedMethod.GetStatistics()
 
     def UseSubpolicy(self,s,subpolicyNum):
-        #Extracting location of agent.
-        locX,locY = np.unravel_index(np.argmax(s[0,:,:,4], axis=None), s[0,:,:,0].shape)
-        #Getting Value of all adjacent policies. Ignoring location of the walls.
-        actionValue = [self.options[int(subpolicyNum)][int(locX),int(locY)]]
-        if locX+1 > s.shape[1]-1:
-            actionValue.append(-999)
-        elif [0,int(locX+1),int(locY),3] == 1:
-            actionValue.append(-999)
-        else:
-            actionValue.append(self.options[int(subpolicyNum)][int(locX+1),int(locY)]) # Go Up
-
-        if locY+1 > s.shape[2]-1:
-            actionValue.append(-999)
-        elif [0,int(locX),int(locY+1),3] == 1:
-            actionValue.append(-999)
-        else:
-            actionValue.append(self.options[int(subpolicyNum)][int(locX),int(locY+1)]) # Go Right
-
-        if locY-1 < 0:
-            actionValue.append(-999)
-        elif [0,int(locX-1),int(locY),3] == 1:
-            actionValue.append(-999)
-        else:
-            actionValue.append(self.options[int(subpolicyNum)][int(locX-1),int(locY)]) # Go Down
-
-        if locY-1<0:
-            actionValue.append(-999)
-        elif [0,int(locX),int(locY-1),3] == 1:
-            actionValue.append(-999)
-        else:
-            actionValue.append(self.options[int(subpolicyNum)][int(locX),int(locY-1)]) # Go Left
-
-        #Selecting Action with Highest Value. Will always take a movement.
-        return actionValue.index(max(actionValue))
         return self.env.UseSubpolicy(s,self.options[int(subpolicyNum)])
 
 
