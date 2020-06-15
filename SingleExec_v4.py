@@ -107,7 +107,6 @@ for i in range(settings["MaxEpisodes"]):
 
     s0 = env.reset()
 
-    ts = time.time()
     for j in range(settings["MaxEpisodeSteps"]+1):
 
         a, networkData = net.GetAction(state=s0,episode=sess.run(global_step),step=j)
@@ -118,7 +117,6 @@ for i in range(settings["MaxEpisodes"]):
             env.render()
         s0 = s1
         if done or j == settings["MaxEpisodeSteps"]:
-            print(time.time()-ts)
             net.Update(sess.run(global_step))
             break
 

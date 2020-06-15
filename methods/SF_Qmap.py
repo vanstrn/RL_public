@@ -57,6 +57,8 @@ class SF_QMap(Method):
         LoadName = settings["LoadName"]
         MODEL_PATH_ = './models/'+EXP_NAME+'/'
         MODEL_PATH = './models/'+LoadName+'/'
+        LOG_PATH = './logs/'+EXP_NAME+'/'
+        CreatePath(LOG_PATH)
         CreatePath(MODEL_PATH_)
         self.sess=sess
         self.env=env
@@ -108,10 +110,10 @@ class SF_QMap(Method):
                         if done:
                             break
 
-            with open(MODEL_PATH+'/netConfigOverride.json') as json_file:
+            with open(MODEL_PATH+'netConfigOverride.json') as json_file:
                 networkOverrides = json.load(json_file)
             SF1,SF2,SF3,SF4,SF5 = buildNetwork(settings["SFNetworkConfig"],actionSize,networkOverrides,scope="Global")
-            SF5.load_weights('./models/'+LoadName+ '/'+"model.h5")
+            SF5.load_weights(MODEL_PATH+"model.h5")
 
             #Selecting the samples:
             psi = SF2.predict(np.vstack(s)) # [X,SF Dim]
@@ -196,7 +198,6 @@ class SF_QMap(Method):
 
             # QMapStructure = self.env.GetQMapStructure()
             grids = self.env.ConstructAllSamples()
-            print(grids.shape)
             phis= SF3.predict(grids)
 
             for sample in range(int(N/2)):
@@ -208,8 +209,16 @@ class SF_QMap(Method):
                 options.append(v_option_inv)
                 if np.iscomplex(w_g[sample+offset]):
                     offset+=1
-                #Plotting the first couple samples with random enemy positions:
+                if settings["PlotOptions"]:
+                    try:
+                        imgplot = plt.imshow(v_option)
+                    except:
+                        imgplot = plt.imshow(v_option[:,:,0,0]) #Dealing with options that with enemies.
+                    plt.title(" Option "+str(sample)+" Value Estimate | Eigenvalue:" +str(w_g[sample+offset]))
+                    plt.savefig(LOG_PATH+"/option"+str(sample)+".png")
+                    plt.close()
 
+                #Plotting the first couple samples with random enemy positions:
 
             #Saving the different options. to log:
             np.savez_compressed(MODEL_PATH_ +"options.npz", options=np.stack(options))

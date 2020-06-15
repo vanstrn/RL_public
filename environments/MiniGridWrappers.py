@@ -52,7 +52,7 @@ class FullyObsWrapper_v2(gym.core.ObservationWrapper):
             env.agent_dir
         ])
 
-        return full_grid[:,:,:2]
+        return np.expand_dims(full_grid[:,:,:2],0)
 
 class RewardWrapper(gym.core.Wrapper):
     def reset(self, **kwargs):
@@ -291,24 +291,24 @@ class SampleConstructor(gym.core.Wrapper):
     def ConstructAllSamples(self):
         """Constructing All Samples into a Q table. """
         #### Getting Background Grid
-        grid = env.grid.encode()
+        grid = self.grid.encode()
         stacked_grids = np.repeat(np.expand_dims(grid,0), grid.shape[0]*grid.shape[1],0)
         for i in range(grid.shape[1]):
             for j in range(grid.shape[2]):
                 if grid[i,j,1] == 5:
                     pass
-                stacked_grids[i*stacked_grids_i.shape[2]+j,i,j,0] = 10
-        return grid[:,:,:,:2]
+                stacked_grids[i*grid.shape[2]+j,i,j,0] = 10
+        return stacked_grids[:,:,:,:2]
 
     def ReformatSamples(self,values):
         """Formating Data back into a Q Table. """
-        grid = self.get_obs_blue
+        grid = self.grid.encode()
         value_map = np.reshape(values,grid.shape[:2])
         for i in range(grid.shape[1]):
             for j in range(grid.shape[2]):
                 if grid[i,j,1] == 5:
                     value_map[i,j] = 0.0
-        smoothed_value_map = SmoothOption(value_map,grid[i,j,3])
+        smoothed_value_map = SmoothOption(value_map)
         smoothed_value_map_inv = -smoothed_value_map
         for i in range(grid.shape[1]):
             for j in range(grid.shape[2]):
@@ -320,7 +320,7 @@ class SampleConstructor(gym.core.Wrapper):
     def UseSubpolicy(self,s,subpolicy):
         #Extracting location of agent.
 
-        locX,locY = np.unravel_index(np.argmax(s[:,:,0], axis=None), s[:,:,0].shape)
+        locX,locY = np.unravel_index(np.argmax(s[0,:,:,0], axis=None), s[0,:,:,0].shape)
         #Getting Value of all adjacent policies. Ignoring location of the walls.
         actionValue = []
         if [int(locX),int(locY+1),0] == 2:
