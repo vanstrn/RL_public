@@ -14,6 +14,11 @@
   "LogFreq":25,
 
   "EnvConfig":"CTF_1v0_FO.json",
-  "NetworkConfig":"CTF_SF_v2_actions.json"
+  "NetworkConfig":"CTF_SF_v2_actions.json",
+
+  "PhiLoggingFunctions":["environments.CTF.loggingFunctions.RewardTest_actions",
+                      "environments.CTF.loggingFunctions.ImageGenerator_actions"],
+  "PsiLoggingFunctions":["environments.CTF.loggingFunctions.ValueTest"],
+  "ProcessingFunctions":[]
 
   }

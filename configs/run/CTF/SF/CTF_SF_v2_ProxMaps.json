@@ -17,12 +17,9 @@
   "EnvConfig":"CTF_1v0_FO_ProxMaps.json",
   "NetworkConfig":"CTF_SF_v2_actions.json",
 
-  "PhiLogging":["SF_Utils.ImageGenerator_CTF",
-                "SF_Utils.SaveModel",
-                "SF_Utils.SaveModel_Phi",
-                "SF_Utils.RewardTest_CTF"],
-  "PsiLogging":["SF_Utils.ValueTest_CTF",
-                "SF_Utils.SaveModel",
-                "SF_Utils.SaveModel_Psi"]
+  "PhiLoggingFunctions":["environments.CTF.loggingFunctions.RewardTest_actions",
+                      "environments.CTF.loggingFunctions.ImageGenerator_actions"],
+  "PsiLoggingFunctions":["environments.CTF.loggingFunctions.ValueTest"],
+  "ProcessingFunctions":[]
 
   }

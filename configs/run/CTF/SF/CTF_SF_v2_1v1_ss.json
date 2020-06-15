@@ -14,12 +14,12 @@
   "LogFreq":25,
   "channelWeights":[1,1,1,1,10,1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1],
 
-  "EnvConfig":"CTF_1v1_FO_ss.json",
+  "EnvConfig":"CTF_1v1_stackedStates.json",
   "NetworkConfig":"CTF_SF_v2_actions_ss.json",
 
-  "PhiLogging":["SF_Utils.SaveModel",
-                "SF_Utils.SaveModel_Phi"],
-  "PsiLogging":["SF_Utils.SaveModel",
-                "SF_Utils.SaveModel_Psi"]
+  "PhiLoggingFunctions":["environments.CTF.loggingFunctions.RewardTest_StackedStates",
+                      "environments.CTF.loggingFunctions.ImageGenerator_StackedStates"],
+  "PsiLoggingFunctions":["environments.CTF.loggingFunctions.ValueTest_StackedStates"],
+  "ProcessingFunctions":[]
 
   }

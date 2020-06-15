@@ -157,6 +157,13 @@
       "critic":"Critic"
     }
   ],
+  "NetworkInputs":[
+    ["state"],
+    ["state"],
+    ["state"],
+    ["state"],
+    ["state"]
+  ],
 
   "NetworkVariableGroups":{
     "Actor":["Actor"],

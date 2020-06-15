@@ -1,10 +1,10 @@
-{ "RunName":"CTF_SFH_1v1",
-  "LoadName":"CTF_SF_actions_2",
+{ "RunName":"CTF_SFH_1v1_test",
+  "LoadName":"CTF_SF_1v1_SF",
   "GPUCapacitty":0.95,
   "NetworkHPs":{"eps":0.2,
-                "EntropyBeta":0.00,
+                "EntropyBeta":0.05,
                 "CriticBeta":0.5,
-                "Critic LR":0.0002,
+                "LR":0.0002,
                 "Gamma":0.99,
                 "lambda":0.9,
                 "Optimizer":"Adam",
@@ -23,13 +23,14 @@
   "NumOptions":4,
   "TotalSamples":256,
   "Selection":"Hull_pca",
+  "PlotOptions":false,
 
 
-  "EnvConfig":"CTF_1v0_FO.json",
+  "EnvConfig":"CTF_1v1_1map.json",
   "SFNetworkConfig":"CTF_SF_v2_actions.json",
-  "NetworkConfig":"CTF_PPO_v3.json",
+  "NetworkConfig":"CTF_PPO_v2.json",
   "Method":"methods.SF_Qmap.SF_QMap",
-  "SubMethod":"methods.PPO_FS.PPO",
+  "SubMethod":"methods.PPO_v3.PPO",
 
   "LoggingFunctions":[]
 
