@@ -21,7 +21,7 @@
   "LogFreq":10,
 
   "NumOptions":4,
-  "TotalSamples":256,
+  "TotalSamples":40,
   "Selection":"Hull_pca",
 
 
