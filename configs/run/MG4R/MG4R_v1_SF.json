@@ -1,19 +1,24 @@
-{ "RunName":"MG4R_SF",
+{ "RunName":"MG4R_SF_1",
   "GPUCapacitty":0.95,
   "NetworkHPs":{},
   "Optimizer":"Adadelta",
-  "SampleEpisodes":200,
+  "SampleEpisodes":20,
   "MAX_EP_STEPS":150,
-  "PhiEpochs":3001,
+  "PhiEpochs":2,
   "PsiEpochs":751,
   "FitIterations":10,
-  "BatchSize":2048,
+  "BatchSize":10,
   "Gamma":0.99,
   "LearningRate":0.2,
   "SaveFreq":250,
   "LogFreq":100,
 
   "EnvConfig":"MG4R_v1.json",
-  "NetworkConfig":"MG4R_v1_SF.json"
+  "NetworkConfig":"MG4R_v1_SF.json",
+
+  "PhiLoggingFunctions":["environments.MiniGrid.loggingFunctions.RewardPredictionEvaluation",
+                      "environments.MiniGrid.loggingFunctions.StatePredictionEvaluation"],
+  "PsiLoggingFunctions":["environments.MiniGrid.loggingFunctions.ValuePredictionEvaluation"],
+  "ProcessingFunctions":[]
 
   }

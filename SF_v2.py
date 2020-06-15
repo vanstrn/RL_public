@@ -81,12 +81,6 @@ LOG_PATH = './images/SF/'+EXP_NAME
 CreatePath(LOG_PATH)
 CreatePath(MODEL_PATH)
 
-#Saving config files in the model directory
-with open(LOG_PATH+'/runSettings.json', 'w') as outfile:
-    json.dump(settings, outfile)
-with open(MODEL_PATH+'/netConfigOverride.json', 'w') as outfile:
-    json.dump(netConfigOverride, outfile)
-
 #Creating the Environment
 env,dFeatures,nActions,nTrajs = CreateEnvironment(envSettings)
 
@@ -109,13 +103,6 @@ with tf.device(args.processor):
     else: print("Did not load weights")
 
 #Definition of misc. functions
-def M4E(y_true,y_pred):
-    return K.mean(K.pow(y_pred-y_true,4))
-def OneHot(a,length=4):
-    aOH = [0]*length
-    aOH[int(a)] = 1
-    return aOH
-
 def GetAction(state):
     """
     Contains the code to run the network based on an input.
@@ -136,7 +123,6 @@ if args.data == "":
     s_next = []
     r_store = []
     label = []
-    action =[]
     for i in range(settings["SampleEpisodes"]):
         s0 = env.reset()
 
@@ -149,7 +135,6 @@ if args.data == "":
             s.append(s0)
             s_next.append(s1)
             r_store.append(r)
-            action.append(OneHot(a))
             label.append(1)
 
             s0 = s1
@@ -161,28 +146,9 @@ else:
     s = loadedData["s"]
     s_next = loadedData["s_next"]
     r_store = loadedData["r_store"]
-    action = loadedData["action"]
     if "label" in loadedData:
         label = loadedData["label"]
 
-def PlotOccupancy(states,title=""):
-    #Taking average over the list of states.
-    state = np.stack(states)
-    occupancy = np.amax(state,axis=0)
-    #plotting them
-    fig=plt.figure(figsize=(5.5, 5.5))
-    fig.add_subplot(1,1,1)
-    plt.title("State Occupancy")
-    imgplot = plt.imshow(occupancy[:,:,0], vmin=0,vmax=10)
-    plt.savefig(LOG_PATH+"/StateOccupancy_"+title+".png")
-    plt.close()
-
-def ConstructSample(env,position):
-    grid = env.grid.encode()
-    if grid[position[0],position[1],1] == 5:
-        return None
-    grid[position[0],position[1],0] = 10
-    return grid[:,:,:2]
 #Defining Saving Functions for the models
 class SaveModel(tf.keras.callbacks.Callback):
     def __init__(self,superEpochs=None):
@@ -212,72 +178,6 @@ class SaveModel_Psi(tf.keras.callbacks.Callback):
         if self.superEpochs%settings["SaveFreq"] == 0:
             SF2.save_weights(MODEL_PATH+"model_psi_"+str(self.superEpochs)+".h5")
 
-class ValueTest(tf.keras.callbacks.Callback):
-    def __init__(self,superEpochs):
-        self.superEpochs = superEpochs
-    def on_epoch_end(self,epoch, logs=None):
-        if self.superEpochs%settings["LogFreq"] == 0:
-            env.reset()
-            rewardMap = np.zeros((dFeatures[0],dFeatures[1]))
-            for i,j in itertools.product(range(dFeatures[0]),range(dFeatures[1])):
-                grid = ConstructSample(env,[i,j])
-                if grid is None: continue
-                [value] = SF4.predict(np.expand_dims(grid,0))
-                rewardMap[i,j] = value
-            fig=plt.figure(figsize=(5.5, 8))
-            fig.add_subplot(2,1,1)
-            plt.title("State")
-            imgplot = plt.imshow(env.grid.encode()[:,:,0], vmin=0, vmax=10)
-            fig.add_subplot(2,1,2)
-            plt.title("Value Prediction")
-            imgplot = plt.imshow(rewardMap)
-            fig.colorbar(imgplot)
-            plt.savefig(LOG_PATH+"/ValuePred"+str(self.superEpochs)+".png")
-            plt.close()
-
-class ImageGenerator(tf.keras.callbacks.Callback):
-    def on_epoch_end(self,epoch, logs=None):
-        if epoch%settings["LogFreq"] == 0:
-            for i in range(5):
-                samp = i*100+randint(0,200)
-                state = s[samp]
-                act = action[samp]
-                [state_new,reward] = SF1.predict([np.expand_dims(act,0),np.expand_dims(state,0)])
-                fig=plt.figure(figsize=(5.5, 8))
-                fig.add_subplot(2,1,1)
-                plt.title("State")
-                imgplot = plt.imshow(state[:,:,0], vmin=0, vmax=10)
-                fig.add_subplot(2,1,2)
-                plt.title("Predicted Next State")
-                imgplot = plt.imshow(state_new[0,:,:,0],vmin=0, vmax=10)
-                if i == 0:
-                    plt.savefig(LOG_PATH+"/StatePredEpoch"+str(epoch)+".png")
-                else:
-                    plt.savefig(LOG_PATH+"/StatePred"+str(i)+".png")
-                plt.close()
-
-
-class RewardTest(tf.keras.callbacks.Callback):
-    def on_epoch_end(self,epoch, logs=None):
-        if epoch%settings["LogFreq"] == 0:
-            env.reset()
-            rewardMap = np.zeros((dFeatures[0],dFeatures[1]))
-            for i,j in itertools.product(range(dFeatures[0]),range(dFeatures[1])):
-                grid = ConstructSample(env,[i,j])
-                if grid is None: continue
-                [state_new,reward] = SF1.predict([np.stack([[0,0,0,0]]),np.expand_dims(grid,0)])
-                rewardMap[i,j] = reward
-            fig=plt.figure(figsize=(5.5, 8))
-            fig.add_subplot(2,1,1)
-            plt.title("State")
-            imgplot = plt.imshow(env.grid.encode()[:,:,0], vmin=0, vmax=10)
-            fig.add_subplot(2,1,2)
-            plt.title("Reward Prediction Epoch "+str(epoch))
-            imgplot = plt.imshow(rewardMap)
-            fig.colorbar(imgplot)
-            plt.savefig(LOG_PATH+"/RewardPred"+str(epoch)+".png")
-            plt.close()
-
 #Defining which optimizer will be used for the training. Used for both Psi and Phi training.
 if settings["Optimizer"] == "Adam":
     opt = tf.keras.optimizers.Adam(settings["LearningRate"])
@@ -296,127 +196,61 @@ elif settings["Optimizer"] == "SGD":
 elif settings["Optimizer"] == "SGD-Nesterov":
     opt = tf.keras.optimizers.SGD(settings["LearningRate"],nesterov=True)
 elif settings["Optimizer"] == "Amsgrad":
-    opt = tf.keras.optimizers.Adam(settings["LearningRate"],amsgrad=True)
+    opt = tf.keras.optimizers.Nadam(settings["LearningRate"],amsgrad=True)
 
+def M4E(y_true,y_pred):
+    return K.mean(K.pow(y_pred-y_true,4))
 if args.phi:
-    PlotOccupancy(s,title="TrainingOccupancy")
+    #Creating the callbacks.
+    callbacks = [SaveModel(),SaveModel_Phi()]
+    for callback in settings["PhiLoggingFunctions"]:
+        Method = GetFunction(callback)
+        callbacks.append(Method(env,[SF1,SF2,SF3,SF4,SF5],LOG_PATH))
+
     SF1.compile(optimizer=opt, loss=[M4E,"mse"], loss_weights = [1.0,1.0])
     SF1.fit(
-        [np.stack(action),np.stack(s)],
-        [np.stack(s_next),np.stack(r_store)],
+        np.vstack(s),
+        [np.vstack(s_next),np.stack(r_store)],
         epochs=settings["PhiEpochs"],
         batch_size=settings["BatchSize"],
         shuffle=True,
-        callbacks=[ImageGenerator(),SaveModel(),SaveModel_Phi(),RewardTest()])
-
-if "DefaultParams" not in netConfigOverride:
-    netConfigOverride["DefaultParams"] = {}
-netConfigOverride["DefaultParams"]["Trainable"]=False
-with tf.device(args.processor):
-    SF1,SF2,SF3,SF4,SF5 = buildNetwork(settings["NetworkConfig"],nActions,netConfigOverride,scope="Global")
-    SF5.load_weights(MODEL_PATH+"/model.h5")
+        callbacks=callbacks)
 
 if args.psi:
+
+    #Recreating the network with training of other parameters constant.
+    if "DefaultParams" not in netConfigOverride:
+        netConfigOverride["DefaultParams"] = {}
+    netConfigOverride["DefaultParams"]["Trainable"]=False
+    with tf.device(args.processor):
+        SF1,SF2,SF3,SF4,SF5 = buildNetwork(settings["NetworkConfig"],nActions,netConfigOverride,scope="Global")
+        SF5.load_weights(MODEL_PATH+"/model.h5")
+
     SF2.compile(optimizer=opt, loss="mse")
-    phi = SF3.predict([np.stack(s)])
+    phi = SF3.predict(np.vstack(s))
     gamma=settings["Gamma"]
     for i in range(settings["PsiEpochs"]):
 
-        psi_next = SF2.predict([np.stack(s_next)])
+        psi_next = SF2.predict(np.vstack(s_next))
+
+        #Creating the Callbacks.
+        callbacks = [SaveModel(i),SaveModel_Psi(i)]
+        for callback in settings["PsiLoggingFunctions"]:
+            Method = GetFunction(callback)
+            callbacks.append(Method(i,env,[SF1,SF2,SF3,SF4,SF5],LOG_PATH))
 
         labels = phi+gamma*psi_next
         SF2.fit(
-            [np.stack(s)],
+            np.vstack(s),
             [np.stack(labels)],
             epochs=settings["FitIterations"],
             batch_size=settings["BatchSize"],
             shuffle=True,
-            callbacks=[ValueTest(i),SaveModel(i),SaveModel_Psi(i)])
+            callbacks=callbacks)
 
 if args.analysis:
-    psi = SF2.predict([np.stack(s)]) # [X,SF Dim]
-    phi = SF3.predict([np.stack(s)])
-
-    ##-Repeat M times to evaluate the effect of sampling.
-    M = 3
-    dim = psi.shape[1]
-    for replicate in range(M):
-        #Taking Eigenvalues and Eigenvectors of the environment,
-        psiSamples = np.zeros([dim,dim])
-        #Randomly collecting samples from the random space.
-        s_sampled=[]
-        for i in range(dim):
-            sample = randint(1,psiSamples.shape[0])
-            s_sampled.append(s[sample])
-            psiSamples[i,:] = psi[sample,:]
-        PlotOccupancy(s_sampled,title="Replicate"+str(replicate))
-
-        w_g,v_g = np.linalg.eig(psiSamples)
-
-        #Creating Eigenpurposes of the N highest Eigenvectors and saving images
-        N = 5
-        offset = 0
-        for sample in range(N):
-
-            v_option=np.zeros((dFeatures[0],dFeatures[1]))
-            for i,j in itertools.product(range(dFeatures[0]),range(dFeatures[1])):
-                grid = ConstructSample(env,[i,j])
-                if grid is None: continue
-                phi= SF3.predict([np.expand_dims(grid,0)])
-                if sample+offset >= dim:
-                    continue
-                v_option[i,j]=np.matmul(phi,v_g[:,sample+offset])[0]
-                if np.iscomplex(w_g[sample+offset]):
-                    offset+=1
-
-            imgplot = plt.imshow(v_option)
-            plt.title("Replicate  "+str(replicate)+" Option "+str(sample)+" Value Estimate | Eigenvalue:" +str(w_g[sample+offset]))
-            plt.savefig(LOG_PATH+"/option"+str(sample)+"replicate"+str(replicate)+".png")
-            plt.close()
-
-        #Doing an uniform sampling option plots
-        s = [];label=[];a=[]
-        for i,j in itertools.product(range(dFeatures[0]),range(dFeatures[1])):
-            grid = ConstructSample(env,[i,j])
-            if grid is None: continue
-            s.append(grid)
-            label.append(1)
-            a.append([0,0,0,0])
-        s.extend(s);label.extend(label);a.extend(a)
-        s.extend(s);label.extend(label);a.extend(a)
-        s.extend(s);label.extend(label);a.extend(a)
-        s.extend(s);label.extend(label);a.extend(a)
-        s.extend(s);label.extend(label);a.extend(a)
-        psi_uniform = SF2.predict([np.stack(s)])
-        psiSamples = np.zeros([dim,dim])
-        #Randomly collecting samples from the random space.
-        s_sampled=[]
-        for i in range(dim):
-            psiSamples[i,:] = psi_uniform[i,:]
-            s_sampled.append(s[i])
-        w_g,v_g = np.linalg.eig(psiSamples)
-
-        #Creating Eigenpurposes of the N highest Eigenvectors and saving images
-        N = 5
-        offset = 0
-        for sample in range(N):
-
-            v_option=np.zeros((dFeatures[0],dFeatures[1]))
-            for i,j in itertools.product(range(dFeatures[0]),range(dFeatures[1])):
-                grid = ConstructSample(env,[i,j])
-                if grid is None: continue
-                phi= SF3.predict([np.expand_dims(grid,0)])
-                if sample+offset >= dim:
-                    continue
-                v_option[i,j]=np.matmul(phi,v_g[:,sample+offset])[0]
-                if np.iscomplex(w_g[sample+offset]):
-                    offset+=1
-
-            imgplot = plt.imshow(v_option)
-            plt.title("Uniform Sampling Option "+str(sample)+" Value Estimate | Eigenvalue:" +str(w_g[sample+offset]))
-            plt.savefig(LOG_PATH+"/option"+str(sample)+"uniform.png")
-            plt.close()
-
+    psi = SF2.predict(np.vstack(s)) # [X,SF Dim]
+    phi = SF3.predict(np.vstack(s))
 
 
     import pandas as pd
@@ -426,7 +260,7 @@ if args.analysis:
 
 
     # mnist = fetch_mldata("MNIST original")
-    X = psi_uniform
+    X = psi
     y = np.stack(label)
 
     feat_cols = [ 'pixel'+str(i) for i in range(X.shape[1]) ]
@@ -445,7 +279,7 @@ if args.analysis:
     df['pca-three'] = pca_result[:,2]
 
 
-    plt.figure(figsize=(16,10))
+    plt.figure(figsize=(7,7))
     sns.scatterplot(
         x="pca-one", y="pca-two",
         hue="y",

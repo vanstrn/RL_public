@@ -14,6 +14,11 @@
   "Gamma":0.99,
 
   "EnvConfig":"MG4R_v1.json",
-  "NetworkConfig":"MG4R_v1_SF_v2.json"
+  "NetworkConfig":"MG4R_v1_SF_v2.json",
+
+  "PhiLoggingFunctions":["environments.MiniGrid.loggingFunctions.RewardPredictionEvaluation",
+                      "environments.MiniGrid.loggingFunctions.StatePredictionEvaluation_action"],
+  "PsiLoggingFunctions":["environments.MiniGrid.loggingFunctions.ValuePredictionEvaluation"],
+  "ProcessingFunctions":[]
 
   }

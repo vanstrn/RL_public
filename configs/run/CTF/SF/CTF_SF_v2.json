@@ -4,10 +4,10 @@
   "Optimizer":"Adadelta",
   "SampleEpisodes":20,
   "MAX_EP_STEPS":150,
-  "PhiEpochs":251,
+  "PhiEpochs":1,
   "PsiEpochs":251,
   "FitIterations":3,
-  "BatchSize":32,
+  "BatchSize":5,
   "Gamma":0.99,
   "LearningRate":0.2,
   "SaveFreq":125,
@@ -15,6 +15,11 @@
   "channelWeights":[1,1,1,1,10,1],
 
   "EnvConfig":"CTF_1v0_FO.json",
-  "NetworkConfig":"CTF_SF_v2_actions.json"
+  "NetworkConfig":"CTF_SF_v2_actions.json",
+
+  "PhiLoggingFunctions":["environments.CTF.loggingFunctions.RewardTest",
+                      "environments.CTF.loggingFunctions.ImageGenerator"],
+  "PsiLoggingFunctions":["environments.CTF.loggingFunctions.ValueTest"],
+  "ProcessingFunctions":[]
 
   }

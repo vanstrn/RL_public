@@ -53,8 +53,8 @@ parser.add_argument("-d", "--data", required=False, default="",
                     help="Which data to use for the training.")
 parser.add_argument("-l", "--load", required=False, default="",
                     help="Whether or not to load different models")
+
 args = parser.parse_args()
-print(args.config)
 if args.config is not None: configOverride = json.loads(unquote(args.config))
 else: configOverride = {}
 if args.environment is not None: envConfigOverride = json.loads(unquote(args.environment))
@@ -81,6 +81,12 @@ LOG_PATH = './images/SF/'+EXP_NAME
 CreatePath(LOG_PATH)
 CreatePath(MODEL_PATH)
 
+#Saving config files in the model directory
+with open(LOG_PATH+'/runSettings.json', 'w') as outfile:
+    json.dump(settings, outfile)
+with open(MODEL_PATH+'/netConfigOverride.json', 'w') as outfile:
+    json.dump(netConfigOverride, outfile)
+
 #Creating the Environment
 env,dFeatures,nActions,nTrajs = CreateEnvironment(envSettings)
 
@@ -105,13 +111,7 @@ with tf.device(args.processor):
 #Definition of misc. functions
 def M4E(y_true,y_pred):
     return K.mean(K.pow(y_pred-y_true,4))
-def CTF_Loss(y_true,y_pred):
-    loss=0.0
-    for i,weight in enumerate(settings["channelWeights"]):
-            loss += weight*K.mean(K.pow(y_pred[:,:,:,i]-y_true[:,:,:,i],4))
-    return loss
-
-def OneHot(a,length=nActions):
+def OneHot(a,length=4):
     aOH = [0]*length
     aOH[int(a)] = 1
     return aOH
@@ -141,6 +141,7 @@ if args.data == "":
         s0 = env.reset()
 
         for j in range(settings["MAX_EP_STEPS"]+1):
+
             a = GetAction(state=s0)
 
             s1,r,done,_ = env.step(a)
@@ -148,9 +149,8 @@ if args.data == "":
             s.append(s0)
             s_next.append(s1)
             r_store.append(r)
-            action.append(OneHot(a))
-            label.append(env.GetLabel())
-            # label.append(i)
+            action.append(OneHot(a,nActions))
+            label.append(1)
 
             s0 = s1
             if done:
@@ -215,6 +215,10 @@ elif settings["Optimizer"] == "Amsgrad":
     opt = tf.keras.optimizers.Adam(settings["LearningRate"],amsgrad=True)
 
 if args.phi:
+    callbacks = [SaveModel(),SaveModel_Phi()]
+    for callback in settings["PhiLoggingFunctions"]:
+        Method = GetFunction(callback)
+        callbacks.append(Method(env,[SF1,SF2,SF3,SF4,SF5],LOG_PATH))
     SF1.compile(optimizer=opt, loss=[M4E,"mse"], loss_weights = [1.0,1.0])
     SF1.fit(
         [np.stack(action),np.vstack(s)],
@@ -222,8 +226,7 @@ if args.phi:
         epochs=settings["PhiEpochs"],
         batch_size=settings["BatchSize"],
         shuffle=True,
-        # callbacks=[ImageGenerator(),SaveModel(),SaveModel_Phi()])
-        callbacks=[ImageGenerator(),SaveModel(),SaveModel_Phi(),RewardTest()])
+        callbacks=callbacks)
 
 if "DefaultParams" not in netConfigOverride:
     netConfigOverride["DefaultParams"] = {}
@@ -239,21 +242,25 @@ if args.psi:
     for i in range(settings["PsiEpochs"]):
 
         psi_next = SF2.predict([np.vstack(s_next)])
-
         labels = phi+gamma*psi_next
+
+        #Creating the Callbacks.
+        callbacks = [SaveModel(i),SaveModel_Psi(i)]
+        for callback in settings["PsiLoggingFunctions"]:
+            Method = GetFunction(callback)
+            callbacks.append(Method(i,env,[SF1,SF2,SF3,SF4,SF5],LOG_PATH))
+
         SF2.fit(
             [np.vstack(s)],
-            [np.vstack(labels)],
+            [np.stack(labels)],
             epochs=settings["FitIterations"],
             batch_size=settings["BatchSize"],
             shuffle=True,
-            # callbacks=[SaveModel(i),SaveModel_Psi(i)])
-            callbacks=[ValueTest(i),SaveModel(i),SaveModel_Psi(i)])
+            callbacks=callbacks)
 
 if args.analysis:
     psi = SF2.predict([np.vstack(s)]) # [X,SF Dim]
     phi = SF3.predict([np.vstack(s)])
-
 
     import pandas as pd
     from sklearn.decomposition import PCA
@@ -264,7 +271,6 @@ if args.analysis:
     # mnist = fetch_mldata("MNIST original")
     X = psi
     y = np.stack(label)
-    numLabels = len(set(label))
 
     feat_cols = [ 'pixel'+str(i) for i in range(X.shape[1]) ]
     df = pd.DataFrame(X,columns=feat_cols)
@@ -286,18 +292,17 @@ if args.analysis:
     sns.scatterplot(
         x="pca-one", y="pca-two",
         hue="y",
-        palette=sns.color_palette("hls", numLabels),
+        palette=sns.color_palette("hls", 1),
         data=df.loc[rndperm,:],
         legend="full",
         alpha=0.3
     )
-    # plt.show()
     plt.savefig(LOG_PATH+"/PCA_2D_1.png")
     plt.close()
     sns.scatterplot(
         x="pca-two", y="pca-three",
         hue="y",
-        palette=sns.color_palette("hls", numLabels),
+        palette=sns.color_palette("hls", 1),
         data=df.loc[rndperm,:],
         legend="full",
         alpha=0.3
@@ -318,5 +323,5 @@ if args.analysis:
     ax.set_ylabel('pca-two')
     ax.set_zlabel('pca-three')
 
-    plt.show()
-    # plt.savefig(LOG_PATH+"/PCA_3D.png")
+
+    plt.savefig(LOG_PATH+"/PCA_3D.png")

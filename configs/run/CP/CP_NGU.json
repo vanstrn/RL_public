@@ -1,4 +1,4 @@
-{ "RunName":"CP_NGU19",
+{ "RunName":"CP_NGU20",
   "GPUCapacitty":0.95,
   "NetworkHPs":{"LearningRate": 1E-3,
                 "LearningRateEmbedding": 1E-3,
@@ -17,8 +17,8 @@
                 "TrajLength":40,
                 "Epochs":1,
                 "Exploration":"EGreedy",
-                "ExplorationDecay":500,
-                "ExploreSS":0.0,
+                "ExplorationDecay":2000,
+                "ExploreSS":0.1,
 
                 "L":5.0,
                 "NearestNeighbors":5
