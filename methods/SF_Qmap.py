@@ -138,7 +138,7 @@ class SF_QMap(Method):
             elif settings["Selection"]=="Random":
                 samples = [];points=[]
                 while len(samples) < settings["TotalSamples"]:
-                    idx = randint(1,psi.shape[0])
+                    idx = randint(1,psi.shape[0]-1)
                     if not arreqclose_in_list(psi[idx,:], samples):
                         samples.append(psi[idx,:])
                         points.append(idx)

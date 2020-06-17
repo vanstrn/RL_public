@@ -304,17 +304,18 @@ class SampleConstructor(gym.core.Wrapper):
         """Formating Data back into a Q Table. """
         grid = self.grid.encode()
         value_map = np.reshape(values,grid.shape[:2])
-        for i in range(grid.shape[1]):
-            for j in range(grid.shape[2]):
-                if grid[i,j,1] == 5:
+        for i in range(grid.shape[0]):
+            for j in range(grid.shape[1]):
+                if grid[i,j,0] == 2:
                     value_map[i,j] = 0.0
         smoothed_value_map = SmoothOption(value_map)
         smoothed_value_map_inv = -smoothed_value_map
-        for i in range(grid.shape[1]):
-            for j in range(grid.shape[2]):
-                if grid[i,j,1] == 5:
-                    smoothed_value_map[i,j] = -999
-                    smoothed_value_map_inv[i,j] = -999
+        for i in range(grid.shape[0]):
+            for j in range(grid.shape[1]):
+                if grid[i,j,0] == 2:
+                    # smoothed_value_map[i,j] = -999
+                    # smoothed_value_map_inv[i,j] = -999
+                    pass
         return smoothed_value_map, smoothed_value_map_inv
 
     def UseSubpolicy(self,s,subpolicy):

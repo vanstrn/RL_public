@@ -207,6 +207,19 @@ class SF_QMap_CTF_1v1(Method):
                     if not arreqclose_in_list(psi[idx,:], samples):
                         samples.append(psi[idx,:])
                         points.append(idx)
+            elif settings["Selection"]=="Random_sampling":
+                #PCA Decomp to dimension:
+                import pandas as pd
+                from sklearn.decomposition import PCA
+                feat_cols = [ 'pixel'+str(i) for i in range(psi.shape[1]) ]
+                df = pd.DataFrame(psi,columns=feat_cols)
+                np.random.seed(42)
+                rndperm = np.random.permutation(df.shape[0])
+                pca = PCA(n_components=2)
+                pca_result = pca.fit_transform(df[feat_cols].values)
+
+                from SampleSelection import SampleSelection_v1
+                points = SampleSelection_v1(pca_result,settings["TotalSamples"],returnIndicies=True)
             elif settings["Selection"]=="Hull_pca":
                 #PCA Decomp to dimension:
                 import pandas as pd
