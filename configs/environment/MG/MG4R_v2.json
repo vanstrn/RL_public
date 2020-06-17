@@ -1,0 +1,19 @@
+{ "EnvName":"MiniGrid-FourRooms-v1",
+  "EnvParams":{ "agent_pos":[14,5],
+                "goal_pos":[9,13]},
+  "Seed":1337,
+  "Wrappers":[
+  { "WrapperName":"environments.MiniGridWrappers.SampleConstructor",
+    "WrapperParameters":{}},
+  { "WrapperName":"environments.MiniGridWrappers.DiscreteAction",
+    "WrapperParameters":{}},
+  { "WrapperName":"environments.MiniGridWrappers.RewardWrapper",
+    "WrapperParameters":{}},
+  { "WrapperName":"environments.MiniGridWrappers.FullyObsWrapper_v2",
+    "WrapperParameters":{}},
+  { "WrapperName":"environments.Common.NPConverter",
+    "WrapperParameters":{}},
+  { "WrapperName":"environments.Common.RewardLogging",
+    "WrapperParameters":{}}
+  ]
+  }

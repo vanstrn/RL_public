@@ -1,0 +1,25 @@
+{ "RunName":"CTFP_SF_30x30",
+  "GPUCapacitty":0.95,
+  "NetworkHPs":{},
+  "Optimizer":"Adadelta",
+  "SampleEpisodes":200,
+  "MAX_EP_STEPS":150,
+  "PhiEpochs":501,
+  "PsiEpochs":251,
+  "FitIterations":3,
+  "BatchSize":32,
+  "Gamma":0.99,
+  "LearningRate":0.2,
+  "SaveFreq":125,
+  "LogFreq":50,
+  "channelWeights":[1,1,1,1,10,1],
+
+  "EnvConfig":"CTFP30.json",
+  "NetworkConfig":"CTF_SF_v2_30.json",
+
+  "PhiLoggingFunctions":["environments.CTF.loggingFunctions.RewardTest",
+                      "environments.CTF.loggingFunctions.ImageGenerator"],
+  "PsiLoggingFunctions":["environments.CTF.loggingFunctions.ValueTest"],
+  "ProcessingFunctions":[]
+
+  }

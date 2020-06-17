@@ -1,0 +1,25 @@
+{ "RunName":"CTF_Reptile",
+  "GPUCapacitty":0.95,
+  "NetworkHPs":{"LR": 0.0002,
+                "Meta LR":0.0001,
+                "Optimizer":"Adam",
+                "Gamma":0.98,
+                "lambda":0.98,
+                "EntropyBeta":0.0005,
+                "CriticBeta":0.2,
+                "BatchSize":512,
+                "MinibatchSize":32,
+                "Epochs":2,
+                "eps":0.2},
+
+  "MaxEpisodes":25001,
+  "MaxEpisodeSteps":150,
+  "Epochs":1000,
+  "SFSize":256,
+  "LogFreq":100,
+  "SaveFreq":5000,
+
+  "EnvConfig":"CTF20_meta.json",
+  "NetworkConfig":"CTF_v4.json",
+  "Method":"methods.Reptile.Reptile"
+  }

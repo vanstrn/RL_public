@@ -1,0 +1,25 @@
+{ "RunName":"CTF_SF_ProxMaps6",
+  "GPUCapacitty":0.95,
+  "NetworkHPs":{},
+  "Optimizer":"Adadelta",
+  "SampleEpisodes":200,
+  "MAX_EP_STEPS":150,
+  "PhiEpochs":251,
+  "PsiEpochs":251,
+  "FitIterations":3,
+  "BatchSize":8,
+  "Gamma":0.99,
+  "LearningRate":0.2,
+  "SaveFreq":125,
+  "LogFreq":25,
+  "channelWeights":[1,1,2,1,5,1],
+
+  "EnvConfig":"CTFP20_multiMap.json",
+  "NetworkConfig":"CTF_SF_v2_actions.json",
+
+  "PhiLoggingFunctions":["environments.CTF.loggingFunctions.RewardTest_actions",
+                      "environments.CTF.loggingFunctions.ImageGenerator_actions"],
+  "PsiLoggingFunctions":["environments.CTF.loggingFunctions.ValueTest"],
+  "ProcessingFunctions":[]
+
+  }

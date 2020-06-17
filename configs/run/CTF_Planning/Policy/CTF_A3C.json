@@ -1,0 +1,23 @@
+{ "RunName":"CTF_A3C_10Maps_3",
+  "GPUCapacitty":0.95,
+  "NetworkHPs":{"Actor LR": 1E-3,
+                "Critic LR": 1E-2,
+                "Gamma":0.98,
+                "lambda":0.98,
+                "BatchSize":2048,
+                "MinibatchSize":256,
+                "Epochs":2,
+                "EntropyBeta":-0.01},
+
+  "MaxEpisodes":10000,
+  "MaxEpisodeSteps":150,
+  "Epochs":1000,
+  "SFSize":1024,
+  "LogFreq":20,
+  "SaveFreq":5000,
+
+  "EnvConfig":"CTFP20.json",
+  "NetworkConfig":"CTF_v4.json",
+  "NumberENV":4,
+  "Method":"methods.A3C.A3C"
+  }

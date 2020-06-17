@@ -40,14 +40,21 @@ else: netConfigOverride = {}
 #Defining parameters and Hyperparameters for the run.
 for (dirpath, dirnames, filenames) in os.walk("configs/run"):
     for filename in filenames:
-        if args.file in filename:
+        if args.file == filename:
             runConfigFile = os.path.join(dirpath,filename)
             break
 with open(runConfigFile) as json_file:
     settings = json.load(json_file)
     settings = UpdateNestedDictionary(settings,configOverride)
-with open("configs/environment/"+settings["EnvConfig"]) as json_file:
+
+for (dirpath, dirnames, filenames) in os.walk("configs/environment"):
+    for filename in filenames:
+        if settings["EnvConfig"] == filename:
+            envConfigFile = os.path.join(dirpath,filename)
+            break
+with open(envConfigFile) as json_file:
     envSettings = json.load(json_file)
+
 print(settings["NetworkHPs"])
 env,dFeatures,nActions,nTrajs = CreateEnvironment(envSettings)
 EXP_NAME = settings["RunName"]

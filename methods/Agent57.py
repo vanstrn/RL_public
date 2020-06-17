@@ -599,7 +599,12 @@ def Agent57Workers(sess,settings,netConfigOverride):
     CreatePath(LOG_PATH)
     CreatePath(MODEL_PATH)
 
-    with open("configs/environment/"+settings["EnvConfig"]) as json_file:
+    for (dirpath, dirnames, filenames) in os.walk("configs/environment"):
+        for filename in filenames:
+            if settings["EnvConfig"] == filename:
+                envConfigFile = os.path.join(dirpath,filename)
+                break
+    with open(envConfigFile) as json_file:
         envSettings = json.load(json_file)
 
     sharedBuffer = Agent57Buffer()

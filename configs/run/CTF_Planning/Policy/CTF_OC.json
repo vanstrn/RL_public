@@ -1,0 +1,28 @@
+{ "RunName":"CTF_H_1v1_OC",
+  "LoadName":"CTF_SF_actions_2",
+  "GPUCapacitty":0.95,
+  "NetworkHPs":{"eps":0.2,
+                "EntropyBeta":0.00,
+                "CriticBeta":0.5,
+                "LR":0.00002,
+                "Gamma":0.99,
+                "lambda":0.9,
+                "Optimizer":"Adam",
+                "Epochs":1,
+                "BatchSize":256,
+                "FS":1,
+                "MinibatchSize":16},
+  "SampleEpisodes":100,
+  "MaxEpisodeSteps":150,
+  "MaxEpisodes":50000,
+  "UPDATE_GLOBAL_ITER":151,
+  "SaveFreq":1000,
+  "LogFreq":10,
+
+  "EnvConfig":"CTFP20.json",
+  "NetworkConfig":"CTF_OC.json",
+  "Method":"methods.OptionCritic.OptionCritic",
+
+  "LoggingFunctions":[]
+
+  }
