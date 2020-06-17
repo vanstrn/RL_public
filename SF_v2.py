@@ -81,6 +81,12 @@ LOG_PATH = './images/SF/'+EXP_NAME
 CreatePath(LOG_PATH)
 CreatePath(MODEL_PATH)
 
+#Saving config files in the model directory
+with open(LOG_PATH+'/runSettings.json', 'w') as outfile:
+    json.dump(settings, outfile)
+with open(MODEL_PATH+'/netConfigOverride.json', 'w') as outfile:
+    json.dump(netConfigOverride, outfile)
+
 #Creating the Environment
 env,dFeatures,nActions,nTrajs = CreateEnvironment(envSettings)
 

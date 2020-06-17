@@ -136,10 +136,17 @@ if __name__ == "__main__":
     # PlotTensorflowData(dataName,dataSeparations,dataLabels=dataLabels,title=title)
 
 
+
     dataName = "MG4R_SF_"
-    title = "Effect of Sample Method "
-    dataSeparations = ["20HP","20FS","20RE","20RN","20HC"]
-    dataSeparations = ["32HP","32FS","32RE","32RN","32HC"]
-    dataSeparations = ["48HP","48FS","48RE","48RN","48HC"]
-    dataLabels = ["Hull","First","Random*","Random","Cluster"]
+    title = "Effect of Sample Method 30% Coverage"
+    dataSeparations = ["32HP","32FS","32RE","32RN","32HC", "32HT"]
+    dataLabels = ["Hull","First","Random*","Random","Cluster","Hull TSNE"]
+    PlotTensorflowData(dataName,dataSeparations,path="./logs_/MG4R_SF_2",dataLabels=dataLabels,title=title)
+    title = "Effect of Sample Method 45% Coverage"
+    dataSeparations = ["48HP","48FS","48RE","48RN","48HC", "48HT"]
+    dataLabels = ["Hull","First","Random*","Random","Cluster","Hull TSNE"]
+    PlotTensorflowData(dataName,dataSeparations,path="./logs_/MG4R_SF_2",dataLabels=dataLabels,title=title)
+    title = "Effect of Sample Method 20% Coverage"
+    dataSeparations = ["20HP","20FS","20RE","20RN","20HC", "20HT"]
+    dataLabels = ["Hull","First","Random*","Random","Cluster","Hull TSNE"]
     PlotTensorflowData(dataName,dataSeparations,path="./logs_/MG4R_SF_2",dataLabels=dataLabels,title=title)

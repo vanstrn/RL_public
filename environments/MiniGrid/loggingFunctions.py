@@ -21,7 +21,7 @@ def ConstructSampleMG4RP(env,position):
 
 
 class ValuePredictionEvaluation(tf.keras.callbacks.Callback):
-    def __init__(self,superEpochs,env,network,imageDir=None,freq=100):
+    def __init__(self,superEpochs,env,network,imageDir=None,freq=50):
         self.env = env
         self.network=network[3]
         self.imageDir=imageDir
@@ -39,15 +39,15 @@ class ValuePredictionEvaluation(tf.keras.callbacks.Callback):
                 rewardMap[i,j] = value
             fig=plt.figure(figsize=(5.5, 5.5))
             fig.add_subplot(1,1,1)
-            plt.title("Value Prediction Epoch "+str(epoch))
+            plt.title("Value Prediction Epoch "+str(self.superEpochs))
             imgplot = plt.imshow(rewardMap)
             fig.colorbar(imgplot)
-            plt.savefig(self.imageDir+"/ValuePred"+str(epoch)+".png")
+            plt.savefig(self.imageDir+"/ValuePred"+str(self.superEpochs)+".png")
             plt.close()
 
 
 class StatePredictionEvaluation(tf.keras.callbacks.Callback):
-    def __init__(self,env,network,imageDir=None,freq=100):
+    def __init__(self,env,network,imageDir=None,freq=50):
         self.env = env
         self.network=network[0]
         self.imageDir = imageDir
@@ -65,7 +65,7 @@ class StatePredictionEvaluation(tf.keras.callbacks.Callback):
             plt.close()
 
 class StatePredictionEvaluation_action(tf.keras.callbacks.Callback):
-    def __init__(self,env,network,imageDir=None,freq=100):
+    def __init__(self,env,network,imageDir=None,freq=50):
         self.env = env
         self.network=network[0]
         self.imageDir = imageDir
@@ -90,7 +90,7 @@ class StatePredictionEvaluation_action(tf.keras.callbacks.Callback):
 
 
 class RewardPredictionEvaluation(tf.keras.callbacks.Callback):
-    def __init__(self,env,network,imageDir=None,freq=100):
+    def __init__(self,env,network,imageDir=None,freq=50):
         self.env = env
         self.network=network[0]
         self.imageDir = imageDir

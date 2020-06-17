@@ -136,8 +136,8 @@ class SampleConstructor(gym.core.Wrapper):
 
     def __init__(self, env):
         super().__init__(env)
-        self.agents_repr = 1
-        self.flags_repr = 1
+        self.agents_repr = 5
+        self.flags_repr = 2
 
     def ConstructSample(self,position):
         """Constructing All Samples into a Q table. """
@@ -196,20 +196,24 @@ class SampleConstructor(gym.core.Wrapper):
         grid = self.get_obs_blue
         if self.mode == "sandbox":
             value_map = np.reshape(values,grid.shape[:2])
-            for i in range(grid.shape[1]):
-                for j in range(grid.shape[2]):
+            for i in range(grid.shape[0]):
+                for j in range(grid.shape[1]):
+                    # print(grid[i,j,3],i,j)
                     if grid[i,j,3] == 1:
                         value_map[i,j] = 0.0
+                        # print("Here")
             smoothed_value_map = SmoothOption(value_map,grid[i,j,3])
             smoothed_value_map_inv = -smoothed_value_map
             for i in range(grid.shape[1]):
                 for j in range(grid.shape[2]):
                     if grid[i,j,3] == 1:
-                        smoothed_value_map[i,j] = -999
-                        smoothed_value_map_inv[i,j] = -999
+                        # smoothed_value_map[i,j] = -999
+                        # smoothed_value_map_inv[i,j] = -999
+                        pass
             return smoothed_value_map, smoothed_value_map_inv
 
         else:
+            print("Here?")
             #Getting the first value_map for no
             value_map = np.reshape(values[:grid.shape[0]*grid.shape[1],:],grid.shape[:2])
             for i in range(grid.shape[1]):

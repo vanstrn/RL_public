@@ -6,7 +6,7 @@ import matplotlib.image as mpimg
 import random
 
 class ValueTest_StackedStates(tf.keras.callbacks.Callback):
-    def __init__(self,superEpochs,env,network,imageDir=None,freq=100):
+    def __init__(self,superEpochs,env,network,imageDir=None,freq=50):
         self.env = env
         self.network=network[3]
         self.imageDir=imageDir
@@ -34,7 +34,7 @@ class ValueTest_StackedStates(tf.keras.callbacks.Callback):
             plt.close()
 
 class ValueTest(tf.keras.callbacks.Callback):
-    def __init__(self,superEpochs,env,network,imageDir=None,freq=100):
+    def __init__(self,superEpochs,env,network,imageDir=None,freq=50):
         self.env = env
         self.network=network[3]
         self.imageDir=imageDir
@@ -62,7 +62,7 @@ class ValueTest(tf.keras.callbacks.Callback):
             plt.close()
 
 class ImageGenerator_StackedStates(tf.keras.callbacks.Callback):
-    def __init__(self,env,network,imageDir=None,freq=100):
+    def __init__(self,env,network,imageDir=None,freq=50):
         self.env = env
         self.network=network[0]
         self.imageDir = imageDir
@@ -99,7 +99,7 @@ class ImageGenerator_StackedStates(tf.keras.callbacks.Callback):
             plt.savefig(self.imageDir+"/StatePredEpoch"+str(epoch)+".png")
 
 class ImageGenerator_actions(tf.keras.callbacks.Callback):
-    def __init__(self,env,network,imageDir=None,freq=100):
+    def __init__(self,env,network,imageDir=None,freq=50):
         self.env = env
         self.network=network[0]
         self.imageDir = imageDir
@@ -137,7 +137,7 @@ class ImageGenerator_actions(tf.keras.callbacks.Callback):
             plt.close()
 
 class ImageGenerator(tf.keras.callbacks.Callback):
-    def __init__(self,env,network,imageDir=None,freq=100):
+    def __init__(self,env,network,imageDir=None,freq=50):
         self.env = env
         self.network=network[0]
         self.imageDir = imageDir
@@ -176,7 +176,7 @@ class ImageGenerator(tf.keras.callbacks.Callback):
 
 
 class RewardTest(tf.keras.callbacks.Callback):
-    def __init__(self,env,network,imageDir=None,freq=100):
+    def __init__(self,env,network,imageDir=None,freq=50):
         self.env = env
         self.network=network[0]
         self.imageDir = imageDir
@@ -203,7 +203,7 @@ class RewardTest(tf.keras.callbacks.Callback):
             plt.close()
 
 class RewardTest_actions(tf.keras.callbacks.Callback):
-    def __init__(self,env,network,imageDir=None,freq=100):
+    def __init__(self,env,network,imageDir=None,freq=50):
         self.env = env
         self.network=network[0]
         self.imageDir = imageDir
@@ -231,7 +231,7 @@ class RewardTest_actions(tf.keras.callbacks.Callback):
 
 class RewardTest_StackedStates(tf.keras.callbacks.Callback):
 
-    def __init__(self,env,network,imageDir=None,freq=100):
+    def __init__(self,env,network,imageDir=None,freq=50):
         self.env = env
         self.network=network[0]
         self.imageDir = imageDir

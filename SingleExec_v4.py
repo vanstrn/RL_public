@@ -62,7 +62,7 @@ else:
 
 CreatePath(LOG_PATH)
 CreatePath(MODEL_PATH)
-CreatePath(IMAGE_PATH)
+# CreatePath(IMAGE_PATH)
 
 #Saving config files in the model directory
 with open(LOG_PATH+'/runSettings.json', 'w') as outfile:

@@ -95,8 +95,8 @@ class PPO(Method):
 
                 # Build Trainer
                 self.optimizer = tf.keras.optimizers.Adam(self.HPs["Critic LR"])
-                self.gradients = self.optimizer.get_gradients(loss, tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope))
-                self.update_ops = self.optimizer.apply_gradients(zip(self.gradients, tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope)))
+                self.gradients = self.optimizer.get_gradients(loss, self.Model.trainable_variables)
+                self.update_ops = self.optimizer.apply_gradients(zip(self.gradients, self.Model.trainable_variables))
 
         #Creating variables for logging.
         self.EntropyMA = MovingAverage(400)

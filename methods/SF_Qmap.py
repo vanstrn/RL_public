@@ -78,6 +78,7 @@ class SF_QMap(Method):
             if "LoadSamples" in settings:
                 pass
             else:
+                print("Creating Samples")
                 #Creating Instance of environment and running through it to generate samples
                 def GetAction(state):
                     """
@@ -112,6 +113,9 @@ class SF_QMap(Method):
 
             with open(MODEL_PATH+'netConfigOverride.json') as json_file:
                 networkOverrides = json.load(json_file)
+            # if "DefaultParams" not in networkOverrides:
+            #     networkOverrides["DefaultParams"] = {}
+            # networkOverrides["DefaultParams"]["Trainable"]=False
             SF1,SF2,SF3,SF4,SF5 = buildNetwork(settings["SFNetworkConfig"],actionSize,networkOverrides,scope="Global")
             SF5.load_weights(MODEL_PATH+"model.h5")
 
@@ -121,6 +125,8 @@ class SF_QMap(Method):
             #test for approximate equality (for floating point types)
             def arreqclose_in_list(myarr, list_arrays):
                 return next((True for elem in list_arrays if elem.size == myarr.size and np.allclose(elem, myarr,atol=1E-6)), False)
+
+            print("Selecting Samples")
             if settings["Selection"]=="First":
                 samples = [];points=[]
                 i =0
@@ -136,6 +142,19 @@ class SF_QMap(Method):
                     if not arreqclose_in_list(psi[idx,:], samples):
                         samples.append(psi[idx,:])
                         points.append(idx)
+            elif settings["Selection"]=="Random_sampling":
+                #PCA Decomp to dimension:
+                import pandas as pd
+                from sklearn.decomposition import PCA
+                feat_cols = [ 'pixel'+str(i) for i in range(psi.shape[1]) ]
+                df = pd.DataFrame(psi,columns=feat_cols)
+                np.random.seed(42)
+                rndperm = np.random.permutation(df.shape[0])
+                pca = PCA(n_components=2)
+                pca_result = pca.fit_transform(df[feat_cols].values)
+
+                from SampleSelection import SampleSelection_v1
+                points = SampleSelection_v1(pca_result,settings["TotalSamples"],returnIndicies=True)
             elif settings["Selection"]=="Hull_pca":
                 #PCA Decomp to dimension:
                 import pandas as pd
@@ -197,6 +216,7 @@ class SF_QMap(Method):
             options = []
 
             # QMapStructure = self.env.GetQMapStructure()
+            print("Getting data for a Q-Map")
             grids = self.env.ConstructAllSamples()
             phis= SF3.predict(grids)
 
@@ -210,10 +230,7 @@ class SF_QMap(Method):
                 if np.iscomplex(w_g[sample+offset]):
                     offset+=1
                 if settings["PlotOptions"]:
-                    try:
-                        imgplot = plt.imshow(v_option)
-                    except:
-                        imgplot = plt.imshow(v_option[:,:,0,0]) #Dealing with options that with enemies.
+                    imgplot = plt.imshow(v_option)
                     plt.title(" Option "+str(sample)+" Value Estimate | Eigenvalue:" +str(w_g[sample+offset]))
                     plt.savefig(LOG_PATH+"/option"+str(sample)+".png")
                     plt.close()

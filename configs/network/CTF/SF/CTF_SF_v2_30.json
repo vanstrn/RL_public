@@ -108,11 +108,11 @@
       { "layerType":"Conv2DTranspose",
         "layerName":"Reconstruction_Conv1",
         "layerInput":"Reconstruction_Reshape",
-        "Parameters":{"filters":128,
+        "Parameters":{"filters":64,
                       "kernel_size":6,
                       "strides":2,
                       "activation":"relu",
-                      "padding":"valid"}},
+                      "padding":"same"}},
       { "layerType":"Conv2DTranspose",
         "layerName":"Reconstruction_Conv2",
         "layerInput":"Reconstruction_Conv1",
@@ -133,7 +133,7 @@
         "Parameters":{"filters":6,
                       "kernel_size":3,
                       "strides":1,
-                      "padding":"valid",
+                      "padding":"same",
                       "activation":null}}
     ]
 
