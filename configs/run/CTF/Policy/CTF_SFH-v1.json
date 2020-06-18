@@ -1,0 +1,37 @@
+{ "RunName":"CTF_SFH_1v1_split",
+  "LoadName":"CTF_SFs_3",
+  "GPUCapacitty":0.95,
+  "NetworkHPs":{"eps":0.2,
+                "EntropyBeta":0.05,
+                "CriticBeta":0.5,
+                "LR":0.0002,
+                "Gamma":0.99,
+                "lambda":0.9,
+                "Optimizer":"Adam",
+                "Epochs":3,
+                "BatchSize":1024,
+                "FS":1,
+                "MinibatchSize":32},
+  "SampleEpisodes":25,
+  "MaxEpisodeSteps":150,
+  "MAX_EP_STEPS":150,
+  "MaxEpisodes":50000,
+  "MAX_EP":50000,
+  "UPDATE_GLOBAL_ITER":151,
+  "SaveFreq":1000,
+  "LogFreq":10,
+
+  "NumOptions":16,
+  "TotalSamples":1024,
+  "Selection":"Hull_pca",
+  "PlotOptions":false,
+
+
+  "EnvConfig":"CTF20.json",
+  "SFNetworkConfig":"CTF_SF_v2_split.json",
+  "NetworkConfig":"CTF_PPO_v2.json",
+  "Method":"methods.PPO_v3.PPO",
+
+  "LoggingFunctions":[]
+
+  }

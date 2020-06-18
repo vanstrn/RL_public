@@ -153,6 +153,24 @@ class SampleConstructor(gym.core.Wrapper):
         grid[:,:,2] = np.where(grid[:,:,2]==-1,-self.flags_repr,grid[:,:,2])
         grid[position[0],position[1],4] = self.agents_repr
         return grid
+    def ConstructSample_e(self,position,position2):
+        """Constructing All Samples into a Q table. """
+        grid = self.get_obs_blue
+        if grid[position[0],position[1],3] == 1:
+            return None
+        #Moving the agent
+        loc = self.get_team_blue[0].get_loc()
+        grid[loc[0],loc[1],4]=0
+        loc = self.get_team_red[0].get_loc()
+        grid[loc[0],loc[1],4]=0
+
+        grid[:,:,4] = np.where(grid[:,:,4]==1,self.agents_repr,grid[:,:,4])
+        grid[:,:,4] = np.where(grid[:,:,4]==-1,-self.agents_repr,grid[:,:,4])
+        grid[:,:,2] = np.where(grid[:,:,2]==1,self.flags_repr,grid[:,:,2])
+        grid[:,:,2] = np.where(grid[:,:,2]==-1,-self.flags_repr,grid[:,:,2])
+        grid[position[0],position[1],4] = self.agents_repr
+        grid[position2[0],position2[1],4] = -self.agents_repr
+        return grid
 
     def ConstructAllSamples(self):
         """Constructing All Samples into a Q table. """

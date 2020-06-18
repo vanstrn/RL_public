@@ -77,7 +77,7 @@ class StatePredictionEvaluation_action(tf.keras.callbacks.Callback):
             fig=plt.figure(figsize=(17, 5.5))
             fig.add_subplot(1,5,1)
             plt.title("State Epoch "+str(epoch))
-            imgplot = plt.imshow(state[:,:,0],vmin=0, vmax=10)
+            imgplot = plt.imshow(state[0,:,:,0],vmin=0, vmax=10)
             for i in range(4):
                 act = np.zeros([1,4])
                 act[0,i] = 1

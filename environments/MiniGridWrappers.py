@@ -292,12 +292,13 @@ class SampleConstructor(gym.core.Wrapper):
         """Constructing All Samples into a Q table. """
         #### Getting Background Grid
         grid = self.grid.encode()
+        print(grid.shape)
         stacked_grids = np.repeat(np.expand_dims(grid,0), grid.shape[0]*grid.shape[1],0)
-        for i in range(grid.shape[1]):
-            for j in range(grid.shape[2]):
+        for i in range(grid.shape[0]):
+            for j in range(grid.shape[1]):
                 if grid[i,j,1] == 5:
                     pass
-                stacked_grids[i*grid.shape[2]+j,i,j,0] = 10
+                stacked_grids[i*grid.shape[1]+j,i,j,0] = 10
         return stacked_grids[:,:,:,:2]
 
     def ReformatSamples(self,values):

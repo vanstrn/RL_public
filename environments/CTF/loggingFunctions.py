@@ -12,7 +12,7 @@ class ValueTest_StackedStates(tf.keras.callbacks.Callback):
         self.imageDir=imageDir
         self.freq = freq
         self.superEpochs = superEpochs
-    def on_epoch_end(self,epoch, logs=None):
+    def on_train_end(self, logs=None):
         if self.superEpochs%self.freq == 0:
             s=self.env.reset()
             rewardMap = np.zeros((s.shape[1],s.shape[2]))
@@ -41,7 +41,7 @@ class ValueTest(tf.keras.callbacks.Callback):
         self.freq = freq
         self.superEpochs = superEpochs
 
-    def on_epoch_end(self,epoch, logs=None):
+    def on_train_end(self, logs=None):
         if self.superEpochs%self.freq == 0:
             s=self.env.reset()
             rewardMap = np.zeros((s.shape[1],s.shape[2]))
@@ -60,6 +60,41 @@ class ValueTest(tf.keras.callbacks.Callback):
             fig.colorbar(imgplot)
             plt.savefig(self.imageDir+"/ValuePred"+str(self.superEpochs)+".png")
             plt.close()
+
+class ValueTest_enemies(tf.keras.callbacks.Callback):
+    def __init__(self,superEpochs,env,network,imageDir=None,freq=50):
+        self.env = env
+        self.network=network[3]
+        self.imageDir=imageDir
+        self.freq = freq
+        self.superEpochs = superEpochs
+
+    def on_train_end(self, logs=None):
+        if self.superEpochs%self.freq == 0:
+            s = self.env.reset()
+            for sample in range(5):
+                enemy_position = [random.randint(0,s.shape[1]-1),random.randint(0,s.shape[2]-1)]
+                while s[0,enemy_position[0],enemy_position[1],3] ==1:
+                    enemy_position = [random.randint(0,s.shape[1]-1),random.randint(0,s.shape[2]-1)]
+                rewardMap = np.zeros((s.shape[1],s.shape[2]))
+                for i,j in itertools.product(range(s.shape[1]),range(s.shape[2])):
+                    grid = self.env.ConstructSample_e([i,j],enemy_position)
+                    if grid is None: continue
+                    [value] = self.network.predict(np.expand_dims(grid,0))
+                    rewardMap[i,j] = value
+                fig=plt.figure(figsize=(5.5, 10))
+                fig.add_subplot(3,1,1)
+                plt.title("State Flags")
+                imgplot = plt.imshow(self.env.get_obs_blue[:,:,2], vmin=-1, vmax=1)
+                fig.add_subplot(3,1,2)
+                plt.title("State Enemies")
+                imgplot = plt.imshow(grid[:,:,4], vmin=-1, vmax=1)
+                fig.add_subplot(3,1,3)
+                plt.title("Value Prediction Epoch "+str(self.superEpochs))
+                imgplot = plt.imshow(rewardMap)
+                fig.colorbar(imgplot)
+                plt.savefig(self.imageDir+"/ValuePred"+str(self.superEpochs)+"_sample"+str(sample)+".png")
+                plt.close()
 
 class ImageGenerator_StackedStates(tf.keras.callbacks.Callback):
     def __init__(self,env,network,imageDir=None,freq=50):
@@ -228,6 +263,40 @@ class RewardTest_actions(tf.keras.callbacks.Callback):
             fig.colorbar(imgplot)
             plt.savefig(self.imageDir+"/RewardPred"+str(epoch)+".png")
             plt.close()
+class RewardTest_actions_enemies(tf.keras.callbacks.Callback):
+    def __init__(self,env,network,imageDir=None,freq=50):
+        self.env = env
+        self.network=network[0]
+        self.imageDir = imageDir
+        self.freq = freq
+
+    def on_epoch_end(self,epoch, logs=None):
+        if epoch%self.freq == 0:
+            s = self.env.reset()
+            for sample in range(5):
+                enemy_position = [random.randint(0,s.shape[1]-1),random.randint(0,s.shape[2]-1)]
+                while s[0,enemy_position[0],enemy_position[1],3] ==1:
+                    enemy_position = [random.randint(0,s.shape[1]-1),random.randint(0,s.shape[2]-1)]
+                rewardMap = np.zeros((s.shape[1],s.shape[2]))
+                for i,j in itertools.product(range(s.shape[1]),range(s.shape[2])):
+                    grid = self.env.ConstructSample_e([i,j],enemy_position)
+                    if grid is None: continue
+                    [state_new,reward] = self.network.predict([np.stack([[0,0,0,0,0]]),np.expand_dims(grid,0)])
+                    rewardMap[i,j] = reward
+                # fig=plt.figure()
+                fig=plt.figure(figsize=(5.5, 10))
+                fig.add_subplot(3,1,1)
+                plt.title("State Flags")
+                imgplot = plt.imshow(self.env.get_obs_blue[:,:,2], vmin=-1, vmax=1)
+                fig.add_subplot(3,1,2)
+                plt.title("State Enemies")
+                imgplot = plt.imshow(grid[:,:,4], vmin=-1, vmax=1)
+                fig.add_subplot(3,1,3)
+                plt.title("Reward Prediction Epoch "+str(epoch))
+                imgplot = plt.imshow(rewardMap)
+                fig.colorbar(imgplot)
+                plt.savefig(self.imageDir+"/RewardPred"+str(epoch)+"_sample"+str(sample)+".png")
+                plt.close()
 
 class RewardTest_StackedStates(tf.keras.callbacks.Callback):
 

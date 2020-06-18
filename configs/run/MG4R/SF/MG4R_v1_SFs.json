@@ -1,4 +1,4 @@
-{ "RunName":"MG4R_SF",
+{ "RunName":"MG4R_SFsplit",
   "GPUCapacitty":0.95,
   "NetworkHPs":{},
   "Optimizer":"Adadelta",
@@ -8,13 +8,13 @@
   "PhiEpochs":501,
   "PsiEpochs":251,
   "FitIterations":3,
-  "BatchSize":1024,
+  "BatchSize":32,
   "SaveFreq":50,
   "LogFreq":50,
   "Gamma":0.99,
 
   "EnvConfig":"MG4R_v1.json",
-  "NetworkConfig":"MG4R_v1_SF_v2.json",
+  "NetworkConfig":"MG4R_SFsplit.json",
 
   "PhiLoggingFunctions":["environments.MiniGrid.loggingFunctions.RewardPredictionEvaluation",
                       "environments.MiniGrid.loggingFunctions.StatePredictionEvaluation"],

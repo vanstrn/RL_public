@@ -14,7 +14,7 @@
   { "WrapperName":"environments.CTF_v2.UseMap",
     "WrapperParameters":{ "execute":true,
                           "unbiased":true,
-                          "mapPath":"/home/capturetheflag/RL/environments/1v0_40x40"}},
+                          "mapPath":"1v0_40x40"}},
   { "WrapperName":"environments.Common.NPConverter",
     "WrapperParameters":{}},
   { "WrapperName":"environments.CTF_v2.RewardLogging",
