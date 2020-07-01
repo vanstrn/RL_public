@@ -1,0 +1,37 @@
+{ "RunName":"CTF_SFH_1v1",
+  "LoadName":"MG4R_SF_128_4",
+  "GPUCapacitty":0.95,
+  "NetworkHPs":{"eps":0.2,
+                "EntropyBeta":0.05,
+                "CriticBeta":0.5,
+                "Critic LR":0.0002,
+                "Gamma":0.99,
+                "lambda":0.9,
+                "Optimizer":"Adam",
+                "Epochs":3,
+                "BatchSize":1024,
+                "FS":3,
+                "MinibatchSize":32},
+  "SampleEpisodes":75,
+  "MaxEpisodeSteps":150,
+  "MAX_EP_STEPS":150,
+  "MaxEpisodes":5000,
+  "UPDATE_GLOBAL_ITER":151,
+  "SaveFreq":1000,
+  "LogFreq":10,
+
+  "NumOptions":16,
+  "TotalSamples":40,
+  "Selection":"Hull_pca",
+  "PlotOptions":true,
+
+
+  "EnvConfig":"MG4R_v1_1.json",
+  "SFNetworkConfig":"MG4R_v1_SF_v2.json",
+  "NetworkConfig":"MG4R_v1_AC_v2.json",
+  "Method":"methods.SF_Qmap.SF_QMap",
+  "SubMethod":"methods.PPO_FS.PPO",
+
+  "LoggingFunctions":[]
+
+  }

@@ -1,0 +1,15 @@
+{ "RunName":"MG4R_v2_2_Random_1",
+  "GPUCapacitty":0.95,
+  "NetworkHPs":{},
+  "MaxEpisodeSteps":150,
+  "MaxEpisodes":50000,
+  "UPDATE_GLOBAL_ITER":151,
+  "SaveFreq":1000,
+  "LogFreq":10,
+
+  "EnvConfig":"MG4R_v2_2.json",
+  "Method":"methods.Random.Random",
+
+  "LoggingFunctions":[]
+
+  }

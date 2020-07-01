@@ -75,11 +75,11 @@ class PPO(Method):
                 # Entropy
                 def _log(val):
                     return tf.log(tf.clip_by_value(val, 1e-10, 10.0))
-                entropy = self.entropy = -tf.reduce_mean(self.a_prob * _log(self.a_prob), name='entropy')
+                self.entropy = -tf.reduce_mean(self.a_prob * _log(self.a_prob), name='entropy')
 
                 # Critic Loss
                 td_error = self.td_target_ - self.v
-                critic_loss = self.critic_loss = tf.reduce_mean(tf.square(td_error), name='critic_loss')
+                self.critic_loss = tf.reduce_mean(tf.square(td_error), name='critic_loss')
 
                 # Actor Loss
                 action_OH = tf.one_hot(self.a_his, actionSize, dtype=tf.float32)
@@ -91,10 +91,9 @@ class PPO(Method):
                 surrogate = ratio * self.advantage_
                 clipped_surrogate = tf.clip_by_value(ratio, 1-self.HPs["eps"], 1+self.HPs["eps"]) * self.advantage_
                 surrogate_loss = tf.minimum(surrogate, clipped_surrogate, name='surrogate_loss')
-                actor_loss = self.actor_loss = -tf.reduce_mean(surrogate_loss, name='actor_loss')
+                self.actor_loss = -tf.reduce_mean(surrogate_loss, name='actor_loss')
 
-                actor_loss = actor_loss - entropy * self.HPs["EntropyBeta"]
-                loss = actor_loss + critic_loss * self.HPs["CriticBeta"]
+                loss = self.actor_loss - self.entropy * self.HPs["EntropyBeta"] + self.critic_loss * self.HPs["CriticBeta"]
 
                 # Build Trainer
                 if self.HPs["Optimizer"] == "Adam":

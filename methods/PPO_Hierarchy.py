@@ -335,6 +335,7 @@ class PPO_Hierarchy(Method):
             value_lists = np.split(self.buffer[traj][10],split_loc[:-1])
 
             #Stuff needed for the
+            HL_S_lists = np.split(self.buffer[traj][0],split_loc[:-1])
             HL_Critic_lists = np.split(self.buffer[traj][8],split_loc[:-1])
             HL_Logits_lists = np.split(self.buffer[traj][7],split_loc[:-1])
             HL_action_lists = np.split(self.buffer[traj][6],split_loc[:-1])

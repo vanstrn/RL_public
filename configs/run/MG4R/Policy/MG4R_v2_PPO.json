@@ -1,0 +1,26 @@
+{ "RunName":"MG4R_v2_1_env2",
+  "GPUCapacitty":0.95,
+  "NetworkHPs":{"eps":0.2,
+                "EntropyBeta":0.01,
+                "CriticBeta":0.5,
+                "LR":0.0001,
+                "Gamma":0.98,
+                "lambda":0.98,
+                "Optimizer":"Adam",
+                "Epochs":1,
+                "BatchSize":1024,
+                "MinibatchSize":256},
+  "MaxEpisodeSteps":150,
+  "MaxEpisodes":1000000,
+  "MemoryCapacity":10000,
+  "UPDATE_GLOBAL_ITER":151,
+  "SaveFreq":1000,
+  "LogFreq":50,
+
+  "EnvConfig":"MG4R_v2_1.json",
+  "NetworkConfig":"MG4R_v2_AC_v2.json",
+  "Method":"methods.PPO_v3.PPO",
+
+  "LoggingFunctions":[]
+
+  }

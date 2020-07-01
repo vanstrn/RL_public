@@ -57,7 +57,8 @@ class DQN_ms_v2(Method):
 
                 with tf.name_scope('target_Q'):
                     max_next_q = tf.reduce_max(q_next, axis=-1)
-                    td_target = self.rewards_  + self.HPs["Gamma"] * max_next_q * (1. - self.done_)
+                    td_target = self.rewards_  + self.HPs["Gamma"] * max_next_q
+                    # td_target = self.rewards_  + self.HPs["Gamma"] * max_next_q * (1. - self.done_)
 
                 with tf.name_scope('td_error'):
                     loss = tf.keras.losses.MSE(td_target, curr_q)
@@ -65,11 +66,29 @@ class DQN_ms_v2(Method):
                     self.entropy = -tf.reduce_mean(softmax_q * tf.log(softmax_q+ 1e-5))
                     self.loss=total_loss = loss + self.HPs["EntropyBeta"] * self.entropy
 
-                optimizer = tf.keras.optimizers.Adam(self.HPs["LearningRate"])
+                if self.HPs["Optimizer"] == "Adam":
+                    self.optimizer = tf.keras.optimizers.Adam(self.HPs["LR"])
+                elif self.HPs["Optimizer"] == "RMS":
+                    self.optimizer = tf.keras.optimizers.RMSProp(self.HPs["LR"])
+                elif self.HPs["Optimizer"] == "Adagrad":
+                    self.optimizer = tf.keras.optimizers.Adagrad(self.HPs["LR"])
+                elif self.HPs["Optimizer"] == "Adadelta":
+                    self.optimizer = tf.keras.optimizers.Adadelta(self.HPs["LR"])
+                elif self.HPs["Optimizer"] == "Adamax":
+                    self.optimizer = tf.keras.optimizers.Adamax(self.HPs["LR"])
+                elif self.HPs["Optimizer"] == "Nadam":
+                    self.optimizer = tf.keras.optimizers.Nadam(self.HPs["LR"])
+                elif self.HPs["Optimizer"] == "SGD":
+                    self.optimizer = tf.keras.optimizers.SGD(self.HPs["LR"])
+                elif self.HPs["Optimizer"] == "Amsgrad":
+                    self.optimizer = tf.keras.optimizers.Nadam(self.HPs["LR"],amsgrad=True)
+                else:
+                    print("Not selected a proper Optimizer")
+                    exit()
                 self.workerParams = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, self.scope)
 
-                self.gradients = optimizer.get_gradients(total_loss, self.workerParams)
-                self.update_op = optimizer.apply_gradients(zip(self.gradients, self.workerParams))
+                self.gradients = self.optimizer.get_gradients(total_loss, self.workerParams)
+                self.update_op = self.optimizer.apply_gradients(zip(self.gradients, self.workerParams))
 
                 with tf.name_scope('push'):
                     self.push_ops = [l_p.assign(g_p) for l_p, g_p in zip(self.targetParams, self.workerParams)]

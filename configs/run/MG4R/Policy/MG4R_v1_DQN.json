@@ -1,0 +1,29 @@
+{ "RunName":"MG4R_v1_1_DQN_2",
+  "GPUCapacitty":0.95,
+  "NetworkHPs":{"eps":0.2,
+                "EntropyBeta":0.00000005,
+                "CriticBeta":0.5,
+                "LR":0.0001,
+                "Gamma":0.99,
+                "lambda":0.9,
+                "Optimizer":"Adadelta",
+                "Epochs":1,
+                "MultiStep":15,
+                "BatchSize":1024,
+                "Exploration":"EGreedy",
+                "ExplorationDecay":1000,
+                "ExploreSS":0.15,
+                "MinibatchSize":32},
+  "MaxEpisodeSteps":150,
+  "MaxEpisodes":5000,
+  "UPDATE_GLOBAL_ITER":151,
+  "SaveFreq":1000,
+  "LogFreq":10,
+
+  "EnvConfig":"MG4R_v1_1.json",
+  "NetworkConfig":"MG4R_v1_DQN_v1.json",
+  "Method":"methods.DQN.DQN",
+
+  "LoggingFunctions":[]
+
+  }

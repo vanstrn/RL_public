@@ -1,0 +1,26 @@
+{ "RunName":"MG4R_19_A2C_8",
+  "GPUCapacitty":0.95,
+  "NetworkHPs":{"eps":0.2,
+                "EntropyBeta":0.0005,
+                "CriticBeta":0.5,
+                "Critic LR":0.01,
+                "Actor LR":0.001,
+                "Gamma":0.99,
+                "lambda":0.9,
+                "Optimizer":"Adadelta",
+                "Epochs":1,
+                "BatchSize":1024,
+                "MinibatchSize":32},
+  "MaxEpisodeSteps":150,
+  "MaxEpisodes":50000,
+  "UPDATE_GLOBAL_ITER":151,
+  "SaveFreq":1000,
+  "LogFreq":10,
+
+  "EnvConfig":"MG4R_v2_1.json",
+  "NetworkConfig":"MG4R_v2_AC_v1.json",
+  "Method":"methods.A2C.AC",
+
+  "LoggingFunctions":[]
+
+  }

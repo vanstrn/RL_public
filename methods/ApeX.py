@@ -87,7 +87,7 @@ class ApeX(Method):
                             self.push_ops = [l_p.assign(g_p) for l_p, g_p in zip(self.targetParams, self.params)]
 
                         self.grad_MA = [MovingAverage(400) for i in range(len(self.grads))]
-                        self.loss_MA = [MovingAverage(400) for i in range(len(self.grads))]
+                        self.loss_MA = [MovingAverage(400) for i in range(len(self.losses))]
                         self.entropy_MA = MovingAverage(400)
                         self.labels = ["Critic",]
 

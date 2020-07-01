@@ -81,7 +81,7 @@ class StatePredictionEvaluation_action(tf.keras.callbacks.Callback):
             for i in range(4):
                 act = np.zeros([1,4])
                 act[0,i] = 1
-                state_new,reward = self.network.predict(state,action=act)
+                state_new,reward = self.network.predict([act,state])
                 fig.add_subplot(1,5,i+2)
                 plt.title("Predicted Next State Epoch "+str(epoch))
                 imgplot = plt.imshow(state_new[0,:,:,0],vmin=0, vmax=10)
@@ -104,6 +104,32 @@ class RewardPredictionEvaluation(tf.keras.callbacks.Callback):
                 grid = ConstructSampleMG4R(self.env,[i,j])
                 if grid is None: continue
                 state_new,reward = self.network.predict(np.expand_dims(grid,0))
+                rewardMap[i,j] = reward
+            fig=plt.figure(figsize=(5.5, 5.5))
+            fig.add_subplot(1,1,1)
+            plt.title("Reward Prediction Epoch "+str(epoch))
+            imgplot = plt.imshow(rewardMap)
+            fig.colorbar(imgplot)
+            plt.savefig(self.imageDir+"/RewardPred"+str(epoch)+".png")
+            plt.close()
+
+class RewardPredictionEvaluation_action(tf.keras.callbacks.Callback):
+    def __init__(self,env,network,imageDir=None,freq=50):
+        self.env = env
+        self.network=network[0]
+        self.imageDir = imageDir
+        self.freq = freq
+
+    def on_epoch_end(self,epoch, logs=None):
+        if epoch%self.freq  == 0:
+            self.env.reset()
+            rewardMap = np.zeros([self.env.width,self.env.height])
+            for i,j in itertools.product(range(self.env.width),range(self.env.height)):
+                grid = ConstructSampleMG4R(self.env,[i,j])
+                if grid is None: continue
+                act = np.zeros([1,4])
+                # act[0,i] = 1
+                state_new,reward = self.network.predict([np.stack([[0,0,0,0]]),np.expand_dims(grid,0)])
                 rewardMap[i,j] = reward
             fig=plt.figure(figsize=(5.5, 5.5))
             fig.add_subplot(1,1,1)

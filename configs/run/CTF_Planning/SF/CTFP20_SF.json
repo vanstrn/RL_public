@@ -1,4 +1,4 @@
-{ "RunName":"CTF_SF_actions_3",
+{ "RunName":"CTFP20_SF",
   "GPUCapacitty":0.95,
   "NetworkHPs":{},
   "Optimizer":"Adadelta",

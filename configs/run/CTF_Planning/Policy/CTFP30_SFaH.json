@@ -16,7 +16,7 @@
   "SampleEpisodes":200,
   "MaxEpisodeSteps":150,
   "MAX_EP_STEPS":150,
-  "MaxEpisodes":20000,
+  "MaxEpisodes":5000,
   "UPDATE_GLOBAL_ITER":151,
   "SaveFreq":1000,
   "LogFreq":10,
@@ -31,7 +31,7 @@
   "SFNetworkConfig":"CTF_SF_v2_30_actions.json",
   "NetworkConfig":"CTF_PPO_v2_30.json",
   "Method":"methods.SF_Qmap.SF_QMap",
-  "SubMethod":"methods.PPO_FS.PPO",
+  "SubMethod":"methods.PPO_v3.PPO",
 
   "LoggingFunctions":[]
 

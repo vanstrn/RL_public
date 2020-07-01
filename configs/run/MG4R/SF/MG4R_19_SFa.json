@@ -1,0 +1,24 @@
+{ "RunName":"MG4R_19_SF",
+  "GPUCapacitty":0.95,
+  "NetworkHPs":{},
+  "Optimizer":"Adadelta",
+  "LearningRate":0.2,
+  "SampleEpisodes":200,
+  "MAX_EP_STEPS":150,
+  "PhiEpochs":501,
+  "PsiEpochs":251,
+  "FitIterations":3,
+  "BatchSize":64,
+  "SaveFreq":125,
+  "LogFreq":50,
+  "Gamma":0.99,
+
+  "EnvConfig":"MG4R_v3.json",
+  "NetworkConfig":"MG4R_SF_v2_actions0.json",
+
+  "PhiLoggingFunctions":["environments.MiniGrid.loggingFunctions.RewardPredictionEvaluation_action",
+                      "environments.MiniGrid.loggingFunctions.StatePredictionEvaluation_action"],
+  "PsiLoggingFunctions":["environments.MiniGrid.loggingFunctions.ValuePredictionEvaluation"],
+  "ProcessingFunctions":[]
+
+  }

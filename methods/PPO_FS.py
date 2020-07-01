@@ -94,7 +94,7 @@ class PPO(Method):
                 loss = actor_loss + critic_loss * self.HPs["CriticBeta"]
 
                 # Build Trainer
-                self.optimizer = tf.keras.optimizers.Adam(self.HPs["Critic LR"])
+                self.optimizer = tf.keras.optimizers.Adam(self.HPs["LR"])
                 self.gradients = self.optimizer.get_gradients(loss, self.Model.trainable_variables)
                 self.update_ops = self.optimizer.apply_gradients(zip(self.gradients, self.Model.trainable_variables))
 

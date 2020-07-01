@@ -1,0 +1,84 @@
+{ "NetworkName" : "MG4R_AC_v2",
+  "NetworkBuilder":"network",
+  "DefaultParams":{ "SFSize":512,
+                    "Filters":256,
+                    "KernalSize":3,
+                    "FCUnits":512},
+  "NetworkStructure":{
+    "Shared":[
+      { "layerType":"Conv2D",
+        "layerName":"Conv2D_1",
+        "layerInput":"input.state",
+        "Parameters":{"filters":"Filters//8",
+                      "kernel_size":"KernalSize",
+                      "strides":1,
+                      "activation":"relu"}},
+      { "layerType":"Conv2D",
+        "layerName":"Conv2D_2",
+        "layerInput":"Conv2D_1",
+        "Parameters":{"filters":"Filters//4",
+                      "kernel_size":"KernalSize",
+                      "strides":1,
+                      "activation":"relu"}},
+      { "layerType":"Conv2D",
+        "layerName":"Conv2D_3",
+        "layerInput":"Conv2D_2",
+        "Parameters":{"filters":"Filters//2",
+                      "kernel_size":"KernalSize",
+                      "strides":1,
+                      "activation":"relu"}},
+      { "layerType":"Conv2D",
+        "layerName":"Conv2D_4",
+        "layerInput":"Conv2D_3",
+        "Parameters":{"filters":"Filters",
+                      "kernel_size":"KernalSize",
+                      "strides":1,
+                      "activation":"relu"}},
+      { "layerType":"Flatten",
+        "layerName":"Flatten",
+        "layerInput":"Conv2D_4"},
+      { "layerType":"Dense",
+        "layerName":"Dense1",
+        "layerInput":"Flatten",
+        "Parameters":{"units":256,
+                      "activation":null}}
+      ],
+    "Actor":[
+      { "layerType":"Dense",
+        "layerName":"Actor_FC",
+        "layerInput":"Dense1",
+        "Parameters":{"units":"actionSize",
+                      "activation":null}},
+      { "layerType":"SoftMax",
+        "layerName":"Logits",
+        "layerInput":"Actor_FC"},
+      { "layerType":"LogSoftMax",
+        "layerName":"LogLogits",
+        "layerInput":"Actor_FC"}
+    ],
+
+    "Critic":[
+      { "layerType":"Dense",
+        "layerName":"Critic_FC1",
+        "layerInput":"Dense1",
+        "Parameters":{"units":256,
+                      "activation":"relu"}},
+      { "layerType":"Dense",
+        "layerName":"Critic_FC2",
+        "layerInput":"Critic_FC1",
+        "Parameters":{"units":1,
+                      "activation":null}}
+    ]
+  },
+  "NetworkOutputs":{
+    "actor":"Logits",
+    "critic":"Critic_FC2",
+    "log_logits":"LogLogits"
+  },
+  "NetworkVariableGroups":{
+    "Actor":["Actor","Shared"],
+    "Critic":["Critic","Shared"]
+  },
+  "TestInput":{"state":[null,7,7,4]}
+
+  }

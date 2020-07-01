@@ -18,6 +18,7 @@ import random
 from environments import CreateEnvironment
 from networks.common import NetworkBuilder
 import json
+import os
 
 class NGU(Method):
 

@@ -1,6 +1,6 @@
-{ "EnvName":"MiniGrid-FourRooms-v2",
-  "EnvParams":{ "agent_pos":[3,9],
-                "goal_pos":[9,7]},
+{ "EnvName":"MiniGrid-FourRooms-30-v1",
+  "EnvParams":{ "agent_pos":null,
+                "goal_pos":[14,7]},
   "Seed":1337,
   "Wrappers":[
   { "WrapperName":"environments.MiniGridWrappers.SampleConstructor",

@@ -23,11 +23,9 @@
   "LogFreq":10,
 
   "NumOptions":16,
-  "TotalSamples":32,
-  "Selection":"Hull_tsne",
 
-  "EnvConfig":"MG4R_v1_2.json",
-  "NetworkConfig":"MG4R_PPO_v2.json",
+  "EnvConfig":"MG4R_v1_1.json",
+  "NetworkConfig":"MG4R_v1_PPO_v2.json",
   "Method":"methods.PPO_FS.PPO",
 
   "LoggingFunctions":[]

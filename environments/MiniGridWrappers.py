@@ -54,6 +54,45 @@ class FullyObsWrapper_v2(gym.core.ObservationWrapper):
 
         return np.expand_dims(full_grid[:,:,:2],0)
 
+class FullyObsWrapper_v5(gym.core.ObservationWrapper):
+    """
+    Fully observable gridworld using a compact grid encoding
+    """
+
+    def __init__(self, env):
+        super().__init__(env)
+
+        self.observation_space = spaces.Box(
+            low=0,
+            high=255,
+            shape=(self.env.width, self.env.height, 2),  # number of cells
+            dtype='uint8'
+        )
+
+    def observation(self, obs):
+        env = self.unwrapped
+        full_grid = env.grid.encode()
+        flagX,flagY = np.unravel_index(np.argmax(full_grid[:,:,0], axis=None), full_grid[:,:,0].shape)
+
+        full_grid[env.agent_pos[0]][env.agent_pos[1]] = np.array([
+            OBJECT_TO_IDX['agent'],
+            COLOR_TO_IDX['red'],
+            OBJECT_TO_IDX['agent']
+        ])
+        # changing flag
+        full_grid[flagX,flagY] = np.array([
+            OBJECT_TO_IDX['goal'],
+            OBJECT_TO_IDX['goal'],
+            OBJECT_TO_IDX['goal']
+        ])
+
+        ret = full_grid[:,:,np.r_[0,2]]
+
+        # print(ret[:,:,0])
+        # print(ret[:,:,1])
+
+        return np.expand_dims(full_grid[:,:,np.r_[0,2]],0)
+
 class RewardWrapper(gym.core.Wrapper):
     def reset(self, **kwargs):
         return self.env.reset(**kwargs)

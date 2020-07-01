@@ -1,5 +1,5 @@
 { "EnvName":"MiniGrid-FourRooms-v2",
-  "EnvParams":{ "agent_pos":[3,9],
+  "EnvParams":{ "agent_pos":null,
                 "goal_pos":[9,3]},
   "Seed":1337,
   "Wrappers":[
