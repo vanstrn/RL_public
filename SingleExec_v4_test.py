@@ -132,10 +132,8 @@ for i in range(settings["MaxEpisodes"]):
     if logging:
         dict = net.GetStatistics()
         loggingDict.update(dict)
-        pid = os.getpid()
-        py = psutil.Process(pid)
-        memoryUse = py.memory_info()[0]/2.**30  # memory use in GB...I think
-        loggingDict["Memory Use"] = memoryUse
+        loggingDict["Memory Use"] = psutil.virtual_memory().used*1E-9
+        loggingDict["Memory Percent"] = psutil.virtual_memory().percent
         loggingDict["CPU Use"] = psutil.cpu_percent()
         Record(loggingDict, writer, sess.run(global_step))
         if "LoggingFunctions" in settings:
