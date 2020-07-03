@@ -12,7 +12,7 @@
                 "BatchSize":1024,
                 "MinibatchSize":32},
   "MaxEpisodeSteps":150,
-  "MaxEpisodes":20000,
+  "MaxEpisodes":50000,
   "MemoryCapacity":10000,
   "UPDATE_GLOBAL_ITER":151,
   "SaveFreq":1000,
