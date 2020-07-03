@@ -98,6 +98,8 @@ class PPO(Method):
 
                 loss = self.actor_loss - self.entropy * self.HPs["EntropyBeta"] + self.critic_loss * self.HPs["CriticBeta"]
 
+                self.adv = tf.reduce_mean(self.advantage_)
+
                 # Build Trainer
                 if self.HPs["Optimizer"] == "Adam":
                     self.optimizer = tf.keras.optimizers.Adam(self.HPs["LR"])
@@ -127,8 +129,8 @@ class PPO(Method):
                 self.pull_params_op = [l_p.assign(g_p) for l_p, g_p in zip(self.params, self.target_params)]
 
         self.update_ops=[self.update_op]
-        self.logging_ops=[self.actor_loss,self.critic_loss,self.entropy]
-        self.labels = ["Loss Actor","Loss Critic","Entropy"]
+        self.logging_ops=[self.actor_loss,self.critic_loss,self.entropy,self.adv,tf.reduce_mean(ratio),loss]
+        self.labels = ["Loss Actor","Loss Critic","Entropy","Advantage","PPO Ratio","Loss Total"]
         self.logging_MA = [MovingAverage(400) for i in range(len(self.logging_ops))]
 
     def GetAction(self, state, episode=1,step=0):
@@ -174,7 +176,7 @@ class PPO(Method):
         if num < self.HPs["BatchSize"]:
             return
         # print("Updating")
-        self.sess.run(self.pull_params_op, {}) 
+        self.sess.run(self.pull_params_op, {})
 
         for traj in samples:
             if len(traj[0]) <= 5:

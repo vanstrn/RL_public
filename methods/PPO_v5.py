@@ -93,41 +93,56 @@ class PPO(Method):
                 surrogate_loss = tf.minimum(surrogate, clipped_surrogate, name='surrogate_loss')
                 self.actor_loss = -tf.reduce_mean(surrogate_loss, name='actor_loss')
 
-                loss = self.actor_loss - self.entropy * self.HPs["EntropyBeta"] + self.critic_loss * self.HPs["CriticBeta"]
+                loss = self.actor_loss + self.critic_loss * self.HPs["CriticBeta"]
 
                 # Build Trainer
                 if self.HPs["Optimizer"] == "Adam":
-                    self.optimizer = tf.keras.optimizers.Adam(self.HPs["LR"])
+                    self.optimizerA = tf.keras.optimizers.Adam(self.HPs["LR Actor"])
+                    self.optimizerE = tf.keras.optimizers.Adam(self.HPs["LR Entropy"])
                 elif self.HPs["Optimizer"] == "RMS":
-                    self.optimizer = tf.keras.optimizers.RMSProp(self.HPs["LR"])
+                    self.optimizerA = tf.keras.optimizers.RMSProp(self.HPs["LR Actor"])
+                    self.optimizerE = tf.keras.optimizers.RMSProp(self.HPs["LR Entropy"])
                 elif self.HPs["Optimizer"] == "Adagrad":
-                    self.optimizer = tf.keras.optimizers.Adagrad(self.HPs["LR"])
+                    self.optimizerA = tf.keras.optimizers.Adagrad(self.HPs["LR Actor"])
+                    self.optimizerE = tf.keras.optimizers.Adagrad(self.HPs["LR Entropy"])
                 elif self.HPs["Optimizer"] == "Adadelta":
-                    self.optimizer = tf.keras.optimizers.Adadelta(self.HPs["LR"])
+                    self.optimizerA = tf.keras.optimizers.Adadelta(self.HPs["LR Actor"])
+                    self.optimizerE = tf.keras.optimizers.Adadelta(self.HPs["LR Entropy"])
                 elif self.HPs["Optimizer"] == "Adamax":
-                    self.optimizer = tf.keras.optimizers.Adamax(self.HPs["LR"])
+                    self.optimizerA = tf.keras.optimizers.Adamax(self.HPs["LR Actor"])
+                    self.optimizerE = tf.keras.optimizers.Adamax(self.HPs["LR Entropy"])
                 elif self.HPs["Optimizer"] == "Nadam":
-                    self.optimizer = tf.keras.optimizers.Nadam(self.HPs["LR"])
+                    self.optimizerA = tf.keras.optimizers.Nadam(self.HPs["LR Actor"])
+                    self.optimizerE = tf.keras.optimizers.Nadam(self.HPs["LR Entropy"])
                 elif self.HPs["Optimizer"] == "SGD":
-                    self.optimizer = tf.keras.optimizers.SGD(self.HPs["LR"])
+                    self.optimizerA = tf.keras.optimizers.SGD(self.HPs["LR Actor"])
+                    self.optimizerE = tf.keras.optimizers.SGD(self.HPs["LR Entropy"])
                 elif self.HPs["Optimizer"] == "Amsgrad":
-                    self.optimizer = tf.keras.optimizers.Nadam(self.HPs["LR"],amsgrad=True)
+                    self.optimizerA = tf.keras.optimizers.Nadam(self.HPs["LR Actor"],amsgrad=True)
+                    self.optimizerE = tf.keras.optimizers.Nadam(self.HPs["LR Entropy"],amsgrad=True)
                 else:
                     print("Not selected a proper Optimizer")
                     exit()
-                self.gradients = self.optimizer.get_gradients(loss, self.Model.trainable_variables)
-                self.update_op = self.optimizer.apply_gradients(zip(self.gradients, self.Model.trainable_variables))
+                a_params = self.Model.GetVariables("Actor")
+                c_params = self.Model.GetVariables("Critic")
+                self.gradients_a = self.optimizerA.get_gradients(loss, self.Model.trainable_variables)
+                self.update_op_a = self.optimizerA.apply_gradients(zip(self.gradients_a, self.Model.trainable_variables))
+
+                entropy_loss = -self.entropy * self.HPs["EntropyBeta"]
+                self.gradients_e = self.optimizerE.get_gradients(entropy_loss, a_params)
+                self.update_op_e = self.optimizerE.apply_gradients(zip(self.gradients_e, a_params))
+
 
                 total_counter = 1
                 vanish_counter = 0
-                for gradient in self.gradients:
+                for gradient in self.gradients_a:
                     total_counter += np.prod(gradient.shape)
                     stuff = tf.reduce_sum(tf.cast(tf.math.less_equal(tf.math.abs(gradient),tf.constant(1e-8)),tf.int32))
                     vanish_counter += stuff
                 self.vanishing_gradient = vanish_counter/total_counter
 
 
-        self.update_ops=[self.update_op]
+        self.update_ops=[self.update_op_a,self.update_op_e]
         self.logging_ops=[self.actor_loss,self.critic_loss,self.entropy,tf.reduce_mean(self.advantage_),tf.reduce_mean(ratio),loss, self.vanishing_gradient]
         self.labels = ["Loss Actor","Loss Critic","Entropy","Advantage","PPO Ratio","Loss Total","Vanishing Gradient"]
         self.logging_MA = [MovingAverage(400) for i in range(len(self.logging_ops))]

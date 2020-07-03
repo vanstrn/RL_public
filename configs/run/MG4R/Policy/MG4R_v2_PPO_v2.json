@@ -1,9 +1,10 @@
-{ "RunName":"MG4R_v2_1_PPO_v5_1",
+{ "RunName":"MG4R_v2_1_ent0",
   "GPUCapacitty":0.95,
   "NetworkHPs":{"eps":0.2,
-                "EntropyBeta":0.00,
+                "EntropyBeta":0.0,
                 "CriticBeta":0.5,
-                "LR":0.0005,
+                "LR Actor":0.0005,
+                "LR Entropy":0.00001,
                 "Gamma":0.98,
                 "lambda":0.98,
                 "Optimizer":"Adam",
@@ -19,7 +20,7 @@
 
   "EnvConfig":"MG4R_v2_1.json",
   "NetworkConfig":"MG4R_v2_AC_v1.json",
-  "Method":"methods.PPO_v3.PPO",
+  "Method":"methods.PPO_v5.PPO",
 
   "LoggingFunctions":[]
 

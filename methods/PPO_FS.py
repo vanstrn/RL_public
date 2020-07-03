@@ -84,7 +84,7 @@ class PPO(Method):
                 old_log_prob = tf.reduce_sum(self.old_log_logits_ * action_OH, 1)
 
                 # Clipped surrogate function
-                ratio = tf.exp(log_prob - old_log_prob)
+                ratio =self.ratio= tf.exp(log_prob - old_log_prob)
                 surrogate = ratio * self.advantage_
                 clipped_surrogate = tf.clip_by_value(ratio, 1-self.HPs["eps"], 1+self.HPs["eps"]) * self.advantage_
                 surrogate_loss = tf.minimum(surrogate, clipped_surrogate, name='surrogate_loss')

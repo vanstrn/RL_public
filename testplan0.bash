@@ -1,15 +1,4 @@
 echo $1
 
-# python SF_v2.py -f MG4R_19_SF.json -c '{"RunName":"MG4R_19_SF_128_'$1'"}' -n '{"SFSize":"128"}'
-# python SF_v2.py -f MG4R_19_SF.json -c '{"RunName":"MG4R_19_SF_96_'$1'"}' -n '{"SFSize":"96"}'
-# python SF_v2.py -f MG4R_19_SF.json -c '{"RunName":"MG4R_19_SF_80_'$1'"}' -n '{"SFSize":"80"}'
-# python SF_v2.py -f MG4R_19_SF.json -c '{"RunName":"MG4R_19_SF_64_'$1'"}' -n '{"SFSize":"64"}'
-# python SF_v2.py -f MG4R_19_SF.json -c '{"RunName":"MG4R_19_SF_48_'$1'"}' -n '{"SFSize":"48"}'
-# python SF_v2.py -f MG4R_19_SF.json -c '{"RunName":"MG4R_19_SF_32_'$1'"}' -n '{"SFSize":"32"}'
-
-python SF_v2_action.py -f MG4R_19_SFa.json -c '{"RunName":"MG4R_SFa_19_128_'$1'"}' -n '{"SFSize":"128"}'
-python SF_v2_action.py -f MG4R_19_SFa.json -c '{"RunName":"MG4R_SFa_19_96_'$1'"}' -n '{"SFSize":"96"}'
-python SF_v2_action.py -f MG4R_19_SFa.json -c '{"RunName":"MG4R_SFa_19_80_'$1'"}' -n '{"SFSize":"80"}'
-python SF_v2_action.py -f MG4R_19_SFa.json -c '{"RunName":"MG4R_SFa_19_64_'$1'"}' -n '{"SFSize":"64"}'
-python SF_v2_action.py -f MG4R_19_SFa.json -c '{"RunName":"MG4R_SFa_19_48_'$1'"}' -n '{"SFSize":"48"}'
-python SF_v2_action.py -f MG4R_19_SFa.json -c '{"RunName":"MG4R_SFa_19_32_'$1'"}' -n '{"SFSize":"32"}'
+python SingleExec_v4.py -f MG4R_v2_PPO_v2.json -c '{"EnvConfig":"MG4R_v2_3.json","RunName":"BETA1E6_ENTLR1E7_'$1'","NetworkConfig":"MG4R_v2_AC_v1.json",
+  "NetworkHPs":{"EntropyBeta":0.00001,"LR Actor":0.00005,"LR Entropy":0.0000001,"BatchSize":1024,"MinibatchSize":32,"CriticBeta":0.5,"Gamma":0.98,"lambda":0.98,"Epochs":1}}'

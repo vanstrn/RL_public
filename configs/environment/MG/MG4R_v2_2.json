@@ -9,7 +9,7 @@
     "WrapperParameters":{}},
   { "WrapperName":"environments.MiniGridWrappers.RewardWrapper",
     "WrapperParameters":{}},
-  { "WrapperName":"environments.MiniGridWrappers.FullyObsWrapper_v2",
+  { "WrapperName":"environments.MiniGridWrappers.FullyObsWrapper_v5",
     "WrapperParameters":{}},
   { "WrapperName":"environments.Common.NPConverter",
     "WrapperParameters":{}},
