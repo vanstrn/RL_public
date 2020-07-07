@@ -6,10 +6,18 @@ import matplotlib.image as mpimg
 
 def ConstructSampleMG4R(env,position):
     grid = env.grid.encode()
+    flagX,flagY = np.unravel_index(np.argmax(grid[:,:,0], axis=None), grid[:,:,0].shape)
+    grid[flagX,flagY] = np.array([
+        8,
+        8,
+        8
+        ])
     if grid[position[0],position[1],1] == 5:
         return None
     grid[position[0],position[1],0] = 10
-    return grid[:,:,:2]
+    grid[position[0],position[1],2] = 10
+
+    return grid[:,:,np.r_[0,2]]
 
 def ConstructSampleMG4RP(env,position):
     cell = env.grid.get(*position)

@@ -95,7 +95,6 @@ class SF_QMap(Method):
 
                 s = []
                 for i in range(settings["SampleEpisodes"]):
-                    print(i)
                     s0 = env.reset()
 
                     for j in range(settings["MAX_EP_STEPS"]+1):

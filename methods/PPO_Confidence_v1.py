@@ -90,19 +90,60 @@ class PPO(Method):
                 surrogate_loss = tf.minimum(surrogate, clipped_surrogate, name='surrogate_loss')
                 actor_loss = self.actor_loss = -tf.reduce_mean(surrogate_loss, name='actor_loss')
 
-                actor_loss = actor_loss - entropy * self.HPs["EntropyBeta"]
-                loss = actor_loss + critic_loss * self.HPs["CriticBeta"]
+                loss = self.actor_loss + self.critic_loss * self.HPs["CriticBeta"]
 
                 # Build Trainer
-                self.optimizer = tf.keras.optimizers.Adam(self.HPs["LR"])
-                self.gradients = self.optimizer.get_gradients(loss, self.Model.trainable_variables)
-                self.update_ops = self.optimizer.apply_gradients(zip(self.gradients, self.Model.trainable_variables))
+                if self.HPs["Optimizer"] == "Adam":
+                    self.optimizerA = tf.keras.optimizers.Adam(self.HPs["LR Actor"])
+                    self.optimizerE = tf.keras.optimizers.Adam(self.HPs["LR Entropy"])
+                elif self.HPs["Optimizer"] == "RMS":
+                    self.optimizerA = tf.keras.optimizers.RMSProp(self.HPs["LR Actor"])
+                    self.optimizerE = tf.keras.optimizers.RMSProp(self.HPs["LR Entropy"])
+                elif self.HPs["Optimizer"] == "Adagrad":
+                    self.optimizerA = tf.keras.optimizers.Adagrad(self.HPs["LR Actor"])
+                    self.optimizerE = tf.keras.optimizers.Adagrad(self.HPs["LR Entropy"])
+                elif self.HPs["Optimizer"] == "Adadelta":
+                    self.optimizerA = tf.keras.optimizers.Adadelta(self.HPs["LR Actor"])
+                    self.optimizerE = tf.keras.optimizers.Adadelta(self.HPs["LR Entropy"])
+                elif self.HPs["Optimizer"] == "Adamax":
+                    self.optimizerA = tf.keras.optimizers.Adamax(self.HPs["LR Actor"])
+                    self.optimizerE = tf.keras.optimizers.Adamax(self.HPs["LR Entropy"])
+                elif self.HPs["Optimizer"] == "Nadam":
+                    self.optimizerA = tf.keras.optimizers.Nadam(self.HPs["LR Actor"])
+                    self.optimizerE = tf.keras.optimizers.Nadam(self.HPs["LR Entropy"])
+                elif self.HPs["Optimizer"] == "SGD":
+                    self.optimizerA = tf.keras.optimizers.SGD(self.HPs["LR Actor"])
+                    self.optimizerE = tf.keras.optimizers.SGD(self.HPs["LR Entropy"])
+                elif self.HPs["Optimizer"] == "Amsgrad":
+                    self.optimizerA = tf.keras.optimizers.Nadam(self.HPs["LR Actor"],amsgrad=True)
+                    self.optimizerE = tf.keras.optimizers.Nadam(self.HPs["LR Entropy"],amsgrad=True)
+                else:
+                    print("Not selected a proper Optimizer")
+                    exit()
+                a_params = self.Model.GetVariables("Actor")
+                c_params = self.Model.GetVariables("Critic")
+                self.gradients_a = self.optimizerA.get_gradients(loss, self.Model.trainable_variables)
+                # capped_gvs = [(tf.clip_by_value(grad, -1., 1.), var) for grad, var in self.gradients_a]
+                self.update_op_a = self.optimizerA.apply_gradients(zip(self.gradients_a , self.Model.trainable_variables))
 
-        #Creating variables for logging.
-        self.EntropyMA = MovingAverage(400)
-        self.CriticLossMA = MovingAverage(400)
-        self.ActorLossMA = MovingAverage(400)
-        self.GradMA = MovingAverage(400)
+                entropy_loss = -self.entropy * self.HPs["EntropyBeta"]
+                self.gradients_e = self.optimizerE.get_gradients(entropy_loss, a_params)
+                self.update_op_e = self.optimizerE.apply_gradients(zip(self.gradients_e, a_params))
+
+
+                total_counter = 1
+                vanish_counter = 0
+                for gradient in self.gradients_a:
+                    total_counter += np.prod(gradient.shape)
+                    stuff = tf.reduce_sum(tf.cast(tf.math.less_equal(tf.math.abs(gradient),tf.constant(1e-8)),tf.int32))
+                    vanish_counter += stuff
+                self.vanishing_gradient = vanish_counter/total_counter
+
+
+        self.update_ops=[self.update_op_a,self.update_op_e]
+        self.logging_ops=[self.actor_loss,self.critic_loss,self.entropy,tf.reduce_mean(self.advantage_),tf.reduce_mean(ratio),loss, self.vanishing_gradient]
+        self.labels = ["Loss Actor","Loss Critic","Entropy","Advantage","PPO Ratio","Loss Total","Vanishing Gradient"]
+        self.logging_MA = [MovingAverage(400) for i in range(len(self.logging_ops))]
 
     def GetAction(self, state, episode=1,step=0):
         """
@@ -126,11 +167,21 @@ class PPO(Method):
             probs,log_logits,v = self.sess.run([self.a_prob,self.log_logits,self.v], {self.s: np.expand_dims(state,axis=0)})
         actions = np.array([np.random.choice(probs.shape[1], p=prob / sum(prob)) for prob in probs])
 
-        if step % self.HPs["FS"] == 0:
+        confid = -np.mean(probs * np.log(probs), axis=1)
+        if step == 0:
             self.store_actions = actions
-            return actions, [v,log_logits,True]
+            self.old_confid = confid
+            return actions, [v,log_logits,False]
         else:
-            return self.store_actions, [v,log_logits,False]
+            if confid < self.old_confid: # compare inverse entropy
+                self.old_confid = confid
+                self.store_actions = actions
+                self.playing_mode[i] = bandit_action[i]
+                return actions, [v,log_logits,False]
+            else:
+                self.old_confid = np.maximum(self.old_confid + self.HPs["ConfidParam1"], self.HPs["ConfidParam2"])
+                bandit_action = self.playing_mode
+                return self.store_actions, [v,log_logits,True]
 
     def Update(self,episode=0):
         """
@@ -159,33 +210,24 @@ class PPO(Method):
             for epoch in range(self.HPs["Epochs"]):
                 for batch in MultiBatchDivider([s_hier,actions_hier,td_target_hier,advantage_hier,ll_hier],self.HPs["MinibatchSize"]):
                     #Staging Buffer inputs into the entries to run through the network.
-                    feed_dict = {self.s: np.asarray(batch[0]).squeeze(),
+                    feedDict = {self.s: np.asarray(batch[0]).squeeze(),
                                  self.a_his: np.asarray(batch[1]).squeeze(),
                                  self.td_target_: np.asarray(batch[2]).squeeze(),
                                  self.advantage_: np.reshape(batch[3], [-1]),
                                  self.old_log_logits_: np.asarray(batch[4]).squeeze()}
-                    aLoss, cLoss, entropy,grads, _ = self.sess.run([self.actor_loss,self.critic_loss,self.entropy,self.gradients,self.update_ops], feed_dict)
+                    out = self.sess.run(self.update_ops+self.logging_ops, feedDict)   # local grads applied to global net.
+                    logging = out[len(self.update_ops):]
 
-                    self.EntropyMA.append(entropy)
-                    self.CriticLossMA.append(cLoss)
-                    self.ActorLossMA.append(aLoss)
-                    total_counter = 0
-                    vanish_counter = 0
-                    for grad in grads:
-                        total_counter += np.prod(grad.shape)
-                        vanish_counter += (np.absolute(grad)<1e-8).sum()
-                    self.GradMA.append(vanish_counter/total_counter)
+                    for i,log in enumerate(logging):
+                        self.logging_MA[i].append(log)
 
         self.ClearTrajectory()
 
-
     def GetStatistics(self):
-        dict = {"Training Results/Entropy":self.EntropyMA(),
-        "Training Results/Loss Critic":self.CriticLossMA(),
-        "Training Results/Loss Actor":self.ActorLossMA(),
-        "Training Results/Vanishing Gradient":self.GradMA(),}
+        dict ={}
+        for i,label in enumerate(self.labels):
+            dict["Training Results/" + label] = self.logging_MA[i]()
         return dict
-
 
     def ProcessBuffer(self,traj):
         """
