@@ -144,6 +144,7 @@ class PPO(Method):
         self.logging_ops=[self.actor_loss,self.critic_loss,self.entropy,tf.reduce_mean(self.advantage_),tf.reduce_mean(ratio),loss, self.vanishing_gradient]
         self.labels = ["Loss Actor","Loss Critic","Entropy","Advantage","PPO Ratio","Loss Total","Vanishing Gradient"]
         self.logging_MA = [MovingAverage(400) for i in range(len(self.logging_ops))]
+        self.count_MA = MovingAverage(400)
 
     def GetAction(self, state, episode=1,step=0):
         """
@@ -171,17 +172,20 @@ class PPO(Method):
         if step == 0:
             self.store_actions = actions
             self.old_confid = confid
-            return actions, [v,log_logits,False]
+            self.count=0
+            return actions, [v,log_logits,True]
         else:
             if confid < self.old_confid: # compare inverse entropy
                 self.old_confid = confid
                 self.store_actions = actions
-                self.playing_mode[i] = bandit_action[i]
-                return actions, [v,log_logits,False]
+                self.count_MA.append(self.count)
+                self.count=0
+                return actions, [v,log_logits,True]
             else:
-                self.old_confid = np.maximum(self.old_confid + self.HPs["ConfidParam1"], self.HPs["ConfidParam2"])
-                bandit_action = self.playing_mode
-                return self.store_actions, [v,log_logits,True]
+                if self.count >= 4:
+                    self.old_confid = np.maximum(self.old_confid + self.HPs["ConfidenceAnnealing"], self.HPs["MinConfidence"])
+                self.count+=1
+                return self.store_actions, [v,log_logits,False]
 
     def Update(self,episode=0):
         """
@@ -227,6 +231,8 @@ class PPO(Method):
         dict ={}
         for i,label in enumerate(self.labels):
             dict["Training Results/" + label] = self.logging_MA[i]()
+
+        dict["Training Results/Average Traj Length"] = self.count_MA()
         return dict
 
     def ProcessBuffer(self,traj):
@@ -250,7 +256,7 @@ class PPO(Method):
         # Split into different episodes based on the "done" signal. Assumes that episode terminates at done.
         # Cannot account for instances where there are multiple done signals in a row.
 
-        split_loc = [i for i, x in enumerate(self.buffer[traj][4]) if x][1:]
+        split_loc = [i+1 for i, x in enumerate(self.buffer[traj][4]) if x]
 
         # reward_lists = np.split(self.buffer[traj][2],split_loc)
         # value_lists = np.split(self.buffer[traj][5],split_loc)

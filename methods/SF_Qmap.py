@@ -116,6 +116,8 @@ class SF_QMap(Method):
             # if "DefaultParams" not in networkOverrides:
             #     networkOverrides["DefaultParams"] = {}
             # networkOverrides["DefaultParams"]["Trainable"]=False
+            # print(settings["SFNetworkConfig"])
+            # print(networkOverrides)
             SF1,SF2,SF3,SF4,SF5 = buildNetwork(settings["SFNetworkConfig"],actionSize,networkOverrides,scope="Global")
             SF5.load_weights(MODEL_PATH+"model.h5")
 

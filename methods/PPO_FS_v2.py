@@ -208,7 +208,7 @@ class PPO(Method):
         # Split into different episodes based on the "done" signal. Assumes that episode terminates at done.
         # Cannot account for instances where there are multiple done signals in a row.
 
-        split_loc = [i for i, x in enumerate(self.buffer[traj][4]) if x][1:]
+        split_loc = [i+1 for i, x in enumerate(self.buffer[traj][4]) if x]
 
         # reward_lists = np.split(self.buffer[traj][2],split_loc)
         # value_lists = np.split(self.buffer[traj][5],split_loc)

@@ -56,6 +56,8 @@ def buildNetwork(configFile, actionSize, netConfigOverride={},debug=True, traini
     with open(configFile) as json_file:
         data = json.load(json_file)
     data = UpdateNestedDictionary(data,netConfigOverride)
+    print(netConfigOverride)
+    print(data)
 
     # if data["NetworkBuilder"] != "network_v2":
     #     return

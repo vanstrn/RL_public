@@ -137,14 +137,35 @@
     ]
 
   },
-  "NetworkOutputs":
+  "NetworkOutputs":[
+    {
+      "prediction":"StatePrediction",
+      "reward_pred":"SuccessorWeights"
+    },
+    {
+      "psi":"Psi"
+    },
+    {
+      "phi":"Phi"
+    },
+    {
+      "critic":"Critic"
+    },
     {
       "phi":"Phi",
       "prediction":"StatePrediction",
       "reward_pred":"SuccessorWeights",
       "psi":"Psi",
       "critic":"Critic"
-    },
+    }
+  ],
+  "NetworkInputs":[
+    ["state","action"],
+    ["state"],
+    ["state"],
+    ["state"],
+    ["state","action"]
+  ],
 
   "NetworkVariableGroups":{
     "Actor":["Actor"],

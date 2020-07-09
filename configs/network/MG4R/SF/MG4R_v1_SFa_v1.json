@@ -5,7 +5,7 @@
                     "InFilter":64,
                     "OutFilter":16,
                     "FCUnits":256},
-  "Inputs":{"state":[13,13,2]},
+  "Inputs":{"state":[13,13,2],"action":[4]},
   "NetworkStructure":{
     "Shared":[
       { "layerType":"Conv2D",
@@ -54,13 +54,8 @@
         "layerName":"Phi",
         "layerInput":"Dense2",
         "Parameters":{"units":"SFSize",
-                      "activation":"relu",
-                      "trainable":"Trainable"}},
-      { "layerType":"Split",
-        "layerName":"Split",
-        "layerInput":"Phi",
-        "multiOutput":["Phi_reward","Phi_state"],
-        "Parameters":{"units":"SFSize//2"}}
+                      "activation":null,
+                      "trainable":"Trainable"}}
       ],
 
     "SucessorRepresentation":[
@@ -69,6 +64,7 @@
         "layerInput":"Phi",
         "Parameters":{"units":1,
                       "activation":null,
+                      "use_bias":false,
                       "trainable":"Trainable"}}
       ],
 
@@ -85,13 +81,8 @@
         "Parameters":{"units":"FCUnits",
                       "activation":"relu"}},
       { "layerType":"Dense",
-        "layerName":"Critic_FC3",
-        "layerInput":"Critic_FC2",
-        "Parameters":{"units":"FCUnits",
-                      "activation":"relu"}},
-      { "layerType":"Dense",
         "layerName":"Psi",
-        "layerInput":"Critic_FC3",
+        "layerInput":"Critic_FC2",
         "Parameters":{"units":"SFSize",
                       "activation":null}}
     ],
@@ -105,8 +96,17 @@
 
     "Reconstruction":[
       { "layerType":"Dense",
+        "layerName":"Reconstruction_Action_Dense",
+        "layerInput":"input.action",
+        "Parameters":{"units":"FCUnits",
+                      "activation":"relu"}},
+      { "layerType":"Concatenate",
+        "layerName":"Reconstruction_Concatinate",
+        "layerInput":["Reconstruction_Action_Dense","Phi"],
+        "Parameters":{}},
+      { "layerType":"Dense",
         "layerName":"Reconstruction_Dense",
-        "layerInput":"Phi_state",
+        "layerInput":"Reconstruction_Concatinate",
         "Parameters":{"units":400,
                       "activation":"relu"}},
       { "layerType":"Reshape",
@@ -165,6 +165,13 @@
       "psi":"Psi",
       "critic":"Critic"
     }
+  ],
+  "NetworkInputs":[
+    ["state","action"],
+    ["state"],
+    ["state"],
+    ["state"],
+    ["state","action"]
   ],
 
   "NetworkVariableGroups":{

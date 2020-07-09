@@ -11,38 +11,33 @@
       { "layerType":"Conv2D",
         "layerName":"Conv2D_1",
         "layerInput":"input.state",
-        "Parameters":{"filters":"InFilter//4",
-                      "kernel_size":3,
-                      "strides":1,
+        "Parameters":{"filters":"InFilter",
+                      "kernel_size":6,
+                      "strides":2,
+                      "padding":"same",
                       "activation":"elu",
                       "trainable":"Trainable"}},
       { "layerType":"Conv2D",
         "layerName":"Conv2D_2",
         "layerInput":"Conv2D_1",
-        "Parameters":{"filters":"InFilter//2",
-                      "kernel_size":3,
-                      "strides":1,
+        "Parameters":{"filters":"InFilter",
+                      "kernel_size":6,
+                      "strides":2,
+                      "padding":"same",
                       "activation":"elu",
                       "trainable":"Trainable"}},
       { "layerType":"Conv2D",
         "layerName":"Conv2D_3",
         "layerInput":"Conv2D_2",
         "Parameters":{"filters":"InFilter",
-                      "kernel_size":3,
-                      "strides":1,
-                      "activation":"elu",
-                      "trainable":"Trainable"}},
-      { "layerType":"Conv2D",
-        "layerName":"Conv2D_4",
-        "layerInput":"Conv2D_3",
-        "Parameters":{"filters":"InFilter",
-                      "kernel_size":3,
-                      "strides":1,
+                      "kernel_size":6,
+                      "strides":2,
+                      "padding":"same",
                       "activation":"elu",
                       "trainable":"Trainable"}},
       { "layerType":"Flatten",
         "layerName":"Flatten",
-        "layerInput":"Conv2D_4"},
+        "layerInput":"Conv2D_3"},
       { "layerType":"Dense",
         "layerName":"Dense1",
         "layerInput":"Flatten",
@@ -50,21 +45,23 @@
                       "activation":"relu",
                       "trainable":"Trainable"}},
       { "layerType":"Dense",
-        "layerName":"Phi",
+        "layerName":"Dense2",
         "layerInput":"Dense1",
-        "Parameters":{"units":"SFSize",
+        "Parameters":{"units":"FCUnits",
                       "activation":"relu",
+                      "trainable":"Trainable"}},
+      { "layerType":"Dense",
+        "layerName":"Phi",
+        "layerInput":"Dense2",
+        "Parameters":{"units":"SFSize",
+                      "activation":null,
                       "trainable":"Trainable"}}
       ],
 
     "SucessorRepresentation":[
-      { "layerType":"StopGradient",
-        "layerName":"SG2",
-        "layerInput":"Phi",
-        "Parameters":{}},
       { "layerType":"Dense",
         "layerName":"SuccessorWeights",
-        "layerInput":"SG2",
+        "layerInput":"Phi",
         "Parameters":{"units":1,
                       "activation":null,
                       "trainable":"Trainable"}}
@@ -72,13 +69,9 @@
 
 
     "Critic":[
-      { "layerType":"StopGradient",
-        "layerName":"SG",
-        "layerInput":"Phi",
-        "Parameters":{}},
       { "layerType":"Dense",
         "layerName":"Critic_FC1",
-        "layerInput":"SG",
+        "layerInput":"Phi",
         "Parameters":{"units":"FCUnits",
                       "activation":"relu"}},
       { "layerType":"Dense",
@@ -87,8 +80,13 @@
         "Parameters":{"units":"FCUnits",
                       "activation":"relu"}},
       { "layerType":"Dense",
-        "layerName":"Psi",
+        "layerName":"Critic_FC3",
         "layerInput":"Critic_FC2",
+        "Parameters":{"units":"FCUnits",
+                      "activation":"relu"}},
+      { "layerType":"Dense",
+        "layerName":"Psi",
+        "layerInput":"Critic_FC3",
         "Parameters":{"units":"SFSize",
                       "activation":null}}
     ],
@@ -102,17 +100,8 @@
 
     "Reconstruction":[
       { "layerType":"Dense",
-        "layerName":"Reconstruction_Action_Dense",
-        "layerInput":"input.action",
-        "Parameters":{"units":"FCUnits",
-                      "activation":"relu"}},
-      { "layerType":"Concatenate",
-        "layerName":"Reconstruction_Concatinate",
-        "layerInput":["Reconstruction_Action_Dense","Phi"],
-        "Parameters":{}},
-      { "layerType":"Dense",
         "layerName":"Reconstruction_Dense",
-        "layerInput":"Reconstruction_Concatinate",
+        "layerInput":"Phi",
         "Parameters":{"units":968,
                       "activation":"relu"}},
       { "layerType":"Reshape",
@@ -150,14 +139,35 @@
     ]
 
   },
-  "NetworkOutputs":
+  "NetworkOutputs":[
+    {
+      "prediction":"StatePrediction",
+      "reward_pred":"SuccessorWeights"
+    },
+    {
+      "psi":"Psi"
+    },
+    {
+      "phi":"Phi"
+    },
+    {
+      "critic":"Critic"
+    },
     {
       "phi":"Phi",
       "prediction":"StatePrediction",
       "reward_pred":"SuccessorWeights",
       "psi":"Psi",
       "critic":"Critic"
-    },
+    }
+  ],
+  "NetworkInputs":[
+    ["state","action"],
+    ["state"],
+    ["state"],
+    ["state"],
+    ["state","action"]
+  ],
 
   "NetworkVariableGroups":{
     "Actor":["Actor"],

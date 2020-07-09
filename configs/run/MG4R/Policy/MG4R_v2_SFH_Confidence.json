@@ -1,8 +1,8 @@
-{ "RunName":"MG4R_v2_SFH",
-  "LoadName":"MG4R_SF_128_4",
+{ "RunName":"MG4R_v2_SFH_confidence3",
+  "LoadName":"MG4R_v2_SF",
   "GPUCapacitty":0.95,
   "NetworkHPs":{"eps":0.2,
-                "EntropyBeta":0.001,
+                "EntropyBeta":0.01,
                 "CriticBeta":0.5,
                 "LR Actor":0.00005,
                 "LR Entropy":0.000001,
@@ -11,9 +11,11 @@
                 "Optimizer":"Adam",
                 "Epochs":1,
                 "BatchSize":1024,
+                "ConfidenceAnnealing":0.005,
+                "MinConfidence":0.05,
                 "FS":5,
                 "MinibatchSize":32},
-  "SampleEpisodes":150,
+  "SampleEpisodes":100,
   "MaxEpisodeSteps":150,
   "MAX_EP_STEPS":150,
   "MaxEpisodes":50000,
@@ -21,8 +23,8 @@
   "SaveFreq":1000,
   "LogFreq":10,
 
-  "NumOptions":8,
-  "TotalSamples":40,
+  "NumOptions":24,
+  "TotalSamples":128,
   "Selection":"Hull_pca",
   "PlotOptions":true,
 
@@ -31,7 +33,7 @@
   "SFNetworkConfig":"MG4R_v2_SF_v1.json",
   "NetworkConfig":"MG4R_v2_AC_v1.json",
   "Method":"methods.SF_Qmap.SF_QMap",
-  "SubMethod":"methods.PPO_FS.PPO",
+  "SubMethod":"methods.PPO_Confidence_v1.PPO",
 
   "LoggingFunctions":[]
 

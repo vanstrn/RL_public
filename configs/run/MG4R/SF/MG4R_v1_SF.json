@@ -13,8 +13,8 @@
   "LogFreq":50,
   "Gamma":0.99,
 
-  "EnvConfig":"MG4R_v1.json",
-  "NetworkConfig":"MG4R_v1_SF_v2.json",
+  "EnvConfig":"MG4R_v1_3.json",
+  "NetworkConfig":"MG4R_v1_SF_v1.json",
 
   "PhiLoggingFunctions":["environments.MiniGrid.loggingFunctions.RewardPredictionEvaluation",
                       "environments.MiniGrid.loggingFunctions.StatePredictionEvaluation"],

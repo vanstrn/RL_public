@@ -39,7 +39,7 @@ def GetAverageSTD(dicts,metric):
     return average,std
 
 
-def PlotTensorflowData(dataName,dataSeparations,metric="TotalReward",path="./logs_",dataLabels=None,title="Effect of Sampling Methods"):
+def PlotTensorflowData(dataName,dataSeparations,metric="TotalReward",path="./logs",dataLabels=None,title="Effect of Sampling Methods"):
     if dataLabels is None:
         dataLabels = dataSeparations
     dataFiles = {}
@@ -49,7 +49,10 @@ def PlotTensorflowData(dataName,dataSeparations,metric="TotalReward",path="./log
             if len(filenames) != 0:
                 if dataName in dirpath:
                     if name in dirpath:
-                        dataFiles[label].append(GetFileContents(dirpath+"/"+filenames[0]))
+                        for filename in filenames:
+                            if "events.out.tfevents" in filename:
+                                dataFiles[label].append(GetFileContents(dirpath+"/"+filename))
+                                continue
 
     for label,data in dataFiles.items():
         ave,std=GetAverageSTD(data,metric)
@@ -137,16 +140,40 @@ if __name__ == "__main__":
 
 
 
-    dataName = "MG4R_SF_"
-    title = "Effect of Sample Method 30% Coverage"
-    dataSeparations = ["32HP","32FS","32RE","32RN","32HC", "32HT"]
-    dataLabels = ["Hull","First","Random*","Random","Cluster","Hull TSNE"]
-    PlotTensorflowData(dataName,dataSeparations,path="./logs_/MG4R_SF_2",dataLabels=dataLabels,title=title)
-    title = "Effect of Sample Method 45% Coverage"
-    dataSeparations = ["48HP","48FS","48RE","48RN","48HC", "48HT"]
-    dataLabels = ["Hull","First","Random*","Random","Cluster","Hull TSNE"]
-    PlotTensorflowData(dataName,dataSeparations,path="./logs_/MG4R_SF_2",dataLabels=dataLabels,title=title)
-    title = "Effect of Sample Method 20% Coverage"
-    dataSeparations = ["20HP","20FS","20RE","20RN","20HC", "20HT"]
-    dataLabels = ["Hull","First","Random*","Random","Cluster","Hull TSNE"]
-    PlotTensorflowData(dataName,dataSeparations,path="./logs_/MG4R_SF_2",dataLabels=dataLabels,title=title)
+    # dataName = "MG4R_SF_"
+    # title = "Effect of Sample Method 30% Coverage"
+    # dataSeparations = ["32HP","32FS","32RE","32RN","32HC", "32HT"]
+    # dataLabels = ["Hull","First","Random*","Random","Cluster","Hull TSNE"]
+    # PlotTensorflowData(dataName,dataSeparations,path="./logs_/MG4R_SF_2",dataLabels=dataLabels,title=title)
+    # title = "Effect of Sample Method 45% Coverage"
+    # dataSeparations = ["48HP","48FS","48RE","48RN","48HC", "48HT"]
+    # dataLabels = ["Hull","First","Random*","Random","Cluster","Hull TSNE"]
+    # PlotTensorflowData(dataName,dataSeparations,path="./logs_/MG4R_SF_2",dataLabels=dataLabels,title=title)
+    # title = "Effect of Sample Method 20% Coverage"
+    # dataSeparations = ["20HP","20FS","20RE","20RN","20HC", "20HT"]
+    # dataLabels = ["Hull","First","Random*","Random","Cluster","Hull TSNE"]
+    # PlotTensorflowData(dataName,dataSeparations,path="./logs_/MG4R_SF_2",dataLabels=dataLabels,title=title)
+
+
+
+    # dataName = "MG4R_v2_SFaH_128"
+    # title = "Effect of Sample Method 50% Coverage"
+    # dataSeparations = ["HP","PPO_FS_FS","RS","RN","HC"]
+    # dataLabels = ["Hull","First","Random*","Random","Cluster"]
+    # PlotTensorflowData(dataName,dataSeparations,dataLabels=dataLabels,title=title)
+    dataName = "MG4R_v2_SFaH_96"
+    title = "Effect of Sample Method 37% Coverage"
+    dataSeparations = ["HP","PPO_FS_FS","RS","RN","HC"]
+    # dataLabels = ["Hull","First","Random*","Random","Cluster"]
+    dataLabels = ["Random","First","Hull","Random*","Cluster"]
+    PlotTensorflowData(dataName,dataSeparations,dataLabels=dataLabels,title=title)
+    # dataName = "MG4R_v2_SFaH_64"
+    # title = "Effect of Sample Method 25% Coverage"
+    # dataSeparations = ["HP","PPO_FS_FS","RS","RN","HC"]
+    # dataLabels = ["Hull","First","Random*","Random","Cluster"]
+    # PlotTensorflowData(dataName,dataSeparations,dataLabels=dataLabels,title=title)
+    dataName = "MG4R_v2_SFaH_48"
+    title = "Effect of Sample Method 18% Coverage"
+    dataSeparations = ["HP","PPO_FS_FS","RS","RN","HC"]
+    dataLabels = ["Random","First","Random*","Hull","Cluster"]
+    PlotTensorflowData(dataName,dataSeparations,dataLabels=dataLabels,title=title)

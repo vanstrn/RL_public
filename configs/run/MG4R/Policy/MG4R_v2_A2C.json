@@ -1,4 +1,4 @@
-{ "RunName":"MG4R_19_A2C_8",
+{ "RunName":"MG4R_v2_A2C_8",
   "GPUCapacitty":0.95,
   "NetworkHPs":{"eps":0.2,
                 "EntropyBeta":0.0005,

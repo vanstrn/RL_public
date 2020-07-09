@@ -1,4 +1,4 @@
-{ "RunName":"MG4R_19_DQN_10",
+{ "RunName":"MG4R_v2_DQN_10",
   "GPUCapacitty":0.95,
   "NetworkHPs":{"eps":0.2,
                 "EntropyBeta":0.0005,

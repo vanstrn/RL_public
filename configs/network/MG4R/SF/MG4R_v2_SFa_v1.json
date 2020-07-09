@@ -5,7 +5,7 @@
                     "InFilter":64,
                     "OutFilter":16,
                     "FCUnits":256},
-  "Inputs":{"state":[19,19,2]},
+  "Inputs":{"state":[19,19,2],"action":[4]},
   "NetworkStructure":{
     "Shared":[
       { "layerType":"Conv2D",
@@ -58,9 +58,13 @@
       ],
 
     "SucessorRepresentation":[
+      { "layerType":"StopGradient",
+        "layerName":"SG2",
+        "layerInput":"Phi",
+        "Parameters":{}},
       { "layerType":"Dense",
         "layerName":"SuccessorWeights",
-        "layerInput":"Phi",
+        "layerInput":"SG2",
         "Parameters":{"units":1,
                       "activation":null,
                       "trainable":"Trainable"}}
@@ -146,14 +150,35 @@
     ]
 
   },
-  "NetworkOutputs":
+  "NetworkOutputs":[
+    {
+      "prediction":"StatePrediction",
+      "reward_pred":"SuccessorWeights"
+    },
+    {
+      "psi":"Psi"
+    },
+    {
+      "phi":"Phi"
+    },
+    {
+      "critic":"Critic"
+    },
     {
       "phi":"Phi",
       "prediction":"StatePrediction",
       "reward_pred":"SuccessorWeights",
       "psi":"Psi",
       "critic":"Critic"
-    },
+    }
+  ],
+  "NetworkInputs":[
+    ["state","action"],
+    ["state"],
+    ["state"],
+    ["state"],
+    ["state","action"]
+  ],
 
   "NetworkVariableGroups":{
     "Actor":["Actor"],

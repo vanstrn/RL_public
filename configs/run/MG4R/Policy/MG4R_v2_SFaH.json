@@ -1,4 +1,4 @@
-{ "RunName":"CTF_SFH_1v1",
+{ "RunName":"MG4R_v2_SFaH",
   "LoadName":"MG4R_SF_128_4",
   "GPUCapacitty":0.95,
   "NetworkHPs":{"eps":0.2,
@@ -29,7 +29,7 @@
 
 
   "EnvConfig":"MG4R_v2_3.json",
-  "SFNetworkConfig":"MG4R_v2_SF_actions.json",
+  "SFNetworkConfig":"MG4R_v2_SFa_v1.json",
   "NetworkConfig":"MG4R_v2_AC_v1.json",
   "Method":"methods.SF_Qmap.SF_QMap",
   "SubMethod":"methods.PPO_FS_v3.PPO",

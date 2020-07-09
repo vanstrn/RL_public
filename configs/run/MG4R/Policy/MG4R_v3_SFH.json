@@ -1,4 +1,4 @@
-{ "RunName":"MG4R_SFH_2",
+{ "RunName":"MG4R_v3_SFH_2",
   "LoadName":"MG4R_30_SF",
   "GPUCapacitty":0.95,
   "NetworkHPs":{"eps":0.2,
