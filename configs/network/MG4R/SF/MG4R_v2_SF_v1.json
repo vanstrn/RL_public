@@ -160,11 +160,11 @@
     }
   ],
   "NetworkInputs":[
-    ["state","action"],
     ["state"],
     ["state"],
     ["state"],
-    ["state","action"]
+    ["state"],
+    ["state"]
   ],
 
   "NetworkVariableGroups":{
