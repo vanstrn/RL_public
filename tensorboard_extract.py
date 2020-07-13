@@ -161,19 +161,50 @@ if __name__ == "__main__":
     # dataSeparations = ["HP","PPO_FS_FS","RS","RN","HC"]
     # dataLabels = ["Hull","First","Random*","Random","Cluster"]
     # PlotTensorflowData(dataName,dataSeparations,dataLabels=dataLabels,title=title)
-    dataName = "MG4R_v2_SFaH_96"
-    title = "Effect of Sample Method 37% Coverage"
-    dataSeparations = ["HP","PPO_FS_FS","RS","RN","HC"]
-    # dataLabels = ["Hull","First","Random*","Random","Cluster"]
-    dataLabels = ["Random","First","Hull","Random*","Cluster"]
-    PlotTensorflowData(dataName,dataSeparations,dataLabels=dataLabels,title=title)
-    # dataName = "MG4R_v2_SFaH_64"
-    # title = "Effect of Sample Method 25% Coverage"
+    # dataName = "MG4R_v2_SFaH_96"
+    # title = "Effect of Sample Method 37% Coverage"
     # dataSeparations = ["HP","PPO_FS_FS","RS","RN","HC"]
-    # dataLabels = ["Hull","First","Random*","Random","Cluster"]
+    # # dataLabels = ["Hull","First","Random*","Random","Cluster"]
+    # dataLabels = ["Random","First","Hull","Random*","Cluster"]
     # PlotTensorflowData(dataName,dataSeparations,dataLabels=dataLabels,title=title)
-    dataName = "MG4R_v2_SFaH_48"
+    # # dataName = "MG4R_v2_SFaH_64"
+    # # title = "Effect of Sample Method 25% Coverage"
+    # # dataSeparations = ["HP","PPO_FS_FS","RS","RN","HC"]
+    # # dataLabels = ["Hull","First","Random*","Random","Cluster"]
+    # # PlotTensorflowData(dataName,dataSeparations,dataLabels=dataLabels,title=title)
+    # dataName = "MG4R_v2_SFaH_48"
+    # title = "Effect of Sample Method 18% Coverage"
+    # dataSeparations = ["HP","PPO_FS_FS","RS","RN","HC"]
+    # dataLabels = ["Random","First","Random*","Hull","Cluster"]
+    # PlotTensorflowData(dataName,dataSeparations,dataLabels=dataLabels,title=title)
+
+    dataName = "2_3_SF_OPT"
     title = "Effect of Sample Method 18% Coverage"
-    dataSeparations = ["HP","PPO_FS_FS","RS","RN","HC"]
-    dataLabels = ["Random","First","Random*","Hull","Cluster"]
-    PlotTensorflowData(dataName,dataSeparations,dataLabels=dataLabels,title=title)
+    dataSeparations = ["12","16","20","24","28","32","36"]
+    dataLabels = ["12","16","20","24","28","32","36"]
+    PlotTensorflowData(dataName,dataSeparations,dataLabels=dataLabels,title=title,path="/home/neale/HP1")
+    dataName = "2_3_SF_Gamma"
+    title = "Effect of Sample Method 18% Coverage"
+    dataSeparations = ["2_3_SF_Gamma99E1","2_3_SF_Gamma98E1","2_3_SF_Gamma95E1","2_3_SF_Gamma9E1"]
+    dataLabels = ["2_3_SF_Gamma99E1","2_3_SF_Gamma98E1","2_3_SF_Gamma95E1","2_3_SF_Gamma9E1"]
+    PlotTensorflowData(dataName,dataSeparations,dataLabels=dataLabels,title=title,path="/home/neale/HP1")
+    dataName = "2_3_SF_FS"
+    title = "Effect of Sample Method 18% Coverage"
+    dataSeparations = ["FS1","FS2","FS3","FS4","FS5","FS6","FS7"]
+    dataLabels = ["FS1","FS2","FS3","FS4","FS5","FS6","FS7"]
+    PlotTensorflowData(dataName,dataSeparations,dataLabels=dataLabels,title=title,path="/home/neale/HP1")
+    dataName = "2_3_SF_ENTLR"
+    title = "Effect of Sample Method 18% Coverage"
+    dataSeparations = ["ENTLR1E7_BETA1E5","ENTLR1E7_BETA1E4","ENTLR1E7_BETA1E3","ENTLR1E7_BETA1E2","ENTLR1E7_BETA1E1","ENTLR1E6_BETA1E5","ENTLR1E6_BETA1E4","ENTLR1E6_BETA1E3","ENTLR1E6_BETA1E2","ENTLR1E6_BETA1E1"]
+    dataLabels = ["ENTLR1E7_BETA1E5","ENTLR1E7_BETA1E4","ENTLR1E7_BETA1E3","ENTLR1E7_BETA1E2","ENTLR1E7_BETA1E1","ENTLR1E6_BETA1E5","ENTLR1E6_BETA1E4","ENTLR1E6_BETA1E3","ENTLR1E6_BETA1E2","ENTLR1E6_BETA1E1"]
+    PlotTensorflowData(dataName,dataSeparations,dataLabels=dataLabels,title=title,path="/home/neale/HP1")
+    dataName = "2_3_SF_BS"
+    title = "Effect of Sample Method 18% Coverage"
+    dataSeparations = ["2_3_SF_BS256_MB32","2_3_SF_BS256_MB64","2_3_SF_BS512_MB32","2_3_SF_BS512_MB64","2_3_SF_BS1024_MB32","2_3_SF_BS1024_MB64"]
+    dataLabels = ["2_3_SF_BS256_MB32","2_3_SF_BS256_MB64","2_3_SF_BS512_MB32","2_3_SF_BS512_MB64","2_3_SF_BS1024_MB32","2_3_SF_BS1024_MB64"]
+    PlotTensorflowData(dataName,dataSeparations,dataLabels=dataLabels,title=title,path="/home/neale/HP1")
+    dataName = "2_3_SF_ALR"
+    title = "Effect of Sample Method 18% Coverage"
+    dataSeparations = ["2_3_SF_ALR1E4","2_3_SF_ALR1E5","2_3_SF_ALR1E6","2_3_SF_ALR5E5","2_3_SF_ALR5E6",]
+    dataLabels = ["2_3_SF_ALR1E4","2_3_SF_ALR1E5","2_3_SF_ALR1E6","2_3_SF_ALR5E5","2_3_SF_ALR5E6",]
+    PlotTensorflowData(dataName,dataSeparations,dataLabels=dataLabels,title=title,path="/home/neale/HP1")

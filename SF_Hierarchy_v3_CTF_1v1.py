@@ -84,6 +84,11 @@ CreatePath(IMAGE_PATH)
 CreatePath(MODEL_PATH)
 CreatePath(MODEL_PATH_)
 
+with open(LOG_PATH+'/runSettings.json', 'w') as outfile:
+    json.dump(settings, outfile)
+with open(MODEL_PATH+'/netConfigOverride.json', 'w') as outfile:
+    json.dump(netConfigOverride, outfile)
+
 #Creating the Environment
 env,dFeatures,nActions,nTrajs = CreateEnvironment(envSettings)
 

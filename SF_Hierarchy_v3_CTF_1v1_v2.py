@@ -86,6 +86,11 @@ CreatePath(IMAGE_PATH)
 CreatePath(MODEL_PATH)
 CreatePath(MODEL_PATH_)
 
+with open(LOG_PATH+'/runSettings.json', 'w') as outfile:
+    json.dump(settings, outfile)
+with open(MODEL_PATH+'/netConfigOverride.json', 'w') as outfile:
+    json.dump(netConfigOverride, outfile)
+
 #Creating the Environment
 env,dFeatures,nActions,nTrajs = CreateEnvironment(envSettings)
 
@@ -175,6 +180,14 @@ else:
 
         stacked_grids[:,position2[0],position2[1],4] = -5
         return stacked_grids
+
+    def AddObstacles(env,map):
+        grid = env.get_obs_blue
+        for i in range(grid.shape[0]):
+            for j in range(grid.shape[1]):
+                if grid[i,j,3] == 1:
+                    map[i,j]=0
+        return map
 
     def SmoothOption(option_, gamma =0.9):
         # option[option<0.0] = 0.0
@@ -316,7 +329,10 @@ else:
                 continue
             grids = ConstructSamples(env,[i2,j2])
             phi= SF3.predict(grids)
-            v_option[:,:,i2,j2]=np.real(np.matmul(phi,v_g[:,sample+offset])).reshape([dFeatures[0],dFeatures[1]])
+            tmp = np.real(np.matmul(phi,v_g[:,sample+offset])).reshape([dFeatures[0],dFeatures[1]])
+            tmp2 = AddObstacles(env,tmp)
+            v_option[:,:,i2,j2]=tmp2
+
             if np.iscomplex(w_g[sample+offset]):
                 offset+=1
         print("Smoothing Option")
