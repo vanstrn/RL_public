@@ -29,7 +29,7 @@
 
 
   "EnvConfig":"CTFP20.json",
-  "SFNetworkConfig":"CTF_SFa_v1.json",
+  "SFNetworkConfig":"CTF_SFs_v1.json",
   "NetworkConfig":"CTF_PPO_v2.json",
   "Method":"methods.SF_Qmap.SF_QMap",
   "SubMethod":"methods.PPO_FS_v3.PPO",

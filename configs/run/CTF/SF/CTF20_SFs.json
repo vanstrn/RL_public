@@ -15,7 +15,7 @@
   "channelWeights":[1,1,1,1,5,1],
 
   "EnvConfig":"CTF20.json",
-  "NetworkConfig":"CTF_SF_v2_split.json",
+  "NetworkConfig":"CTF_SFs_v1.json",
 
   "PhiLoggingFunctions":["environments.CTF.loggingFunctions.RewardTest_actions_enemies",
                       "environments.CTF.loggingFunctions.ImageGenerator_actions"],
