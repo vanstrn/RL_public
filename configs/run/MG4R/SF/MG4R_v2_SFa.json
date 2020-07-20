@@ -7,7 +7,7 @@
   "MAX_EP_STEPS":150,
   "PhiEpochs":501,
   "PsiEpochs":501,
-  "FitIterations":3,
+  "FitIterations":2,
   "BatchSize":64,
   "SaveFreq":125,
   "LogFreq":50,

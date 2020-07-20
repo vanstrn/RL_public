@@ -14,16 +14,16 @@
                 "BatchSize":512,
                 "FS":4,
                 "MinibatchSize":32},
-  "SampleEpisodes":15,
+  "SampleEpisodes":50,
   "MaxEpisodeSteps":150,
   "MAX_EP_STEPS":150,
-  "MaxEpisodes":50000,
+  "MaxEpisodes":200000,
   "UPDATE_GLOBAL_ITER":151,
   "SaveFreq":100000,
   "LogFreq":10,
 
   "NumOptions":24,
-  "TotalSamples":256,
+  "TotalSamples":512,
   "Selection":"Hull_pca",
   "PlotOptions":false,
 
@@ -31,7 +31,7 @@
   "EnvConfig":"CTF20.json",
   "SFNetworkConfig":"CTF_SFa_v1.json",
   "NetworkConfig":"CTF_PPO_v2.json",
-  "Method":"methods.SF_Qmap.SF_QMap",
+  "Method":"methods.SF_Qmap_CTF_v1.SF_QMap_CTF_1v1",
   "SubMethod":"methods.PPO_FS_v3.PPO",
 
   "LoggingFunctions":[]

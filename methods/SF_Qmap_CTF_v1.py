@@ -136,6 +136,13 @@ class SF_QMap_CTF_1v1(Method):
 
                 stacked_grids[:,position2[0],position2[1],4] = -5
                 return stacked_grids
+            def AddObstacles(env,map):
+                grid = env.get_obs_blue
+                for i in range(grid.shape[0]):
+                    for j in range(grid.shape[1]):
+                        if grid[i,j,3] == 1:
+                            map[i,j]=0
+                return map
 
             def SmoothOption(option_, gamma =0.9):
                 # option[option<0.0] = 0.0
@@ -188,6 +195,45 @@ class SF_QMap_CTF_1v1(Method):
 
                     v_option[:,:,i2,j2] = smoothedOption
                 return v_option
+            def SmoothOption_v2(option, gamma =0.9):
+                """Assuming an Orthoganally connected grid structure smooth all values in it.
+                Assuming that the values of the array are non-zero except when """
+                shape = option.shape
+                size = shape[0]*shape[1]
+                #Create W
+                w=option.flatten()
+
+                #Create the Adjacency Matric
+                x = np.zeros((size,size))
+                for i,value in enumerate(w):
+                    if value == 0:
+                        x[i,i] = 1
+                    else:
+                        sum=0
+                        if w[i-1] != 0:
+                            x[i,i-1] = 0.25
+                            sum+=0.25
+                        if w[i+1] != 0:
+                            x[i,i+1] = 0.25
+                            sum+=0.25
+                        if w[i-shape[0]] != 0:
+                            x[i,i-shape[0]] = 0.25
+                            sum+=0.25
+                        if w[i+shape[0]] != 0:
+                            x[i,i+shape[0]] = 0.25
+                            sum+=0.25
+
+                        x[i,i] = 1 - sum
+
+
+                # (I-gamma*Q)^-1
+                I = np.identity(size)
+                psi = np.linalg.inv(I-gamma*x)
+                value = np.matmul(psi,w)
+
+                smoothedOption = np.reshape(value,shape)
+
+                return smoothedOption
 
             SF1,SF2,SF3,SF4,SF5 = buildNetwork(settings["SFNetworkConfig"],nActions,{},scope="Global")
             SF5.load_weights('./models/'+LoadName+ '/'+"model.h5")
@@ -272,6 +318,7 @@ class SF_QMap_CTF_1v1(Method):
             psiSamples=[]
             for point in points:
                 psiSamples.append(psi[point,:])
+            print("Here")
 
             while len(psiSamples) < len(psiSamples[0]):
                 psiSamples.extend(psiSamples)
@@ -284,20 +331,29 @@ class SF_QMap_CTF_1v1(Method):
             dim = samps2.shape[1]
             #Creating Sub-policies
             offset = 0
-            options = []
+            options_raw = [np.full((dFeatures[0],dFeatures[1],dFeatures[0],dFeatures[1]),0,dtype=np.float32) for i in range(int(N/2))]
+
+            selectedOptions = []
             for sample in range(int(N/2)):
-                print("Creating Option",sample)
-                v_option=np.full((dFeatures[0],dFeatures[1],dFeatures[0],dFeatures[1]),0,dtype=np.float32)
-                for i2,j2 in itertools.product(range(dFeatures[0]),range(dFeatures[1])):
-                    if sample+offset >= dim:
-                        continue
-                    grids = ConstructSamples(env,[i2,j2])
-                    phi= SF3.predict(grids)
-                    v_option[:,:,i2,j2]=np.real(np.matmul(phi,v_g[:,sample+offset])).reshape([dFeatures[0],dFeatures[1]])
-                    if np.iscomplex(w_g[sample+offset]):
-                        offset+=1
-                print("Smoothing Option")
-                v_option_ = SmoothOption(v_option)
+                if sample+offset >= dim:
+                    continue
+                selectedOptions.append(sample+offset)
+                if np.iscomplex(w_g[sample+offset]):
+                    offset+=1
+            print(selectedOptions)
+            for i2,j2 in itertools.product(range(dFeatures[0]),range(dFeatures[1])):
+                print(i2,j2)
+                grids = ConstructSamples(env,[i2,j2])
+                phi= SF3.predict(grids)
+                for i,sample in enumerate(selectedOptions):
+                    tmp = AddObstacles(env,np.real(np.matmul(phi,v_g[:,sample])).reshape([dFeatures[0],dFeatures[1]]))
+                    tmp2 = np.pad(tmp,((1,1),(1,1)))
+                    options_raw[i][:,:,i2,j2]=SmoothOption_v2(tmp2)[1:-1,1:-1]
+
+            options = []
+            for sample,option in enumerate(options_raw):
+                print("Plotting Option",sample)
+                v_option_ = option
                 options.append(v_option_)
                 options.append(-v_option_)
                 #Plotting the first couple samples with random enemy positions:

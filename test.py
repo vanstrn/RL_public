@@ -1,30 +1,72 @@
 import numpy as np
 import random
-
-reward = np.array([0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1])
-done = np.array([0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1])
-splits = np.array([True,False,False,False,True,False,False,False,True,False,False,False,True,False,False,True,False,False,False,True,False,False,False,True,False,False,False,True,False,False])
-values = np.array([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15])
+import matplotlib.pyplot as plt
 
 
-split_loc = [i+1 for i, x in enumerate(done) if x]
+def SmoothOption_v2(option, gamma =0.9):
+    """Assuming an Orthoganally connected grid structure smooth all values in it.
+    Assuming that the values of the array are non-zero except when """
+    shape = option.shape
+    size = shape[0]*shape[1]
+    #Create W
+    w=option.flatten()
+
+    #Create the Adjacency Matric
+    x = np.zeros((size,size))
+    for i,value in enumerate(w):
+        if value == 0:
+            x[i,i] = 1
+        else:
+            sum=0
+            if w[i-1] != 0:
+                x[i,i-1] = 0.25
+                sum+=0.25
+            if w[i+1] != 0:
+                x[i,i+1] = 0.25
+                sum+=0.25
+            if w[i-shape[0]] != 0:
+                x[i,i-shape[0]] = 0.25
+                sum+=0.25
+            if w[i+shape[0]] != 0:
+                x[i,i+shape[0]] = 0.25
+                sum+=0.25
+
+            x[i,i] = 1 - sum
 
 
-#Stuff needed for the
-reward_lists = np.split(reward,split_loc[:-1])
-HL_Critic_lists = np.split(values,split_loc[:-1])
-HL_flag_lists = np.split(splits,split_loc[:-1])
+    # (I-gamma*Q)^-1
+    I = np.identity(size)
+    psi = np.linalg.inv(I-gamma*x)
+    value = np.matmul(psi,w)
+
+    smoothedOption = np.reshape(value,shape)
+
+    return smoothedOption
 
 
-for rew,HL_critic,HL_flag in zip(reward_lists,HL_Critic_lists,HL_flag_lists):
-    #Colapsing different trajectory lengths for the hierarchical controller
-    split_loc_ = [i for i, x in enumerate(HL_flag[:-1]) if x][1:]
-    rew_hier = [np.sum(l) for l in np.split(rew,split_loc_)]
-    value_hier = [l[0] for l in np.split(HL_critic,split_loc_)]
 
+grid = np.array([   [   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, 0],
+                    [   0, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1,   0, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0],
+                    [   0, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1,   0, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0],
+                    [   0, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1,   0, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0],
+                    [   0, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1,   0, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0],
+                    [   0, 0.1, 0.1, 1.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0],
+                    [   0, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1,   0, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0],
+                    [   0, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1,   0, 1.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0],
+                    [   0, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1,   0, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0],
+                    [   0,   0,   0,   0,   0, 0.1,   0,   0,   0,   0,   0,   0,   0,   0, 0.1,   0,   0,   0, 0],
+                    [   0, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1,   0, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0],
+                    [   0, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1,   0, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0],
+                    [   0, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1,   0, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0],
+                    [   0, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0],
+                    [   0, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1,   0, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0],
+                    [   0, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 1.1, 0.1,   0, 0.1, 0.1, 1.1, 0.1, 0.1, 0.1, 0.1, 0],
+                    [   0, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1,   0, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0],
+                    [   0, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1,   0, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0],
+                    [   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, 0],
+                    ])
 
-    #Calculating the td_target and advantage for the hierarchical controller.
-    # td_target_i_, advantage_i_ = gae(np.asarray(rew_hier).reshape(-1).tolist(),np.asarray(value_hier).reshape(-1).tolist(),0,self.HPs["Gamma"],self.HPs["lambda"])
-    # td_target_hier.extend(td_target_i_); advantage_hier.extend( advantage_i_)
+out = SmoothOption_v2(grid)
 
-    print(value_hier)
+imgplot = plt.imshow(out)
+plt.show()
